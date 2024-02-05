@@ -1,0 +1,75 @@
+---
+title: "Collider Bias Results"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+---
+```{r include = F}
+library(vroom)
+library(dplyr, quietly=T)
+```
+
+### Unadjusted Manhattan Plots of GWAS
+`r sprintf("![Miami Plot Comparing Unadjusted GWAS at p = 0.0001](%s)", params$unadjuested_miami_plot)`
+
+### Comparison of Collider Bias Results
+```{r echo=F}
+collider_bias_results <- vroom::vroom(params$collider_bias_results, show_col_types = F)
+knitr::kable(collider_bias_results)
+```
+
+### Expected vs Observed Results
+
+This shows all expected vs. observed results when comparing the incident vs. subsequent GWASes
+```{r echo=F}
+expected_vs_observed <- vroom::vroom(params$expected_vs_observed, show_col_types = F)
+knitr::kable(expected_vs_observed)
+```
+
+### Adjusted Manhattan Plots of GWAS
+`r sprintf("![Miami Plot of SlopeHunter Adjusted GWAS at p = 0.0001](%s)", params$slopehunter_adjusted_miami_plot)`
+
+### Comparing GWAS Results Across Top Hits in Subsequent GWAS
+
+This is a comparison of all top hits returned from clumped subsequent unadjusted
+```{r echo=F}
+clumped_snps <- data.table::fread(params$clumped_subsequent)$SNP
+columns <- c("SNP", "RSID", "BETA", "SE", "P")
+
+subsequent <- vroom::vroom(params$subsequent_gwas, show_col_types = F) |>
+        subset(RSID %in% clumped_snps, select = columns)
+subsequent$GWAS <- "Subsequent"
+
+incidence <- vroom::vroom(params$incidence_gwas, show_col_types = F) |>
+  subset(RSID %in% subsequent$RSID, select = columns)
+incidence$GWAS <- "Incidence"
+
+subsequent_adjusted <- vroom::vroom(params$slopehunter_results, show_col_types = F) |>
+  subset(RSID %in% subsequent$RSID, select = columns)
+subsequent_adjusted$GWAS <- "Subsequent Adjusted"
+
+all_clumped <- rbind(incidence, subsequent, subsequent_adjusted) |>
+  arrange(SNP) |>
+  select(GWAS, SNP, everything())
+
+knitr::kable(all_clumped)
+```
+### Alternative collider bias corrections
+
+If you want to correct the original subsequent gwas (`r params$subsequent_gwas`) using different BETA and SE as calculated in collider bias results section above, please run this command inside a `sbatch` script
+```
+module add apps/singularity/3.8.3
+singularity run -B /user/work/$(whoami) -B /user/home/$(whoami) --pwd /home/scripts/ \
+    docker://andrewrrelmore/genepi_pipeline:latest \
+    adjust_gwas_for_collider_bias.R --gwas <SUBSEQUENT_GWAS> \
+        --harmonised_effects_gwas <HARMONISED_GWAS> \
+        --beta <BETA> \
+        --se <SE> \
+        --output_gwas <OUTPUT_FILE_NAME>
+```
+
+### Additional info
+
+* This pipeline was run using the github repository: https://github.com/MRCIEU/gwaspipeline
+* and the docker image: docker://andrewrrelmore/genepi_pipeline:`r get_other_docker_tag()`

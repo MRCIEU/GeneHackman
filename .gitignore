@@ -1,0 +1,9 @@
+.Rproj.user
+.snakemake/
+.cache/
+.ipynb_checkpoints/
+*input.json
+.env
+.bashrc
+.DS_Store
+ieugwasr_oauth

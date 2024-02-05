@@ -1,0 +1,31 @@
+{
+  "gwases": [
+    {
+      "file": "",
+      "columns": {},
+      "ancestry": "AFR"
+    },
+    {
+      "file": "",
+      "columns": {},
+      "ancestry": "AMR"
+    },
+    {
+      "file": "",
+      "columns": {},
+      "ancestry": "EAS"
+    },
+    {
+      "file": "",
+      "columns": {},
+      "ancestry": "EUR"
+    },
+    {
+      "file": "",
+      "columns": {"SNP":"", "CHR":"", "BP":"", "EA":"", "OA":"", "EAF":"", "P":"", "BETA":"", "SE":""},
+      "ancestry": "SAS"
+    }
+  ],
+  "plink_clump_arguments": "--clump-p1 0.00000005",
+  "populate_rsid": "FULL"
+}

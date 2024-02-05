@@ -1,0 +1,8 @@
+name: gwaspipeline
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - snakemake=7.26
+  - python-dotenv=1.0.0

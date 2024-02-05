@@ -1,0 +1,38 @@
+---
+title: "Ancestry Comparison Results"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+---
+```{r include = F}
+library(vroom)
+library(dplyr, quietly=T)
+```
+
+### Plots Comparing Heterogeneity Across Significant SNPs
+
+`r sprintf("![Plot comparing the heritability across clumped SNPs](%s)", params$heterogeneity_plot)`
+`r sprintf("![Forest Plot Comparing clumped SNPs that fail heterogeniety score](%s)", params$heterogeneity_snp_comparison)`
+
+### Expected vs Observed Results
+
+This shows all expected vs. observed results run across all GWAS
+```{r echo=F}
+expected_vs_observed <- vroom::vroom(params$results, show_col_types = F)
+knitr::kable(expected_vs_observed)
+```
+### Table of Heterogeneity Results
+
+
+```{r echo=F}
+heterogeneity_results <- vroom::vroom(params$heterogeneity_scores, show_col_types = F)
+knitr::kable(heterogeneity_results)
+```
+### References
+* Expected vs Observed doi: 10.1038/nature17671
+
+### Additional info
+
+* This pipeline was run using the github repository: https://github.com/MRCIEU/gwaspipeline
+* and the docker image: docker://andrewrrelmore/genepi_pipeline:`r get_other_docker_tag()`

@@ -1,0 +1,16 @@
+{
+  "gwases": [
+    {
+      "file": "/home/thingy.tsv",
+      "ancestry": "",
+      "columns": {}
+    },
+    {
+      "file": "/home/thingy2.tsv",
+      "ancestry": "",
+      "columns": {"SNP":"SNP", "CHR":"CHR", "BP":"BP", "EA":"EA", "OA":"OA", "EAF":"EAF", "P":"P", "BETA":"BETA", "SE":"SE"}
+    }
+  ],
+  "plink_clump_arguments": "--clump-p2 0.001 --clump-r2 0.3 --clump-kb 500",
+  "populate_rsid": "FULL"
+}

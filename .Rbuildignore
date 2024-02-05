@@ -1,0 +1,8 @@
+^gwaspipeline\.Rproj$
+^\.Rproj\.user$
+^LICENSE\.md$
+docker
+environment.yml
+run_pipeline.sh
+scripts
+snakemake

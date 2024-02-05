@@ -1,0 +1,26 @@
+{
+  "gwases": [
+    {
+      "file": "/mnt/storage/private/mrcieu/data/qtl_top_hits/eqtlgen/eqtlgen_cis_top_hits.txt.gz",
+      "build": "GRCh37",
+      "columns": {"RSID":"SNP", "CHR":"SNPChr", "BP":"SNPPos", "EA":"AssessedAllele", "OA":"OtherAllele", "EAF":"AlleleB_all", "P":"Pvalue", "Z":"Zscore", "SE":"SE", "GENE_NAME":"GeneSymbol"}
+    },
+    {
+      "file": "/mnt/storage/private/mrcieu/data/qtl_top_hits/eqtlgen/eqtlgen_trans_top_hits.txt.gz",
+      "columns": {"RSID":"SNP", "CHR":"SNPChr", "BP":"SNPPos", "EA":"AssessedAllele", "OA":"OtherAllele", "EAF":"AlleleB_all", "P":"Pvalue", "Z":"Zscore", "SE":"SE", "GENE_NAME":"GeneSymbol"}
+    },
+    {
+      "file": "/mnt/storage/private/mrcieu/data/qtl_top_hits/eqtlgen/gwas/eqtlgen_cis_gwas.txt.gz",
+      "columns": {"RSID":"SNP", "CHR":"SNPChr", "BP":"SNPPos", "EA":"AssessedAllele", "OA":"OtherAllele", "EAF":"AlleleB_all", "P":"Pvalue", "Z":"Zscore", "SE":"SE", "GENE_NAME":"GeneSymbol"}
+    },
+    {
+      "file": "/mnt/storage/private/mrcieu/data/qtl_top_hits/eqtlgen/gwas/eqtlgen_trans_gwas.txt.gz",
+      "columns": {"RSID":"SNP", "CHR":"SNPChr", "BP":"SNPPos", "EA":"AssessedAllele", "OA":"OtherAllele", "EAF":"AlleleB_all", "P":"Pvalue", "Z":"Zscore", "SE":"SE", "GENE_NAME":"GeneSymbol"}
+    }
+  ],
+  "output": {
+    "build": "GRCh38",
+    "columns": {}
+  },
+  "populate_rsid": "FULL"
+}

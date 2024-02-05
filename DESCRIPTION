@@ -1,0 +1,40 @@
+Package: gwaspipeline
+Title: R package to support the GWAS pipeline to be run on the Bristol University HPC
+Version: 1.0.0
+Authors@R: 
+    person("Andrew", "Elmore", , "andrew.elmore@bristol.ac.uk", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0003-0292-447X"))
+Description: What the package does (one paragraph).
+License: GPL (>= 3)
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Imports:
+    R.utils,
+    MendelianRandomization,
+    shiny,
+    SlopeHunter,
+    TwoSampleMR,
+    coloc,
+    data.table,
+    dplyr,
+    future,
+    genepi.utils,
+    ggplot2,
+    ggrepel,
+    httr,
+    qqman,
+    rlang,
+    rmarkdown,
+    stringr,
+    tibble,
+    tidyr,
+    vroom
+Remotes:
+    github::MRCIEU/TwoSampleMR,
+    github::MRCIEU/ieugwasr,
+    github::Osmahmoud/SlopeHunter,
+    github::nicksunderland/genepi.utils

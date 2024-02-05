@@ -1,0 +1,92 @@
+*********************************************************************
+* LD Score Regression (LDSC)
+* Version 1.0.1
+* (C) 2014-2019 Brendan Bulik-Sullivan and Hilary Finucane
+* Broad Institute of MIT and Harvard / MIT Department of Mathematics
+* GNU General Public License v3
+*********************************************************************
+Call: 
+./ldsc.py \
+--ref-ld-chr /user/home/wt23152/scratch/genome_data/1000genomes/ldscores/eur/ \
+--out /user/home/wt23152/scratch/132/results/ldsc/ais_eur_rg_results \
+--rg /user/home/wt23152/scratch/132/results/ldsc/first_ais_eur.sumstats.gz,/user/home/wt23152/scratch/132/results/ldsc/subsequent_ais_eur.sumstats.gz,/user/home/wt23152/scratch/132/results/ldsc/subsequent_mace_eur.sumstats.gz \
+--w-ld-chr /user/home/wt23152/scratch/genome_data/1000genomes/ldscores/eur/ 
+
+Beginning analysis at Tue Jun  6 11:50:41 2023
+Reading summary statistics from /user/home/wt23152/scratch/132/results/ldsc/first_ais_eur.sumstats.gz ...
+Read summary statistics for 1181784 SNPs.
+Reading reference panel LD Score from /user/home/wt23152/scratch/genome_data/1000genomes/ldscores/eur/[1-22] ... (ldscore_fromlist)
+Read reference panel LD Scores for 1290028 SNPs.
+Removing partitioned LD Scores with zero variance.
+Reading regression weight LD Score from /user/home/wt23152/scratch/genome_data/1000genomes/ldscores/eur/[1-22] ... (ldscore_fromlist)
+Read regression weight LD Scores for 1290028 SNPs.
+After merging with reference panel LD, 1169656 SNPs remain.
+After merging with regression SNP LD, 1169656 SNPs remain.
+Computing rg for phenotype 2/3
+Reading summary statistics from /user/home/wt23152/scratch/132/results/ldsc/subsequent_ais_eur.sumstats.gz ...
+Read summary statistics for 1217311 SNPs.
+After merging with summary statistics, 1169656 SNPs remain.
+824319 SNPs with valid alleles.
+
+Heritability of phenotype 1
+---------------------------
+Total Observed scale h2: 0.274 (0.0226)
+Lambda GC: 1.2168
+Mean Chi^2: 1.2627
+Intercept: 1.0341 (0.0121)
+Ratio: 0.1298 (0.046)
+
+Heritability of phenotype 2/3
+-----------------------------
+Total Observed scale h2: 0.0362 (0.0316)
+Lambda GC: 1.0195
+Mean Chi^2: 1.0224
+Intercept: 1.0104 (0.0079)
+Ratio: 0.4659 (0.3524)
+
+Genetic Covariance
+------------------
+Total Observed scale gencov: 0.1147 (0.0172)
+Mean z1*z2: 0.0604
+Intercept: -0.0002 (0.0063)
+
+Genetic Correlation
+-------------------
+Genetic Correlation: 1.151 (0.5336)
+Z-score: 2.157
+P: 0.031
+
+Computing rg for phenotype 3/3
+Reading summary statistics from /user/home/wt23152/scratch/132/results/ldsc/subsequent_mace_eur.sumstats.gz ...
+Read summary statistics for 1217311 SNPs.
+After merging with summary statistics, 1169656 SNPs remain.
+1169359 SNPs with valid alleles.
+
+Heritability of phenotype 3/3
+-----------------------------
+Total Observed scale h2: 0.0366 (0.0313)
+Lambda GC: 1.0046
+Mean Chi^2: 1.0131
+Intercept: 1.0022 (0.0058)
+Ratio: 0.1703 (0.444)
+
+Genetic Covariance
+------------------
+Total Observed scale gencov: -0.1126 (0.0168)
+Mean z1*z2: -0.0557
+Intercept: -0.0024 (0.0049)
+
+Genetic Correlation
+-------------------
+Genetic Correlation: -1.1288 (0.4982)
+Z-score: -2.2659
+P: 0.0235
+
+
+Summary of Genetic Correlation Results
+p1                                                                           p2      rg      se       z       p  h2_obs  h2_obs_se  h2_int  h2_int_se  gcov_int  gcov_int_se
+/user/home/wt23152/scratch/132/results/ldsc/first_ais_eur.sumstats.gz   /user/home/wt23152/scratch/132/results/ldsc/subsequent_ais_eur.sumstats.gz  1.1510  0.5336  2.1570  0.0310  0.0362     0.0316  1.0104     0.0079   -0.0002       0.0063
+/user/home/wt23152/scratch/132/results/ldsc/first_ais_eur.sumstats.gz  /user/home/wt23152/scratch/132/results/ldsc/subsequent_mace_eur.sumstats.gz -1.1288  0.4982 -2.2659  0.0235  0.0366     0.0313  1.0022     0.0058   -0.0024       0.0049
+
+Analysis finished at Tue Jun  6 11:51:00 2023
+Total time elapsed: 19.04s

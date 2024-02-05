@@ -1,0 +1,4 @@
+name,SNP,CHR,BP,EA,OA,EAF,BETA,SE,OR,P,LP,Z,OR_LB,OR_UB,RSID,N,ENSEMBL_ID,GENE_NAME
+default,SNP,CHR,BP,EA,OA,EAF,BETA,SE,OR,P,LP,Z,OR_LB,OR_UB,RSID,N,ENSEMBL_ID,GENE_NAME
+metal,MarkerName,,,Allele1,Allele0,Freq1,Effect,StdErr,,P-value,
+opengwas,,seqnames,start,REF,ALT,AF,ES,SE,,,LP,,,,ID,SS,
