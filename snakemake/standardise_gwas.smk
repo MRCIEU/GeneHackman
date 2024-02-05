@@ -1,7 +1,7 @@
-include: "common.smk"
+include: "util/common.smk"
 singularity: docker_container
 
-pipeline = parse_pipeline_input("input.json")
+pipeline = parse_pipeline_input()
 
 onstart:
     print("##### GWAS Standardisation Pipeline #####")

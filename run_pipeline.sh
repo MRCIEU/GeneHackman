@@ -1,9 +1,21 @@
 #!/bin/bash
 set -e
-SMK_FILE=$1
-INPUT_FILE=$2
-#if [$(hostname)...] set profile accordingly...
 
-conda activate gwaspipeline || echo "Error: Please ensure conda is initialised and 'gwaspipeline' env is available" && exit 1
+if [[ $# -lt 1 ]] ; then
+  echo """
+  Error: You have to provide at least 1 argument:
+    PIPELINE_FILE (ex. snakemake/standardise_gwas.smk)
+    INPUT_FILE (defaults to input.json)
+  """
+  exit 1
+fi
+
+#if [$(hostname)...] set PROFILE accordingly, for when multiple HPCs are 
+PROFILE=snakemake/bc4/
+
+SMK_FILE=$1
+export INPUT_FILE=$2
+ADDITIONAL_ARGS=$3
+
 module load apps/singularity/3.8.3
-tmux new-session -d -s snakemake setenv INPUT_FILE "${INPUT_FILE}" "snakemake --snakefile ${SMK_FILE} --profile snakemake/bc4/"
+snakemake --snakefile ${SMK_FILE} --profile ${PROFILE} ${ADDITIONAL_ARGS}
