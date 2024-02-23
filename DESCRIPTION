@@ -13,11 +13,6 @@ Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Imports:
-    R.utils,
-    MendelianRandomization,
-    shiny,
-    SlopeHunter,
-    TwoSampleMR,
     coloc,
     data.table,
     dplyr,
@@ -26,15 +21,22 @@ Imports:
     ggplot2,
     ggrepel,
     httr,
+    MendelianRandomization,
+    prettydoc,
     qqman,
     rlang,
+    R.utils,
     rmarkdown,
+    shiny,
+    SlopeHunter,
     stringr,
     tibble,
     tidyr,
+    TwoSampleMR,
     vroom
 Remotes:
     github::MRCIEU/TwoSampleMR,
     github::MRCIEU/ieugwasr,
     github::Osmahmoud/SlopeHunter,
-    github::nicksunderland/genepi.utils
+    github::nicksunderland/genepi.utils,
+    github::yixuan/prettydoc

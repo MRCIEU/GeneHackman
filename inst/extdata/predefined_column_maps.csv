@@ -1,0 +1,10 @@
+name,SNP,CHR,BP,EA,OA,EAF,BETA,SE,OR,P,LP,Z,OR_LB,OR_UB,RSID,N,N_CASES,ENSEMBL_ID,GENE_NAME
+default,SNP,CHR,BP,EA,OA,EAF,BETA,SE,OR,P,LP,Z,OR_LB,OR_UB,RSID,N,N_CASES,ENSEMBL_ID,GENE_NAME
+metal,MarkerName,,,Allele1,Allele2,Freq1,Effect,StdErr,,P-value,,,,,,,,,
+opengwas,,seqnames,start,REF,ALT,AF,ES,SE,,,LP,,,,ID,SS,,,
+opengwas_phewas,,chr,position,ea,nea,eaf,beta,se,,p,,,,,rsid,n,,,
+ieu_ukb,,CHR,BP,ALLELE1,ALLELE0,A1FREQ,BETA,SE,,P_BOLT_LMM_INF,,,,,,,,,
+gwama,,chromosome,position,reference_allele,other_allele,eaf,BETA_95L,beta_95u,,,,z,,,,,,,
+giant,,CHR,POS,Tested_Allele,Other_Allele,Freq_Tested_Allele,BETA,SE,,P,,,,,,N,,,
+ns_map,,CHR,POS,A1,A2,EAF,BETA,SE,,P,,,,,,,,,
+ieugwasr,,chr,position,ea,nea,eaf,beta,se,,p,,,,,,n,,,

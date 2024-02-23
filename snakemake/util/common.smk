@@ -21,17 +21,17 @@ def parse_pipeline_input():
 
     if not hasattr(pipeline, "output"): pipeline.output = default_output_options
     else:
-        if not hasattr(pipeline.output, "build"): setattr(pipeline.output, "build", default_output_options.build)
+        if not hasattr(pipeline.output, "build"): pipeline.output.build = default_output_options.build
         elif pipeline.output.build not in build_options:
             raise ValueError(f"Error: {pipeline.output.build} is not one of the valid options: {build_options}")
 
-        if not hasattr(pipeline.output, "columns"): setattr(pipeline.output, "columns", default_output_options.columns)
-    if not hasattr(pipeline, "populate_rsid"):
-        setattr(pipeline, "populate_rsid", False)
+        if not hasattr(pipeline.output, "columns"): pipeline.output.columns = default_output_options.columns
+    if not hasattr(pipeline, "populate_rsid"): pipeline.populate_rsid = False
 
     for g in pipeline.gwases:
         if not hasattr(g, "N"): g.N = 0
         if not hasattr(g, "build"): g.build = "GRCh37"
+        if not hasattr(g, "populate_rsid"): g.populate_rsid = False
         g.prefix = file_prefix(g.file)
         g.input_columns = resolve_gwas_columns(g.file, g.columns)
         g.output_columns = resolve_gwas_columns(g.file,pipeline.output.columns, check_input_columns=False)

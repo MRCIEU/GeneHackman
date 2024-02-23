@@ -10,6 +10,3 @@ else
 fi
 unset __conda_setup
 # <<< conda initialize <<<
-
-#TODO: is this conda init needed?
-#conda init
