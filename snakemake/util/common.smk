@@ -34,6 +34,7 @@ def parse_pipeline_input():
         if not hasattr(g, "build"): g.build = "GRCh37"
         if not hasattr(g, "populate_rsid"): g.populate_rsid = False
         g.prefix = file_prefix(g.file)
+        g.vcf_columns = get_columns_for_vcf_parsing(g.file, g.columns)
         g.input_columns = resolve_gwas_columns(g.file, g.columns)
         g.output_columns = resolve_gwas_columns(g.file, pipeline.output.columns, check_input_columns=False)
         g.standardised_gwas = standardised_gwas_name(g.file)
@@ -59,12 +60,25 @@ def resolve_gwas_columns(gwas_file, column_name_map=None, additional_mandatory_c
     cli_string = turn_dict_into_cli_string(column_name_map)
     return cli_string
 
+
 def read_predefined_column_map(predefined_map_name):
-    with open("/home/inst/extdata/predefined_column_maps.csv") as file:
+    with open("inst/extdata/predefined_column_maps.csv") as file:
         reader = list(csv.DictReader(file, delimiter=","))
         results = list(filter(lambda x: x['name'] in ("default", predefined_map_name), list(reader)))
         remove_empty = {k: v for k, v in results[1].items() if v}
         return SimpleNamespace(**{**results[0], **remove_empty})
+
+
+def get_columns_for_vcf_parsing(columns):
+    if (isinstance(columns, str):
+        with open("inst/extdata/predefined_column_maps.csv") as file:
+            reader = list(csv.DictReader(file, delimiter=","))
+            results = list(filter(lambda x: x['name'] in (predefined_map_name), list(reader)))
+            columns = {k: v for k, v in results[0].items() if v}
+
+    vcf_column_string = ','.join(columns.values()),
+    return vcf_column_string
+
 
 def ensure_mandatory_columns_are_present(gwas_file, mandatory_column_names_in_gwas, column_name_map, check_input_columns):
     if not Path(gwas_file).is_file():
@@ -83,6 +97,11 @@ def ensure_mandatory_columns_are_present(gwas_file, mandatory_column_names_in_gw
         missing = set(mandatory_column_names_in_gwas) - set(gwas_headers)
         if len(missing) > 0:
             raise ValueError(f"Error: {gwas_file} doesn't contain {missing}")
+
+        snp_option_names = [column_name_map.get(name) for name in snp_options]
+        missing = set(snp_option_names) - set(gwas_headers)
+        if len(missing) == len(snp_option_names):
+            raise ValueError(f"Error: {gwas_file} doesn't contain a map for SNP or CHR/BP.  Include one please")
 
         p_option_names = [column_name_map.get(name) for name in p_options]
         missing = set(p_option_names) - set(gwas_headers)

@@ -2,11 +2,11 @@ rule standardise_gwases:
     params:
         input_gwas = lambda wildcards: getattr(pipeline, wildcards.prefix).file,
         N = lambda wildcards: getattr(pipeline, wildcards.prefix).N,
-        vcf_columns = lambda wildcards: ','.join(vars(getattr(pipeline,wildcards.prefix).columns).values()),
+        vcf_columns = lambda wildcards: getattr(pipeline, wildcards.prefix).columns.values()),
         input_build = lambda wildcards: getattr(pipeline, wildcards.prefix).build,
         input_columns = lambda wildcards: getattr(pipeline, wildcards.prefix).input_columns,
-        output_columns = lambda wildcards: getattr(pipeline,wildcards.prefix).output_columns,
-        populate_rsid = lambda wildcards: getattr(pipeline,wildcards.prefix).populate_rsid or pipeline.populate_rsid
+        output_columns = lambda wildcards: getattr(pipeline, wildcards.prefix).output_columns,
+        populate_rsid = lambda wildcards: getattr(pipeline, wildcards.prefix).populate_rsid or pipeline.populate_rsid
     threads: 8
     resources:
         mem = "72G" if (lambda wildcards: getattr(pipeline,wildcards.prefix).populate_rsid) or pipeline.populate_rsid == True else "16G"
