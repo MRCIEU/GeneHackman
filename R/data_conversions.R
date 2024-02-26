@@ -32,7 +32,7 @@ gene_name_to_ensembl_id <- function(gwas) {
 #' @export
 populate_rsid <- function(gwas, option = F) {
   start <- Sys.time()
-  if (option == F || predefined_column_maps$default$RSID %in% colnames(gwas)) {
+  if (option == F || "RSID" %in% colnames(gwas)) {
     message("Skipping RSID population for GWAS")
   } else {
     gwas <- populate_full_rsids(gwas)

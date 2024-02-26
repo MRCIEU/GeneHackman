@@ -34,10 +34,11 @@ def parse_pipeline_input():
         if not hasattr(g, "build"): g.build = "GRCh37"
         if not hasattr(g, "populate_rsid"): g.populate_rsid = False
         g.prefix = file_prefix(g.file)
-        g.vcf_columns = get_columns_for_vcf_parsing(g.file, g.columns)
+        g.vcf_columns = get_columns_for_vcf_parsing(g.columns)
         g.input_columns = resolve_gwas_columns(g.file, g.columns)
         g.output_columns = resolve_gwas_columns(g.file, pipeline.output.columns, check_input_columns=False)
         g.standardised_gwas = standardised_gwas_name(g.file)
+        g.standardised_memory = 56*(g.populate_rsid or pipeline.populate_rsid) + 16
         setattr(pipeline,g.prefix,g)
     return pipeline
 
@@ -70,13 +71,14 @@ def read_predefined_column_map(predefined_map_name):
 
 
 def get_columns_for_vcf_parsing(columns):
-    if (isinstance(columns, str):
+    if isinstance(columns, str):
         with open("inst/extdata/predefined_column_maps.csv") as file:
             reader = list(csv.DictReader(file, delimiter=","))
-            results = list(filter(lambda x: x['name'] in (predefined_map_name), list(reader)))
+            results = list(filter(lambda x: x['name'] in (columns), list(reader)))
             columns = {k: v for k, v in results[0].items() if v}
+            columns = SimpleNamespace(**columns)
 
-    vcf_column_string = ','.join(columns.values()),
+    vcf_column_string = ','.join(list(columns.__dict__.values())[1:]),
     return vcf_column_string
 
 

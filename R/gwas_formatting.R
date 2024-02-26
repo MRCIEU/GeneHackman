@@ -91,6 +91,7 @@ standardise_columns <- function(gwas, N) {
   if (!all(c("CHR", "BP") %in% gwas_columns)) {
     if(all(grepl("\\d:\\d", gwas$SNP))) {
       gwas <- tidyr::separate(data = gwas, col = "SNP", into = c("CHR", "BP"), sep = "[:_]", remove = F)
+      gwas$BP <- as.numeric(gwas$BP)
     }
   }
 

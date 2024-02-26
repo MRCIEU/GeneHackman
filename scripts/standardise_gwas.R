@@ -48,7 +48,6 @@ create_dir_for_files(args$output_gwas)
 standardise_gwas(gwas = args$input_gwas,
 								 output_file = args$output_gwas,
 								 N = args$N,
-								 input_format = args$input_format,
 								 populate_rsid_option = args$populate_rsid,
 								 input_reference_build = args$input_build,
 								 output_reference_build = args$output_build,
