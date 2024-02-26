@@ -12,6 +12,7 @@ available_liftover_conversions[[paste0(reference_builds$GRCh37, reference_builds
 #' @param output_reference_build: string reference build that GWAS is to change to, found in reference_builds list
 #' @param output_file: optional output file name to save to
 #' @return gwas input is altered and returned
+#' @export
 convert_reference_build_via_liftover <- function(gwas,
                                                  input_reference_build=reference_builds$GRCh37,
                                                  output_reference_build=reference_builds$GRCh37,

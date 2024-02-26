@@ -16,7 +16,8 @@ default_columns = dict(SNP="SNP", CHR="CHR", BP="BP", EA="EA", OA="OA", EAF="EAF
     SE="SE", OR="OR", OR_LB="OR_LB", OR_UB="OR_UB", RSID="RSID", N="N",
     ENSEMBL_ID="ENSEMBL_ID", GENE_NAME="GENE_NAME"
 )
-default_mandatory_columns = ["CHR", "BP", "EA", "OA"]
+default_mandatory_columns = ["EA", "OA"]
+snp_options = ["SNP", "BP"]
 effect_options = ["BETA", "OR", "Z"]
 build_options = ["GRCh38", "GRCh37", "GRCh36"]
 

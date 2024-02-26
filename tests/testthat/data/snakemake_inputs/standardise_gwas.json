@@ -1,0 +1,22 @@
+{
+  "gwases": [
+    {
+      "file": "/user/home/wt23152/gwaspipeline/tests/testthat/data/opengwas_example.vcf.gz",
+      "columns": "opengwas",
+      "ancestry": "EUR"
+    },
+    {
+      "file": "/user/home/wt23152/gwaspipeline/tests/testthat/data/metal_output.txt",
+      "columns": "metal",
+      "ancestry": "EUR",
+      "populate_rsid": true
+    },
+    {
+      "file": "/user/home/wt23152/gwaspipeline/tests/testthat/data/test_data_small_hg38.tsv.gz",
+      "columns": {},
+      "build": "GRCh38",
+      "ancestry": "EUR"
+    }
+  ],
+  "populate_rsid": false
+}

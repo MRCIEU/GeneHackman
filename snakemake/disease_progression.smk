@@ -1,7 +1,7 @@
-include: "common.smk"
+include: "util/common.smk"
 singularity: docker_container
 
-pipeline = parse_pipeline_input("input.json")
+pipeline = parse_pipeline_input()
 incident = pipeline.gwases[0]
 subsequent = pipeline.gwases[1]
 
@@ -132,7 +132,7 @@ rule create_results_file:
     shell:
         """
         Rscript create_results_file.R \
-            --rmd_file /home/R/markdown/collider_bias.rmd \
+            --rmd_file /home/R/markdown/disease_progression.Rmd \
             --params {results_string} \
             --output_file {output}
         """

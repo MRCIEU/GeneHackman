@@ -1,5 +1,6 @@
 rsid_builds <- list(GRCh37="b37_dbsnp156", GRCh38="b38_dbsnp156")
 
+#' @export
 populate_gene_names <- function(gwas) {
   return(gwas)
   if ("ENSEMBL_ID" %in% colnames(gwas) && !"GENE_NAME" %in% colnames(gwas)) {
@@ -28,9 +29,10 @@ gene_name_to_ensembl_id <- function(gwas) {
   gwas$ENSEMBL_ID <- gene_map$ENSEMBL_ID[match(gwas$GENE_NAME, gene_map$GENE_NAME)]
 }
 
+#' @export
 populate_rsid <- function(gwas, option = F) {
   start <- Sys.time()
-  if (option == F || column_map$default$RSID %in% colnames(gwas)) {
+  if (option == F || "RSID" %in% colnames(gwas)) {
     message("Skipping RSID population for GWAS")
   } else {
     gwas <- populate_full_rsids(gwas)

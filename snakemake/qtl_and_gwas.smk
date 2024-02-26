@@ -1,7 +1,7 @@
-include: "common.smk"
+include: "util/common.smk"
 singularity: docker_container
 
-pipeline = parse_pipeline_input("input.json")
+pipeline = parse_pipeline_input()
 additional_mandatory_columns = ["N"]
 
 onstart:
@@ -94,7 +94,7 @@ rule create_results_file:
     shell:
         """
         Rscript create_results_file.R \
-            --rmd_file /home/R/markdown/mr_for_qtls.rmd \
+            --rmd_file /home/R/markdown/mr_for_qtls.Rmd \
             --params {results_string} \
             --output_file {output}
         """

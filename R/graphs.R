@@ -1,5 +1,6 @@
 #' @import ggplot2
 #' @import shiny
+#' @export
 forest_plot <- function(table, title, output_file, y_column=NA) {
   if (!all(c("BETA", "SE") %in% names(table))) {
     stop("data frame needs to have BETA and SE columns")
@@ -29,6 +30,7 @@ forest_plot <- function(table, title, output_file, y_column=NA) {
 }
 
 #' @import ggplot2
+#' @export
 grouped_forest_plot <- function(table, title, group_column, output_file, p_value_column = NA, q_stat_column = NA) {
   if (!("BETA" %in% names(table)) || !("SE" %in% names(table))) {
     stop("data frame needs to have BETA and SE named columns")
@@ -68,6 +70,19 @@ grouped_forest_plot <- function(table, title, group_column, output_file, p_value
   ggplot2::ggsave(output_file, width = 2000, units = "px", height = forest_plot_height)
 }
 
+#' @import ggplot2
+grouped_bar_chart <- function(data, title, x_column, y_column, group_column, output_file) {
+  ggplot2::ggplot(data, ggplot2::aes(x = .data[[x_column]], y = .data[[y_column]], fill = .data[[group_column]])) +
+    ggplot2::ggtitle(title) +
+    ggplot2::theme_bw() +
+    ggplot2::geom_bar(position = "dodge", stat = "identity") +
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    ggplot2::scale_colour_brewer(type="qual") +
+    ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5)) #this centres the title
+
+  ggplot2::ggsave(output_file)
+}
+
 #' manhattan_and_qq: produce manhattan and qq plot from a GWAS file
 #'
 #' @param gwas_filename: a file of a gwas that includes CHR, CP, P, and SNP
@@ -77,6 +92,7 @@ grouped_forest_plot <- function(table, title, group_column, output_file, p_value
 #' @import grDevices
 #' @import qqman
 #' @import graphics
+#' @export
 manhattan_and_qq <- function(gwas_filename, manhattan_filename, qq_filename, include_qq = T) {
   manhattan_columns <- c("SNP", "CHR", "BP", "P")
   gwas <- get_file_or_dataframe(gwas_filename, columns = manhattan_columns)
@@ -106,6 +122,7 @@ manhattan_and_qq <- function(gwas_filename, manhattan_filename, qq_filename, inc
 #' @import grDevices
 #' @import qqman
 #' @import graphics
+#' @export
 miami_plot <- function(first_gwas_filename,
                        second_gwas_filename,
                        miami_plot_file,
@@ -172,6 +189,7 @@ miami_plot <- function(first_gwas_filename,
 
 #' @import ggplot2
 #' @import ggrepel
+#' @export
 volcano_plot <- function(results_file, title="Volcano Plot of Results", label="exposure", num_labels=30, output_file) {
   table <- get_file_or_dataframe(results_file)
 

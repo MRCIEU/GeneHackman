@@ -26,6 +26,7 @@ collider_bias_results <- data.frame(
 #' @import MendelianRandomization
 #' @import data.table
 #' @import vroom
+#' @export
 conduct_collider_bias_analysis <- function(incidence_gwas,
                                            subsequent_gwas,
                                            clumped_snps_file,

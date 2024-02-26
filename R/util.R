@@ -7,6 +7,7 @@
 #' @return output: data frame of GWAS
 #' @import dplyr
 #' @import vroom
+#' @export
 get_file_or_dataframe <- function(input, columns=NULL, snps=NULL) {
   if (is.data.frame(input)) {
     output <- dplyr::select(input, `if`(is.null(columns), dplyr::all_of(dplyr::everything()), dplyr::all_of(columns))) |>
@@ -21,9 +22,9 @@ get_file_or_dataframe <- function(input, columns=NULL, snps=NULL) {
       }
       else {
         if (is.null(columns)) {
-          output <- vroom::vroom(input, show_col_types=F)
+          output <- vroom::vroom(input, col_type = vroom::cols(vroom::col_character()), show_col_types=F)
         } else {
-          output <- vroom::vroom(input, col_select = dplyr::all_of(columns), show_col_types=F)
+          output <- vroom::vroom(input, col_type = vroom::cols(vroom::col_character()), col_select = dplyr::all_of(columns), show_col_types=F)
         }
       }
     }
@@ -35,6 +36,7 @@ get_file_or_dataframe <- function(input, columns=NULL, snps=NULL) {
 #' vroom_snps: If you only need to get a handful of SNPs out of a whole GWAS, this saves time and memory
 #' NOTE: only works with data that has been standardised, through `standardise_gwas`, or at least a tsv
 #' @import vroom
+#' @export
 vroom_snps <- function(gwas_file, snps=c()){
   snps <- paste(snps, collapse="\t|")
 
@@ -49,11 +51,12 @@ vroom_snps <- function(gwas_file, snps=c()){
     grep_command <- paste0("head -n 1", gwas_file, " && rg -I '", snps, "' ", gwas_file)
   }
 
-  snps_in_gwas <- vroom::vroom(pipe(grep_command), show_col_types = F)
+  snps_in_gwas <- vroom::vroom(pipe(grep_command), col_type = vroom::cols(vroom::col_character()), show_col_types = F)
   return(snps_in_gwas)
 }
 
 #' @import dplyr
+#' @export
 gwas_region <- function(gwas, chr, bp, range = 500000) {
   return(dplyr::filter(gwas, CHR == chr &BP > (bp - floor(range/2)) & BP < (bp + floor(range/2))))
 }
@@ -103,9 +106,9 @@ map_rsid_list_to_snps <- function(gwas, rsids=c()) {
 
 #' @import rmarkdown
 #' @import httr
+#' @import prettydoc
 create_html_from_rmd <- function(rmd_file, params = list(), output_file) {
   temp_file <- tempfile(fileext = ".Rmd", tmpdir = "/tmp")
-  print(getwd())
   file.copy(rmd_file, temp_file, overwrite = TRUE)
 
   rmarkdown::render(temp_file,
@@ -150,7 +153,7 @@ run_sqlite_command <- function(db_name, query, col_names = c()) {
   query <- paste0('"', query, '"')
   sqlite_command <- paste("sqlite3", db_name, query)
   output <- system(sqlite_command, intern = T, wait = T)
-  result <- vroom::vroom(output, col_names = F, show_col_types=F)
+  result <- vroom::vroom(output, col_names = F, col_type = vroom::cols(vroom::col_character()), show_col_types=F)
 
   if (is.vector(col_names)) colnames(result) <- col_names
   return(result)

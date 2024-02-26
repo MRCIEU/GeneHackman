@@ -28,6 +28,6 @@ jobs: 10
 keep-going: True
 rerun-incomplete: True
 use-singularity: True
-singularity-args: '-B $(pwd)/R:/home/R -B $(pwd)/scripts:/home/scripts -B /user/work/$(whoami) -B /user/home/$(whoami) -B /mnt/storage/private/mrcieu/data/ --env-file .env --pwd /home/scripts/'
+singularity-args: '-B $(pwd)/R:/home/R -B $(pwd)/scripts:/home/scripts -B $(pwd)/inst:/home/inst -B /user/work/$(whoami) -B /user/home/$(whoami) -B /mnt/storage/private/mrcieu/data/ --env-file .env --pwd /home/scripts/'
 printshellcmds: True
 scheduler: greedy

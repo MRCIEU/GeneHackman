@@ -2,6 +2,7 @@
 #' @import dplyr
 #' @import vroom
 #' @import tibble
+#' @export
 run_coloc_on_list_of_datasets <- function(first_gwas_list=list(),
                                           second_gwas_list=list(),
                                           exposure_name_list=list(),
@@ -52,7 +53,7 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
   gwas <- get_file_or_dataframe(gwas_file, columns = coloc_columns) |> dplyr::filter(EAF > 0 & EAF < 1)
   range <- 500000
 
-  mr_results <- vroom::vroom(mr_results_file, show_col_types=F)
+  mr_results <- get_file_or_dataframe(mr_results_file)
   if (length(exposures) > 0) {
     mr_results <- subset(mr_results, exposure %in% exposures)
   } else {
@@ -72,7 +73,7 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
       metabrain_dir <- "scratch/data/qtls/metabrain/"
       qtl_gwas_file <- paste0(metabrain_dir, "gwas/", brain_region, "/", mr_result[["exposure"]], "_", ancestry, ".tsv.gz")
 
-      qtl_chr_gwas <- vroom::vroom(qtl_gwas_file, show_col_types=F) |> dplyr::filter(EAF > 0 & EAF < 1)
+      qtl_chr_gwas <- get_file_or_dataframe(qtl_gwas_file) |> dplyr::filter(EAF > 0 & EAF < 1)
     }
     else {
       stop("Error: qtl dataset not supported for coloc right now")
@@ -95,6 +96,7 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
 #' @returns tibble of coloc results (h0 - h4)
 #' @import coloc
 #' @import tibble
+#' @export
 coloc_analysis <- function(first_gwas, second_gwas, exposure_name, chr=NA, bp=NA, range=NA, default_n=NA) {
   if (!is.na(chr) & !is.na(bp) & !is.na(range)) {
     first_gwas <- gwas_region(first_gwas, chr, bp, range)

@@ -1,7 +1,7 @@
-include: "common.smk"
+include: "util/common.smk"
 singularity: docker_container
 
-pipeline = parse_pipeline_input("input.json")
+pipeline = parse_pipeline_input()
 
 onstart:
     print("##### GWAS Comparison Pipeline #####")
@@ -110,7 +110,7 @@ rule create_results_file:
     shell:
         """
         Rscript create_results_file.R \
-            --rmd_file /home/R/markdown/gwas_comparison.rmd \
+            --rmd_file /home/R/markdown/compare_gwases.Rmd \
             --params {results_string} \
             --output_file {output}
         """

@@ -106,7 +106,7 @@ expected_vs_observed_replication <- function(b_disc, se_disc, b_rep, se_rep, alp
     )
   )
 
-  res_per_variant <- tibble(
+  res_per_variant <- tibble::tibble(
     EXPECTED = p_sig,
     OBSERVED = p_rep < alpha,
     REPLICATION_FAIL = EXPECTED > 0.95 & !OBSERVED,

@@ -1,38 +1,30 @@
-#TODO: replace this with common_columns.csv
-column_map <- list(
-  default = list(SNP="SNP", CHR="CHR", BP="BP", EA="EA", OA="OA", EAF="EAF", P="P", Z="Z", BETA="BETA", SE="SE", OR="OR", OR_LB="OR_LB", OR_UB="OR_UB", RSID="RSID", N="N", ENSEMBL_ID="ENSEMBL_ID", GENE_NAME="GENE_NAME"),
-  metal = list(SNP="MarkerName", EA="Allele1", OA="Allele2", EAF="Freq1", P="P-value", BETA="Effect", SE="StdErr"),
-  opengwas = list(CHR="chr", BP="position", BETA="beta", P="p", SE="se", N="n", EAF="eaf", EA="ea", OA="nea", RSID="rsid"),
-  ieu_ukb_pipeline = list(SNP="SNP", BETA="BETA", SE="SE", EA="ALLELE1", OA="ALLELE0", EAF="A1FREQ", P="P_BOLT_LMM_INF")
-)
-
-
 #' standardise_gwas: takes an input gwas, changes headers, standardises allelic input, adds RSID, makes life easier
 #' @param gwas: filename of gwas to standardise or dataframe of gwas
 #' @param output_file: file to save standardised gwas
-#' @param input_format: type of non-bespoke input format available
+#' @param N: sample size of GWAS (if GWAS has defined N column, defaults to that value)
 #' @param populate_rsid_option: if you want RSID populated or not
-#' @param input_column_map: column header map used for renaming
+#' @param input_reference_build: reference build of CHR and BP of data.  Defaults to GRCh37
+#' @param output_reference_build: reference build of CHR and BP of data.  Defaults to GRCh37
+#' @param input_columns: column header map used for renaming GWAS:
+#'   can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values
+#' @param output_columns: column header map used for renaming GWAS:
+#'   can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values
 #' @return modified gwas: saves new gwas in {output_file} if present
 #' @import vroom
+#' @import shiny
+#' @export
 standardise_gwas <- function(gwas,
                              output_file,
                              N=0,
-                             input_format="default",
-                             output_format="default",
                              populate_rsid_option=F,
                              input_reference_build=reference_builds$GRCh37,
                              output_reference_build=reference_builds$GRCh37,
-                             input_column_map=NULL,
-                             output_column_map=NULL) {
-
-  if (is.null(column_map[[input_format]])) {
-    stop(paste("Error: invalid input_format!", input_format, "is not recognised."))
-  }
+                             input_columns="default",
+                             output_columns="default") {
+  input_gwas_columns <- resolve_column_map(input_columns)
+  output_gwas_columns <- resolve_column_map(output_columns)
 
   #TODO: if we need to add bespoke input format wrangling here, we can
-  input_gwas_columns <- if(!is.null(input_column_map)) input_column_map else column_map[[input_format]]
-  output_gwas_columns <- if(!is.null(output_column_map)) output_column_map else column_map[[output_format]]
 
   gwas <- get_file_or_dataframe(gwas) |>
     change_column_names(input_gwas_columns) |>
@@ -57,6 +49,7 @@ standardise_gwas <- function(gwas,
 #' @param: elipses of gwases
 #' @return: list of harmonised gwases
 #' @import dplyr
+#' @export
 harmonise_gwases <- function(...) {
   gwases <- list(...)
 
@@ -98,6 +91,7 @@ standardise_columns <- function(gwas, N) {
   if (!all(c("CHR", "BP") %in% gwas_columns)) {
     if(all(grepl("\\d:\\d", gwas$SNP))) {
       gwas <- tidyr::separate(data = gwas, col = "SNP", into = c("CHR", "BP"), sep = "[:_]", remove = F)
+      gwas$BP <- as.numeric(gwas$BP)
     }
   }
 
@@ -175,6 +169,7 @@ standardise_alleles <- function(gwas) {
 #' @param gwas: dataframe with the following columns: OR, LB (lower bound), UB (upper bound)
 #' @return gwas with new columns BETA and SE
 #' @import stats
+#' @export
 convert_or_to_beta <- function(gwas) {
   gwas <- get_file_or_dataframe(gwas)
   if (!all(c("OR", "OR_LB", "OR_UB") %in% colnames(gwas))) {
@@ -189,6 +184,7 @@ convert_or_to_beta <- function(gwas) {
 }
 
 #' @import stats
+#' @export
 convert_beta_to_or <- function(gwas) {
   gwas <- get_file_or_dataframe(gwas)
   z_score <- stats::qnorm(.975, mean = 0, sd = 1) #1.96
@@ -199,7 +195,9 @@ convert_beta_to_or <- function(gwas) {
   return(gwas)
 }
 
-#taken from here: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8432599/ under "Correlation of trans-eQTL effects"
+#' convert_z_score_to_beta
+#' taken from here: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8432599/ under "Correlation of trans-eQTL effects"
+#' @export
 convert_z_score_to_beta <- function(gwas) {
   gwas$BETA <- gwas$Z / sqrt(
     (2 * gwas$EAF) * (1 - gwas$EAF) * (gwas$N + gwas$Z^2)
@@ -236,7 +234,35 @@ convert_z_to_p <- function(gwas) {
 }
 
 #' @import stats
+#' @export
 calculate_f_statistic <- function(gwas) {
   gwas$F_STAT <- stats::qchisq(gwas$P, 1, low=F)
   return(gwas)
+}
+
+resolve_column_map <- function(column_map) {
+  column_map_file <- system.file("extdata", "predefined_column_maps.csv", package = "gwaspipeline")
+  if (!file.exists(column_map_file)) {
+    predefined_column_maps <- vroom::vroom("../inst/extdata/predefined_column_maps.csv")
+  }
+  else {
+    predefined_column_maps <- vroom::vroom(column_map_file, show_col_types = F)
+  }
+  predefined_column_maps <- tibble::column_to_rownames(predefined_column_maps, "name")
+
+  if (is.vector(column_map) && length(column_map) > 1) {
+    return(column_map)
+  }
+  else if (is.character(column_map) && length(column_map) == 1) {
+    if (column_map %in% row.names(predefined_column_maps)) {
+      predefined_map <- predefined_column_maps[column_map, ]
+      return(as.list(predefined_map))
+    }
+    else {
+      split_map <- split_string_into_named_list(column_map)
+      if (length(split_map) == 0) stop(paste("Error resolving column map for", column_map))
+      return(split_map)
+    }
+  }
+  else stop(paste("Error resolving column map for", column_map))
 }
