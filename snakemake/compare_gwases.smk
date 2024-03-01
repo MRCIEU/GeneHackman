@@ -119,4 +119,4 @@ onsuccess:
     onsuccess(pipeline_name, list(files_created.values()), results_file, is_test=pipeline.is_test)
 
 onerror:
-    onerror_message(pipline_name, is_test=pipeline.is_test)
+    onerror_message(pipeline_name, is_test=pipeline.is_test)

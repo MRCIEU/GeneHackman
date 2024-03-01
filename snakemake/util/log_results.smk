@@ -23,11 +23,12 @@ def update_google_sheet(pipeline_name, succeeded=True, error_file=None, is_test=
         if not succeeded:
             with open(input_file,'r') as file:
                 input_data = file.read()
-            with open(error_file, 'r') as file:
+            with open(error_file.rstrip(), 'r') as file:
                 error_message = file.read()
 
         values = [user, hostname, pipeline_name, time_submitted_str, time_taken, result, input_data, error_message]
         worksheet.append_table(values=[values])
-    except Exception:
+    except Exception as e:
+        print(e)
         return
 

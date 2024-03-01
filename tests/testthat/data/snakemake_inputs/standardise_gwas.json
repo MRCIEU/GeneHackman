@@ -15,5 +15,6 @@
       "build": "GRCh38"
     }
   ],
-  "populate_rsid": false
+  "populate_rsid": false,
+  "is_test": true
 }
