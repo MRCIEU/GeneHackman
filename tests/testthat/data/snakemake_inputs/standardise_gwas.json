@@ -13,16 +13,7 @@
       "file": "/user/home/wt23152/gwaspipeline/tests/testthat/data/test_data_small_hg38.tsv.gz",
       "columns": {},
       "build": "GRCh38"
-    },
-    {
-      "file": "/user/home/wt23152/gwaspipeline/tests/testthat/data/gwama_output.txt.gz",
-      "columns": "gwama"
-    },
-    {
-      "file": "/user/home/wt23152/gwaspipeline/tests/testthat/data/ukb_pipeline.txt.gz",
-      "columns": "ieu_ukb"
     }
   ],
-  "populate_rsid": false,
-  "is_test": true
+  "populate_rsid": false
 }

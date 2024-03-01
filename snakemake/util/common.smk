@@ -186,7 +186,7 @@ def onsuccess(pipeline_name, files_created=list(), results_file=None, is_test=Fa
 
     copy_data_to_rdfs(files_created)
 
-    update_google_sheet(pipeline_name, suceeded=True, is_test=is_test)
+    update_google_sheet(pipeline_name, succeeded=True, is_test=is_test)
 
 
 def onerror_message(pipeline_name, is_test=False):
@@ -196,7 +196,7 @@ def onerror_message(pipeline_name, is_test=False):
     print("There was an error in the pipeline, please check the last written slurm log to see the error:")
     print(log_full_path)
 
-    update_google_sheet(pipeline_name, suceeded=False, error_file=log_full_path, is_test=is_test)
+    update_google_sheet(pipeline_name, succeeded=False, error_file=log_full_path, is_test=is_test)
 
 
 cleanup_old_slurm_logs()

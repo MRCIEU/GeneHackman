@@ -117,7 +117,6 @@ rule create_results_file:
 
 onsuccess:
     onsuccess(pipeline_name, list(files_created.values()), results_file, is_test=pipeline.is_test)
-    update_google_sheet(pipeline_name, suceeded=True)
 
 onerror:
     onerror_message(pipline_name, is_test=pipeline.is_test)

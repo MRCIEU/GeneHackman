@@ -15,8 +15,8 @@ def update_google_sheet(pipeline_name, succeeded=True, error_file=None, is_test=
         user = os.getenv('USER')
         hostname = os.getenv('HOSTNAME')
         result = "Success" if succeeded else "Failed"
-        time_taken = str(datetime.now() - time_submitted)
-        time_submitted_str = time_submitted.strftime('%Y-%m-%d %H:%m')
+        time_taken = str(datetime.now() - start_time)
+        time_submitted_str = start_time.strftime('%Y-%m-%d %H:%m')
 
         error_message = ""
         input_data = ""
