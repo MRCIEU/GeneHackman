@@ -1,7 +1,7 @@
 include: "util/common.smk"
 singularity: docker_container
 
-pipeline_name = Path(__file__).name
+pipeline_name = "disease_progression"
 pipeline = parse_pipeline_input()
 incident = pipeline.gwases[0]
 subsequent = pipeline.gwases[1]

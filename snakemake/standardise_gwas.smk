@@ -1,7 +1,7 @@
 include: "util/common.smk"
 singularity: docker_container
 
-pipeline_name = Path(__file__).name
+pipeline_name = "standardise_gwas"
 pipeline = parse_pipeline_input()
 
 onstart:

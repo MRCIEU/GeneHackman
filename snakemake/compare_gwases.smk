@@ -1,7 +1,7 @@
 include: "util/common.smk"
 singularity: docker_container
 
-pipeline_name = Path(__file__).name
+pipeline_name = "compare_gwases"
 pipeline = parse_pipeline_input()
 
 onstart:
@@ -35,7 +35,6 @@ rule all:
 
 include: "rules/standardise_rule.smk"
 include: "rules/clumping_rule.smk"
-
 
 rule compare_observed_vs_expected_gwas:
     resources:
