@@ -6,3 +6,4 @@ dependencies:
   - python=3.11
   - snakemake=7.26
   - python-dotenv=1.0.0
+  - pygsheets=2.0.6

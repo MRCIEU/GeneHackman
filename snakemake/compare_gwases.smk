@@ -1,6 +1,7 @@
 include: "util/common.smk"
 singularity: docker_container
 
+pipeline_name = Path(__file__).name
 pipeline = parse_pipeline_input()
 
 onstart:
@@ -116,7 +117,8 @@ rule create_results_file:
         """
 
 onsuccess:
-    onsuccess(list(files_created.values()), results_file)
+    onsuccess(pipeline_name, list(files_created.values()), results_file, is_test=pipeline.is_test)
+    update_google_sheet(pipeline_name, suceeded=True)
 
 onerror:
-    onerror_message()
+    onerror_message(pipline_name, is_test=pipeline.is_test)

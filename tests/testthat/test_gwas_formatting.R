@@ -59,6 +59,34 @@ test_that("gwas_formatting.standardise_gwas standardises an OpenGWAS PheWAS outp
   expect_true(all(grep("\\d+:\\d+_\\w+_\\w+", result$SNP)))
 })
 
+test_that("gwas_formatting.standardise_gwas standardises an gwama output", {
+  output_file  <- tempfile(fileext = ".tsv.gz")
+
+  filename <- "data/gwama_output.txt.gz"
+  standardise_gwas(filename, output_file, input_columns = "gwama")
+  result <- vroom::vroom(output_file, show_col_types=F)
+
+  opengwas_lines <-  as.numeric(R.utils::countLines(filename)) - 1
+  expect_equal(nrow(result), opengwas_lines)
+  expect_true(all(result$EA < result$OA))
+  expect_true(all(grep("\\d+:\\d+_\\w+_\\w+", result$SNP)))
+})
+
+
+test_that("gwas_formatting.standardise_gwas standardises an IEU ukb pipeline output", {
+  output_file  <- tempfile(fileext = ".tsv.gz")
+
+  filename <- "data/ukb_pipeline.txt.gz"
+  standardise_gwas(filename, output_file, input_columns = "ieu_ukb")
+  result <- vroom::vroom(output_file, show_col_types=F)
+
+  opengwas_lines <-  as.numeric(R.utils::countLines(filename)) - 1
+  expect_equal(nrow(result), opengwas_lines)
+  floating_point_tolerance <- 1e-10
+  expect_true(all(result$EA < result$OA))
+  expect_true(all(grep("\\d+:\\d+_\\w+_\\w+", result$SNP)))
+})
+
 test_that("gwas_formatting.convert_beta_to_or and back returns the same results", {
   original_gwas <- vroom::vroom("data/test_data_small.tsv.gz", show_col_types=F)
 

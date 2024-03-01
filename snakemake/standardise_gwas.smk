@@ -1,6 +1,7 @@
 include: "util/common.smk"
 singularity: docker_container
 
+pipeline_name = Path(__file__).name
 pipeline = parse_pipeline_input()
 
 onstart:
@@ -14,7 +15,7 @@ rule all:
 include: "rules/standardise_rule.smk"
 
 onsuccess:
-    onsuccess()
+    onsuccess(pipeline_name, test=pipeline.is_test)
 
 onerror:
-    onerror_message()
+    onerror_message(pipeline_name, test=pipeline.is_test)

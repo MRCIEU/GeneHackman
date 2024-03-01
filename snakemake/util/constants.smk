@@ -1,5 +1,8 @@
+from datetime import datetime
 from dotenv import load_dotenv
 from types import SimpleNamespace
+
+docker_container = "docker://andrewrrelmore/genepi_pipeline:latest"
 
 def format_dir_string(directory):
     if not directory: return None
@@ -8,8 +11,8 @@ def format_dir_string(directory):
 load_dotenv()
 user = os.getenv('USER')
 input_file = os.getenv('INPUT_FILE') or "input.json"
+start_time = datetime.now()
 slurm_log_directory = f"/user/work/{user}/slurm_logs/"
-docker_container = "docker://andrewrrelmore/genepi_pipeline:latest"
 
 default_clump_headers = "CHR F SNP BP P TOTAL NSIG S05 S01 S001 S0001 SP2"
 default_columns = dict(SNP="SNP", CHR="CHR", BP="BP", EA="EA", OA="OA", EAF="EAF", P="P", BETA="BETA",
@@ -39,6 +42,7 @@ if not os.getenv("RDFS_DIR"):
 DATA_DIR = format_dir_string(os.getenv('DATA_DIR'))
 RESULTS_DIR = format_dir_string(os.getenv('RESULTS_DIR'))
 RDFS_DIR = format_dir_string(os.getenv('RDFS_DIR'))
+GENOMIC_DATA_DIR = format_dir_string(os.getenv('GENOMIC_DATA_DIR'))
 THOUSAND_GENOMES_DIR = format_dir_string(os.getenv('GENOMIC_DATA_DIR') + "/1000genomes")
 LDSC_DIR = format_dir_string(os.getenv('LDSC_DIR'))
 QTL_TOP_HITS_DIR = format_dir_string(os.getenv('QTL_TOP_HITS'))
