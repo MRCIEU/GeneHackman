@@ -2,7 +2,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from types import SimpleNamespace
 
-docker_container = "docker://andrewrrelmore/genepi_pipeline:latest"
+docker_repo = "docker://mrcieu/gwaspipeline"
 
 def format_dir_string(directory):
     if not directory: return None

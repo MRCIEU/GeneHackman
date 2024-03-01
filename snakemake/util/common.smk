@@ -12,6 +12,16 @@ from types import SimpleNamespace
 include: "constants.smk"
 include: "log_results.smk"
 
+def get_docker_container():
+    version = "latest"
+    with open("../../DESCRIPTION") as file:
+        for line in file:
+            match = re.match(r"^Version: (\w+)", line)
+            if match:
+                version = match
+                break
+    return docker_repo + ":" + version
+
 def parse_pipeline_input():
     if not os.path.isfile(".env"):
         raise ValueError("Error: .env file doesn't exist")

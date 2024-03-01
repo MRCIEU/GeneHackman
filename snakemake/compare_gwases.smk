@@ -1,5 +1,5 @@
 include: "util/common.smk"
-singularity: docker_container
+singularity: get_docker_container()
 
 pipeline_name = "compare_gwases"
 pipeline = parse_pipeline_input()
