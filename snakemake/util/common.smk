@@ -2,8 +2,8 @@ import csv
 import gzip
 import json
 import os
-import time
 import re
+import time
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from pathlib import Path
@@ -14,11 +14,11 @@ include: "log_results.smk"
 
 def get_docker_container():
     version = "latest"
-    with open("../../DESCRIPTION") as file:
+    with open("DESCRIPTION") as file:
         for line in file:
-            match = re.match(r"^Version: (\w+)", line)
+            match = re.match(r"^Version: ([\w\.]+)", line)
             if match:
-                version = match
+                version = match.group(1)
                 break
     return docker_repo + ":" + version
 
