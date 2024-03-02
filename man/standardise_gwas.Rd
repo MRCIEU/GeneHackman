@@ -8,13 +8,11 @@ standardise_gwas(
   gwas,
   output_file,
   N = 0,
-  input_format = "default",
-  output_format = "default",
   populate_rsid_option = F,
   input_reference_build = reference_builds$GRCh37,
   output_reference_build = reference_builds$GRCh37,
-  input_column_map = NULL,
-  output_column_map = NULL
+  input_columns = "default",
+  output_columns = "default"
 )
 }
 \arguments{
@@ -22,11 +20,19 @@ standardise_gwas(
 
 \item{output_file:}{file to save standardised gwas}
 
-\item{input_format:}{type of non-bespoke input format available}
+\item{N:}{sample size of GWAS (if GWAS has defined N column, defaults to that value)}
 
 \item{populate_rsid_option:}{if you want RSID populated or not}
 
-\item{input_column_map:}{column header map used for renaming}
+\item{input_reference_build:}{reference build of CHR and BP of data.  Defaults to GRCh37}
+
+\item{output_reference_build:}{reference build of CHR and BP of data.  Defaults to GRCh37}
+
+\item{input_columns:}{column header map used for renaming GWAS:
+can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values}
+
+\item{output_columns:}{column header map used for renaming GWAS:
+can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values}
 }
 \value{
 modified gwas: saves new gwas in {output_file} if present

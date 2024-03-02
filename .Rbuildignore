@@ -6,5 +6,7 @@ environment.yml
 run_pipeline.sh
 scripts
 snakemake
+tests
+venv
 .idea
 .env_example
