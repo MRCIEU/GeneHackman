@@ -1,6 +1,6 @@
 # Pipeline Input
 
-All piplines will require a GWAS or list of GWASes, they have the following keys
+All piplines will require a GWAS object or list of objects, they have the following properties
 
 GWAS Object:
 * `file`: Full path to file.  Mandatory
@@ -12,6 +12,8 @@ GWAS Object:
 ### GWAS Columns:
 
 With each GWAS file, you can specify column names ex. `{"P":"pval", ...}`, if you do not specify header names it will assume your GWAS has default names
+
+Default names : `SNP, CHR, BP, EA, OA, EAF, BETA, SE, OR, P, LOG_P, Z, OR_LB, OR_UB, RSID, N, N_CASES, ENSEMBL_ID, GENE_NAME`
 
 * Mandatory Columns: `CHR, BP, EA, OA`
 Effect Column Options.  One of these sets are mandatory:
@@ -27,24 +29,22 @@ Alternatively, `columns` accepts a string of some of the more common output form
 All pipelines will standardise each GWAS before running the subsequent steps.  The `SNP` field will be recalculated as `CHR:POS_EA_OA`, where EA and OA are ordered alphabetically, and the subsequent BETA and EAF will be adjusted accordingly
 
 * `n GWAS objects`: GWAS summary statistics files and optional column name map
-* `output`: 
+* `output`:
+  * `build`: one of the supported reference builds.  Default: `GRCh37`
+  * `columns`: same format as input columns.  Either a object {} or predefined map string
 
 ## collider_bias 
-
-### input.json
 
 * `2 GWAS objects`: Incident and Subsequent GWAS summary statistics file and optional column name map
 * `plink_clump_arguments`: arguments that are fed into the `plink --clump` call.  [Options here](https://zzz.bwh.harvard.edu/plink/clump.shtml)
 
 ## compare_gwases 
 
-### input.json
 * `n GWAS objects`: GWAS summary statistics files and optional column name map
 * `plink_clump_arguments`: arguments that are fed into the `plink --clump` call.  [Options here](https://zzz.bwh.harvard.edu/plink/clump.shtml)
 
-## MR for QTLs 
+## qtl_mr
 
-### input.json
 * `1 GWAS object`: GWAS summary statistics file, ancestry, and optional column name map
 * `qtl`:
   * `dataset`: see below for options

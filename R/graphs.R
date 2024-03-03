@@ -66,7 +66,6 @@ grouped_forest_plot <- function(table, title, group_column, output_file, p_value
   }
 
   forest_plot_height <- max(nrow(table)*50, 2000)
-
   ggplot2::ggsave(output_file, width = 2000, units = "px", height = forest_plot_height)
 }
 

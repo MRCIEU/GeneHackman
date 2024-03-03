@@ -3,7 +3,8 @@
     {
       "file": "",
       "columns": {"CHR":"", "BP":"", "EA":"", "OA":"", "EAF":"", "P":"", "BETA":"", "SE":""},
-      "ancestry": "EUR"
+      "ancestry": "EUR",
+      "N": 0
     }
   ],
   "qtl": {

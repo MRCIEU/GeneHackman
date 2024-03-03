@@ -3,14 +3,14 @@ perform_mr_on_metabrain_datasets <- function(gwas_filename, ancestry="EUR", subc
   file_pattern <- paste0(tolower(subcategory), "_", tolower(ancestry))
   metabrain_top_hits <- list.files(metabrain_top_hits_dir, pattern = file_pattern, full.names = T)
 
-  run_mr_on_qtl_data(gwas_filename, N=N, results_output = results_output, qtl_files = metabrain_top_hits, exposures)
+  run_mr_on_qtl_data(gwas_filename, results_output = results_output, qtl_files = metabrain_top_hits, exposures)
 }
 
 perform_mr_on_eqtlgen_datasets <- function(gwas_filename, ancestry="EUR", subcategory=NULL, exposures=c(), results_output) {
   file_pattern <- paste0(tolower(subcategory), "_", tolower(ancestry))
-  metabrain_top_hits <- list.files(eqtlgen_top_hits_dir, pattern = file_pattern, full.names = T)
+  eqtlgen_top_hits <- list.files(eqtlgen_top_hits_dir, pattern = file_pattern, full.names = T)
 
-  run_mr_on_qtl_data(gwas_filename, N=N, results_output = results_output, qtl_files = metabrain_top_hits, exposures)
+  run_mr_on_qtl_data(gwas_filename, results_output = results_output, qtl_files = eqtlgen_top_hits, exposures)
 }
 
 
@@ -60,7 +60,6 @@ run_mr_on_qtl_data <- function(gwas_filename, qtl_files, results_output, exposur
     if (length(exposures) > 0) {
       mr_results <- subset(mr_results, exposure %in% exposures)
     }
-
 
     qtl_dataset <- vroom::vroom(qtl_file, show_col_types=F) |>
       calculate_f_statistic()

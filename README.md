@@ -9,9 +9,16 @@ Goals:
 * Reusable pipelines that can be utilised on different projects
 * Shared code and steps that can be updated according to the latest knowledge and practices
 
+## Available Pipelines
+
+Here is a list of available pipelines, and the steps they run
+
+| standardise_gwas.smk                                                                                                                                                                                 | compare_gwases.smk                                                                                                                                 | qtl_mr.smk                                                                                                                                           | disease_progression.smk                                                                                                                                                            |
+|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| * Populate RSID from CHR:POS<br/>* Convert Reference Build<br/>(eg. GRCh38 -> GRCh37)<br/>* Unique SNP = CHR:BP_EA_OA<br/> (where EA < OA alphabetically)<br/>* Auto-populate GENE ID <-> ENSEMBL ID | * All steps in 'standardise_gwas'<br/>* PLINK clumping<br/>* Calculate heterogeneity<br/>* LDSC h2 and rg<br/>* Expected vs. Observered Comparison | * All steps in 'standardise_gwas'<br/>* Run MR against preformatted QTL dataset<br/>* Volcano Plot of Results<br/>* Run coloc of significant results | * All steps in 'standardise_gwas'<br/>* PLINK clumping<br/>* Run Select Collider Bias Corrections<br/>* Miami Plot of Collider Bias Results<br/>* Expected vs. Observed Comparison |
+
 ## Onboarding
 
-Steps to start using the pipeline
 ### 1. Clone the repository into your personal space on BlueCrystal 4
 `git clone git@github.com:MRCIEU/gwaspipeline.git && cd gwaspipeline`
 

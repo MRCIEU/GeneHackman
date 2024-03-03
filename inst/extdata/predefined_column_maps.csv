@@ -1,5 +1,5 @@
-name,SNP,CHR,BP,EA,OA,EAF,BETA,SE,OR,P,LP,Z,OR_LB,OR_UB,RSID,N,N_CASES,ENSEMBL_ID,GENE_NAME
-default,SNP,CHR,BP,EA,OA,EAF,BETA,SE,OR,P,LP,Z,OR_LB,OR_UB,RSID,N,N_CASES,ENSEMBL_ID,GENE_NAME
+name,SNP,CHR,BP,EA,OA,EAF,BETA,SE,OR,P,LOG_P,Z,OR_LB,OR_UB,RSID,N,N_CASES,ENSEMBL_ID,GENE_NAME
+default,SNP,CHR,BP,EA,OA,EAF,BETA,SE,OR,P,LOG_P,Z,OR_LB,OR_UB,RSID,N,N_CASES,ENSEMBL_ID,GENE_NAME
 metal,MarkerName,,,Allele1,Allele2,Freq1,Effect,StdErr,,P-value,,,,,,,,,
 opengwas,,CHROM,POS,REF,ALT,AF,ES,SE,,,LP,,,,ID,SS,,,
 opengwas_phewas,,chr,position,ea,nea,eaf,beta,se,,p,,,,,rsid,n,,,
