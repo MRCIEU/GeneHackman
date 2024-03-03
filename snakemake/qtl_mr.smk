@@ -1,15 +1,14 @@
 include: "util/common.smk"
-singularity: docker_container
+singularity: get_docker_container()
 
+pipeline_name = "qtl_mr"
 pipeline = parse_pipeline_input()
-additional_mandatory_columns = ["N"]
 
 onstart:
     print("##### QTL MR Pipeline #####")
 
-pipeline.gwas.columns = resolve_gwas_columns(pipeline.gwas.file, pipeline.gwas.columns, additional_mandatory_columns)
-pipeline.gwas.standardised_gwas = standardised_gwas_name(pipeline.gwas.file)
 qtl_name = pipeline.qtl.dataset + "_" + pipeline.qtl.subcategory
+if not hasattr(pipeline, "exposures"): pipeline.exposures = []
 exposures_string = join(" ", pipeline.qtl.exposures)
 
 mr_results = RESULTS_DIR + "mr/" + file_prefix(pipeline.gwas.file) + "_" + qtl_name + ".tsv.gz"
@@ -17,34 +16,21 @@ coloc_results = RESULTS_DIR + "mr/coloc_" + file_prefix(pipeline.gwas.file) + "_
 volcano_plot = RESULTS_DIR + "plots/volcano_plot" + file_prefix(pipeline.gwas.file) + "_" + qtl_name + ".png"
 results_file = RESULTS_DIR + "mr/result_" + qtl_name + "_" + file_prefix(pipeline.gwas.file) + ".html"
 
-
+gwas = pipeline.gwases[0]
 rule all:
-    input: mr_results, volcano_plot, coloc_results, results_file
+    input: gwas.standardised_gwas, mr_results, volcano_plot, coloc_results, results_file
 
-rule standardise_gwases:
-    threads: 4
-    resources:
-        mem = "8G"
-    input: pipeline.gwas.file
-    output: pipeline.gwas.standardised_gwas
-    shell:
-        """
-        Rscript standardise_gwas.R \
-            --input_gwas {input} \
-            --output_gwas {output} \
-            --input_columns {pipeline.gwas.columns} \
-            --populate_rsid NO
-        """
-
+include: "rules/standardise_rule.smk"
 
 rule run_mr_against_qtl_datasets:
     input:
-        gwas = pipeline.gwas.standardised_gwas,
-        ancestry = pipeline.gwas.ancestry
+        gwas = gwas.standardised_gwas,
+        ancestry = gwas.ancestry
     output: mr_results
     shell:
         """
-        Rscript run_mr_against_qtl_data.R --gwas_filename {input.gwas} \
+        Rscript run_mr_against_qtl_data.R \
+            --gwas_filename {input.gwas} \
             --ancestry {input.ancestry} \
             --dataset {pipeline.qtl.dataset} \
             --exposures {exposures_string} \
@@ -57,14 +43,16 @@ rule create_volcano_plot_of_mr_results:
     output: volcano_plot
     shell:
         """
-        Rscript volcano.R --results_filename {input} \
+        Rscript volcano.R \
+            --results_filename {input} \
             --title "Volcano Plot of MR results against {pipeline.qtl.dataset}" \
             --output_file {output}
         """
 
 rule run_coloc_analysis_of_significant_mr_results:
     input:
-        gwas = pipeline.gwas.file,
+        gwas = gwas.standardised_gwas,
+        N = gwas.N,
         mr_results = mr_results
     output: coloc_results
     shell:
@@ -72,13 +60,15 @@ rule run_coloc_analysis_of_significant_mr_results:
         Rscript coloc_of_mr_results.R \
             --mr_results_filename {input.mr_results} \
             --gwas_filename {input.gwas} \
+            --N {input.N} \
             --qtl_dataset {pipeline.qtl.dataset} \
+            --subcategory {pipeline.qtl.subcategory} \
             --exposures {exposures_string} \
             --output_file {output} 
         """
 
 files_created = {
-    "gwas": pipeline.gwas.standardised_gwas,
+    "gwas": gwas.standardised_gwas,
     "mr_results": mr_results,
     "volcano_plot": volcano_plot,
     "coloc_results": coloc_results
@@ -100,7 +90,7 @@ rule create_results_file:
         """
 
 onsuccess:
-    onsuccess(list(files_created.values()), results_file)
+    onsuccess(pipeline_name, list(files_created.values()), results_file, is_test=pipeline.is_test)
 
 onerror:
-    onerror_message()
+    onerror_message(pipeline_name, is_test=pipeline.is_test)
