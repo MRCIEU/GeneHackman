@@ -74,8 +74,7 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
       qtl_gwas_file <- paste0(metabrain_dir, "gwas/", brain_region, "/", mr_result[["exposure"]], "_", ancestry, ".tsv.gz")
 
       qtl_chr_gwas <- get_file_or_dataframe(qtl_gwas_file) |> dplyr::filter(EAF > 0 & EAF < 1)
-    }
-    else {
+    } else {
       stop("Error: qtl dataset not supported for coloc right now")
     }
 

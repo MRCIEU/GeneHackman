@@ -38,7 +38,6 @@ exposures <- split_string_into_vector(args$exposures)
 
 if (args$dataset == qtl_datasets$metabrain) {
   perform_mr_on_metabrain_datasets(args$gwas_filename, args$ancestry, args$subcategory, exposures, args$output_file)
-}
-else if (args$dataset == qtl_datasets$eqtlgen) {
+} else if (args$dataset == qtl_datasets$eqtlgen) {
   perform_mr_on_eqtlgen_datasets(args$gwas_filename, args$subcategory, exposures, args$output_file)
 }

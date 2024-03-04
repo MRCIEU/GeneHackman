@@ -1,8 +1,7 @@
 get_env_var <- function(env_var_name, default_value) {
   if (Sys.getenv(env_var_name) == "") {
     return(default_value)
-  }
-  else {
+  } else {
     return(Sys.getenv(env_var_name))
   }
 }

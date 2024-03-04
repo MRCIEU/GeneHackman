@@ -60,8 +60,7 @@ grouped_forest_plot <- function(table, title, group_column, output_file, p_value
 
   if (!is.na(p_value_column)) {
     plot_thing + ggplot2::geom_text(ggplot2::aes(label = paste("P=", signif(.data[[p_value_column]]), digits=3), group = .data[[group_column]]), position = ggplot2::position_dodge(width = 0.5))
-  }
-  else if (!is.na(q_stat_column)) {
+  } else if (!is.na(q_stat_column)) {
     plot_thing + ggplot2::geom_text(ggplot2::aes(x = 1.5, label = .data[[q_stat_column]]))
   }
 
@@ -151,8 +150,7 @@ miami_plot <- function(first_gwas_filename,
     first_gwas <- gwas_region(first_gwas, chr, bp, range)
     second_gwas <- gwas_region(second_gwas, chr, bp, range)
     top_ylim <-  max(-log10(second_gwas$P))
-  }
-  else {
+  } else {
     first_chrs <- sort(unique(first_gwas$CHR))
     second_chrs <- sort(unique(second_gwas$CHR))
     shared_chrs <- sort(intersect(first_chrs, second_chrs))
@@ -170,16 +168,14 @@ miami_plot <- function(first_gwas_filename,
 
   if (show_specific_region) {
     qqman::manhattan(first_gwas, main = title, xlim = x_range)
-  }
-  else {
+  } else {
     qqman::manhattan(first_gwas, main = title)
   }
 
   graphics::par(mar = c(5, 5, 3, 3))
   if (show_specific_region) {
     qqman::manhattan(second_gwas, ylim = c(top_ylim, 0), xlim = x_range, xlab = x_lab, xaxt = "n")
-  }
-  else {
+  } else {
     qqman::manhattan(second_gwas, ylim = c(top_ylim, 0), xlab = x_lab, xaxt = "n")
   }
 

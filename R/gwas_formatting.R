@@ -244,25 +244,23 @@ resolve_column_map <- function(column_map) {
   column_map_file <- system.file("extdata", "predefined_column_maps.csv", package = "gwaspipeline")
   if (!file.exists(column_map_file)) {
     predefined_column_maps <- vroom::vroom("../inst/extdata/predefined_column_maps.csv")
-  }
-  else {
+  } else {
     predefined_column_maps <- vroom::vroom(column_map_file, show_col_types = F)
   }
   predefined_column_maps <- tibble::column_to_rownames(predefined_column_maps, "name")
 
   if (is.vector(column_map) && length(column_map) > 1) {
     return(column_map)
-  }
-  else if (is.character(column_map) && length(column_map) == 1) {
+  } else if (is.character(column_map) && length(column_map) == 1) {
     if (column_map %in% row.names(predefined_column_maps)) {
       predefined_map <- predefined_column_maps[column_map, ]
       return(as.list(predefined_map))
-    }
-    else {
+    } else {
       split_map <- split_string_into_named_list(column_map)
       if (length(split_map) == 0) stop(paste("Error resolving column map for", column_map))
       return(split_map)
     }
+  } else {
+    stop(paste("Error resolving column map for", column_map))
   }
-  else stop(paste("Error resolving column map for", column_map))
 }
