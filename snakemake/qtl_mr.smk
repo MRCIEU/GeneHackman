@@ -76,8 +76,7 @@ rule run_coloc_analysis_of_significant_mr_results:
             --mr_results_filename {input.mr_results} \
             --gwas_filename {params.gwas} \
             --N {params.N} \
-            --qtl_dataset {pipeline.qtl.dataset} \
-            --subcategory {pipeline.qtl.subcategory} {params.exposures} \
+            --dataset {pipeline.qtl.dataset} {params.exposures} \
             --output_file {output} 
         """
 

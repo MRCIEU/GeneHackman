@@ -19,7 +19,7 @@ Here is a list of available pipelines, and the steps they run
 | Convert Reference Build<br/>(eg. GRCh38 -> GRCh37)            | PLINK clumping                         | Run MR against preformatted QTL dataset | Run Collider Bias Corrections, compare results |
 | Unique SNP = CHR:BP_EA_OA<br/> (where EA < OA alphabetically) | Calculate heterogeneity between GWASes | Volcano Plot of Results                 | Miami Plot of Collider Bias Results            |
 | Auto-populate GENE ID <-> ENSEMBL ID                          | LDSC h2 and rg                         | Run coloc of significant MR results     | Expected vs. Observed Comparison               |
-|                                                               | Expected vs. Observered Comparison     |                                         |                                                |
+|                                                               | Expected vs. Observed Comparison       |                                         |                                                |
 
 ## Onboarding
 

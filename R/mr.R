@@ -72,7 +72,10 @@ run_mr_on_qtl_data <- function(gwas_filename, qtl_files, results_output, exposur
     return(mr_results)
   }) |> dplyr::bind_rows()
 
-  all_qtl_mr_results$p.adjusted <- p.adjust(all_qtl_mr_results$pval, "fdr")
+  all_qtl_mr_results <- tidyr::separate(all_qtl_mr_results, col = "SNP", into = c("CHR", "BP", "EA", "OA"), sep = "[:_]", remove = F) |>
+    dplyr::rename(BETA="b", SE="se", P="pval", EXPOSURE="exposure") |>
+    dplyr::mutate(p.adjusted = p.adjust(P, "fdr"))
+
   vroom::vroom_write(all_qtl_mr_results, results_output)
 }
 

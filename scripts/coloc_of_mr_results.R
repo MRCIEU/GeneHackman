@@ -15,11 +15,12 @@ parser <- add_argument(parser, "--N",
 )
 parser <- add_argument(parser, "--exposures",
                        help = "List of exposures to perform coloc on, if none provided, runs on exposures with lowest p-vals",
-                       type = "character",default = "",
+                       type = "character",
+                       default = "",
                        nargs = Inf
 )
-parser <- add_argument(parser, "--qtl_dataset",
-                       help = "Name of mr dataset (metabrain, pqtl)",
+parser <- add_argument(parser, "--dataset",
+                       help = paste(c("QTL dataset, options:", qtl_datasets), collapse = " "),
                        default = "exposure",
                        type = "character"
 )
@@ -32,4 +33,4 @@ args <- parse_args(parser)
 create_dir_for_files(args$output_file, paste0(Sys.getenv("RESULTS_DIR"), "/plots"))
 exposures <- split_string_into_vector(args$exposures)
 
-run_coloc_on_qtl_mr_results(args$mr_results_filename, args$gwas_filename, args$qtl_dataset, args$ancestry, exposures, args$output_file, default_n=args$N)
+run_coloc_on_qtl_mr_results(args$mr_results_filename, args$gwas_filename, args$dataset, exposures, output_file=args$output_file, default_n=args$N)
