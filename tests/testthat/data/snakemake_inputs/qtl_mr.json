@@ -7,8 +7,8 @@
     }
   ],
   "qtl": {
-    "dataset": "eqtlgen",
-    "subcategory": "cis"
+    "dataset": "metabrain",
+    "subcategory": "cortex"
   },
   "is_test": true
 }

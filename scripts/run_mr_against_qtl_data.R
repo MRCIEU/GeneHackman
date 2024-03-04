@@ -22,10 +22,10 @@ parser <- add_argument(parser, "--subcategory",
                        default = NULL
 )
 parser <- add_argument(parser, "--exposures",
-             help = "List of exposures to focus on when running MR",
-             type = "character",
-             default = "",
-             nargs = Inf
+                       help = "List of exposures to focus on when running MR",
+                       type = "character",
+                       default = "",
+                       nargs = Inf
 )
 parser <- add_argument(parser, "--output_file",
                        help = "Output file name of results from MR",
@@ -36,9 +36,9 @@ args <- parse_args(parser)
 create_dir_for_files(args$output_file)
 exposures <- split_string_into_vector(args$exposures)
 
-if (dataset == qtl_datasets$metabrain) {
+if (args$dataset == qtl_datasets$metabrain) {
   perform_mr_on_metabrain_datasets(args$gwas_filename, args$ancestry, args$subcategory, exposures, args$output_file)
 }
-else if (dataset == qtl_datasets$eqtlgen) {
-  perform_mr_on_eqtlgen_datasets(args$gwas_filename, args$ancestry, args$subcategory, exposures, args$output_file)
+else if (args$dataset == qtl_datasets$eqtlgen) {
+  perform_mr_on_eqtlgen_datasets(args$gwas_filename, args$subcategory, exposures, args$output_file)
 }

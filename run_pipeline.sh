@@ -15,7 +15,7 @@ PROFILE=snakemake/bc4/
 
 SMK_FILE=$1
 export INPUT_FILE=$2
-ADDITIONAL_ARGS=$3
+ADDITIONAL_ARGS="${@:3}"
 
 module load apps/singularity/3.8.3
 snakemake --snakefile ${SMK_FILE} --profile ${PROFILE} ${ADDITIONAL_ARGS}
