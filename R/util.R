@@ -119,7 +119,7 @@ create_html_from_rmd <- function(rmd_file, params = list(), output_file) {
 #' @import httr
 get_other_docker_tag <- function() {
   tag_to_match <- "test"
-  docker_url <- "https://hub.docker.com/v2/repositories/andrewrrelmore/genepi_pipeline/tags/"
+  docker_url <- "https://hub.docker.com/v2/repositories/mrcieu/gwaspipeline/tags/"
   tag_information <- c()
   tryCatch(
    expr = {

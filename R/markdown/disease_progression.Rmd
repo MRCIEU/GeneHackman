@@ -1,5 +1,5 @@
 ---
-title: "Collider Bias Results"
+title: "Disease Progression Results"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   prettydoc::html_pretty:
@@ -61,7 +61,7 @@ If you want to correct the original subsequent gwas (`r params$subsequent_gwas`)
 ```
 module add apps/singularity/3.8.3
 singularity run -B /user/work/$(whoami) -B /user/home/$(whoami) --pwd /home/scripts/ \
-    docker://andrewrrelmore/genepi_pipeline:latest \
+    docker://mrcieu/gwaspipeline:latest \
     adjust_gwas_for_collider_bias.R --gwas <SUBSEQUENT_GWAS> \
         --harmonised_effects_gwas <HARMONISED_GWAS> \
         --beta <BETA> \
@@ -72,4 +72,4 @@ singularity run -B /user/work/$(whoami) -B /user/home/$(whoami) --pwd /home/scri
 ### Additional info
 
 * This pipeline was run using the github repository: https://github.com/MRCIEU/gwaspipeline
-* and the docker image: docker://andrewrrelmore/genepi_pipeline:`r get_other_docker_tag()`
+* and the docker image: docker://mrcieu/gwaspipeline:`r get_other_docker_tag()`

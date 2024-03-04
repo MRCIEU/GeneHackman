@@ -2,14 +2,14 @@
 
 All piplines will require a GWAS object or list of objects, they have the following properties
 
-GWAS Object:
+### GWAS Object:
 * `file`: Full path to file.  Mandatory
 * `ancestry`: one of `AFR, AMR, EAS, EUR, SAS`.  Mandatory for some pipelines
 * `build`: one of `GRCh36, GRCh37, GRCh38`.  Default: `GRCh37`
 * `columns`: object of column name maps (or string of predefined map).  Explained below
 * `populate_rsid`: boolean value.  Populates RSID column if it doesn't exist. Default `false`
 
-### GWAS Columns:
+**GWAS Columns:**
 
 With each GWAS file, you can specify column names ex. `{"P":"pval", ...}`, if you do not specify header names it will assume your GWAS has default names
 
@@ -28,24 +28,24 @@ Alternatively, `columns` accepts a string of some of the more common output form
 
 All pipelines will standardise each GWAS before running the subsequent steps.  The `SNP` field will be recalculated as `CHR:POS_EA_OA`, where EA and OA are ordered alphabetically, and the subsequent BETA and EAF will be adjusted accordingly
 
-* `n GWAS objects`: GWAS summary statistics files and optional column name map
+* `n GWAS objects`: See above for GWAS Object explanation
 * `output`:
   * `build`: one of the supported reference builds.  Default: `GRCh37`
   * `columns`: same format as input columns.  Either a object {} or predefined map string
 
 ## collider_bias 
 
-* `2 GWAS objects`: Incident and Subsequent GWAS summary statistics file and optional column name map
+* `2 GWAS objects`: Incident and Subsequent GWAS.  See above for GWAS Object explanation
 * `plink_clump_arguments`: arguments that are fed into the `plink --clump` call.  [Options here](https://zzz.bwh.harvard.edu/plink/clump.shtml)
 
 ## compare_gwases 
 
-* `n GWAS objects`: GWAS summary statistics files and optional column name map
+* `n GWAS objects`: See above for GWAS Object explanation
 * `plink_clump_arguments`: arguments that are fed into the `plink --clump` call.  [Options here](https://zzz.bwh.harvard.edu/plink/clump.shtml)
 
 ## qtl_mr
 
-* `1 GWAS object`: GWAS summary statistics file, ancestry, and optional column name map
+* `1 GWAS object`: See above for GWAS Object explanation
 * `qtl`:
   * `dataset`: see below for options
   * `subcategories`: list of subcategories to run, see below for options

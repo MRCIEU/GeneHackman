@@ -41,9 +41,10 @@ These should probably be in your *work* or *scratch* space (`/user/work/userid/.
 ends in `working/`
 
 ### Fill out input.json file
+* Ex: `cp snakemake/input_templates/input_compare_gwases.json input.json`
 * Each pipeline (as defined in `snakemake` directory) has its own input format.
-  * [There are example pipelines here, copy to input.json](snakemake/input_templates/)
-  * [There is documentation per pipeline here](snakemake/PIPELINES.md)
+  * [Here are example pipelines here, copy to input.json](snakemake/input_templates/)
+  * [Documentation per pipeline](snakemake/PIPELINES.md)
 * With each GWAS, you can specify header names ex. `{"P":"your_gwas_pval_col", ...}`, if you do not specify header names it will assume your GWAS has the headers below.
 * You can either copy into input.json, or supply the file into the script from another location
 
