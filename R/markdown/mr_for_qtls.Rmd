@@ -1,5 +1,5 @@
 ---
-title: "MR `r params$dataset` QTL Results"
+title: "MR for `r params$dataset` QTL Results"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   prettydoc::html_pretty:
@@ -15,7 +15,7 @@ options(scipen=1)
 ### Volcano Plot of MR Results Against `r params$dataset` QTL Dataset
 `r sprintf("![](%s)", params$volcano_plot)`
 
-### Statistically Significant MR results (after Bonferroni correction)
+### Statistically Significant MR results (after FDR correction)
 Only showing top 20 results if there are more.
 ```{r echo=F}
 mr_results <- vroom::vroom(params$mr_results, show_col_types = F) |>
@@ -33,4 +33,4 @@ knitr::kable(coloc_results)
 ### Additional info
 
 * This pipeline was run using the github repository: https://github.com/MRCIEU/gwaspipeline
-* and the docker image: docker://andrewrrelmore/genepi_pipeline:`r get_other_docker_tag()`
+* and the docker image: docker://mrcieu/gwaspipeline:`r get_other_docker_tag()`

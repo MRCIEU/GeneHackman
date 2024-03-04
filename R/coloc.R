@@ -56,33 +56,27 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
   mr_results <- get_file_or_dataframe(mr_results_file)
   if (length(exposures) > 0) {
     mr_results <- subset(mr_results, exposure %in% exposures)
-  } else {
-    mr_results <- utils::head(mr_results[order(mr_results$p.adjusted), ], 10)
   }
-  mr_results <- tidyr::separate(data = mr_results, col = "SNP", into = c("CHR", "BP"), sep = "[:_]", remove = F)
-
   coloc_results <- apply(mr_results, 1, function(mr_result) {
-    if (qtl_dataset == "metabrain") {
+    if (qtl_dataset == qtl_datasets$metabrain) {
       outcome <- unlist(strsplit(mr_result[["outcome"]], "_"))
       brain_region <- outcome[1]
       ancestry <- outcome[2]
 
-      chr <- as.numeric(mr_result[["CHR"]])
-      bp <- as.numeric(mr_result[["BP"]])
-
-      metabrain_dir <- "scratch/data/qtls/metabrain/"
-      qtl_gwas_file <- paste0(metabrain_dir, "gwas/", brain_region, "/", mr_result[["exposure"]], "_", ancestry, ".tsv.gz")
-
-      qtl_chr_gwas <- get_file_or_dataframe(qtl_gwas_file) |> dplyr::filter(EAF > 0 & EAF < 1)
-    }
-    else {
+      qtl_gwas_file <- paste0(metabrain_gwas_dir, "/", brain_region, "/", mr_result[["EXPOSURE"]], "_", ancestry, ".tsv.gz")
+      qtl_gwas <- get_file_or_dataframe(qtl_gwas_file) |> dplyr::filter(EAF > 0 & EAF < 1)
+    } else if (qtl_dataset == qtl_datasets$eqtlgen) {
+      qtl_gwas_file <- paste0(eqtlgen_gwas_dir, "/", mr_result[["outcome"]], "/", mr_result[["EXPOSURE"]], ".tsv.gz")
+      qtl_gwas <- get_file_or_dataframe(qtl_gwas_file) |> dplyr::filter(EAF > 0 & EAF < 1)
+    } else {
       stop("Error: qtl dataset not supported for coloc right now")
     }
+    chr <- as.numeric(mr_result[["CHR"]])
+    bp <- as.numeric(mr_result[["BP"]])
+    result <- coloc_analysis(gwas, qtl_gwas, mr_result[["EXPOSURE"]], chr, bp, range, default_n=default_n)
 
-    result <- coloc_analysis(gwas, qtl_chr_gwas, mr_result[["exposure"]], chr, bp, range, default_n=default_n)
-
-    miami_filename <- paste0("scratch/results/plots/mr_metabrain_coloc_", file_prefix(gwas_file), "_", mr_result[["exposure"]], ".png")
-    miami_plot(qtl_gwas_file, gwas_file, miami_filename, paste0("Miami Plot of", mr_result[["exposure"]]), chr, bp, range)
+    miami_filename <- paste0("scratch/results/plots/mr_metabrain_coloc_", file_prefix(gwas_file), "_", mr_result[["EXPOSURE"]], ".png")
+    miami_plot(qtl_gwas_file, gwas_file, miami_filename, paste0("Miami Plot of", mr_result[["EXPOSURE"]]), chr, bp, range)
 
     return(result)
   }) |> dplyr::bind_rows()

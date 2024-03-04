@@ -12,9 +12,9 @@ parser <- add_argument(parser, "--ancestry",
                        type = "character"
 )
 parser <- add_argument(parser, "--dataset",
-                       help = "Dataset of type of QTL analysis to run ('pqtl', and 'metabrain' accepted)",
+                       help = paste(c("QTL dataset, options:", qtl_datasets), collapse = " "),
                        type = "character",
-					   default = NULL
+                       default = NULL
 )
 parser <- add_argument(parser, "--subcategory",
                        help = "Subcategory of type of QTL analysis to run (depends on dataset)",
@@ -22,10 +22,10 @@ parser <- add_argument(parser, "--subcategory",
                        default = NULL
 )
 parser <- add_argument(parser, "--exposures",
-					   help = "List of exposures to focus on when running MR",
-					   type = "character",
-					   default = "",
-					   nargs = Inf
+                       help = "List of exposures to focus on when running MR",
+                       type = "character",
+                       default = "",
+                       nargs = Inf
 )
 parser <- add_argument(parser, "--output_file",
                        help = "Output file name of results from MR",
@@ -36,5 +36,8 @@ args <- parse_args(parser)
 create_dir_for_files(args$output_file)
 exposures <- split_string_into_vector(args$exposures)
 
-mr_function <- list(metabrain = perform_mr_on_metabrain_datasets)
-mr_function[[args$dataset]](args$gwas_filename, args$ancestry, args$subcategory, exposures, args$output_file)
+if (args$dataset == qtl_datasets$metabrain) {
+  perform_mr_on_metabrain_datasets(args$gwas_filename, args$ancestry, args$subcategory, exposures, args$output_file)
+} else if (args$dataset == qtl_datasets$eqtlgen) {
+  perform_mr_on_eqtlgen_datasets(args$gwas_filename, args$subcategory, exposures, args$output_file)
+}

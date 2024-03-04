@@ -1,5 +1,5 @@
 ---
-title: "Ancestry Comparison Results"
+title: "GWAS Comparison Results"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   prettydoc::html_pretty:
@@ -35,4 +35,4 @@ knitr::kable(heterogeneity_results)
 ### Additional info
 
 * This pipeline was run using the github repository: https://github.com/MRCIEU/gwaspipeline
-* and the docker image: docker://andrewrrelmore/genepi_pipeline:`r get_other_docker_tag()`
+* and the docker image: docker://mrcieu/gwaspipeline:`r get_other_docker_tag()`

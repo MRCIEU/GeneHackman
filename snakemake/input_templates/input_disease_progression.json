@@ -1,14 +1,14 @@
 {
   "gwases": [
     {
-      "file": "/home/thingy.tsv",
-      "ancestry": "",
-      "columns": {}
+      "file": "",
+      "columns": {"CHR":"", "BP":"", "EA":"", "OA":"", "EAF":"", "P":"", "BETA":"", "SE":""},
+      "ancestry": "EUR"
     },
     {
-      "file": "/home/thingy2.tsv",
-      "ancestry": "",
-      "columns": {"SNP":"SNP", "CHR":"CHR", "BP":"BP", "EA":"EA", "OA":"OA", "EAF":"EAF", "P":"P", "BETA":"BETA", "SE":"SE"}
+      "file": "",
+      "columns": {},
+      "ancestry": "EAS"
     }
   ],
   "plink_clump_arguments": "--clump-p2 0.001 --clump-r2 0.3 --clump-kb 500",

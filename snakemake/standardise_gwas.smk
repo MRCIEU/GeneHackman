@@ -1,6 +1,7 @@
 include: "util/common.smk"
-singularity: docker_container
+singularity: get_docker_container()
 
+pipeline_name = "standardise_gwas"
 pipeline = parse_pipeline_input()
 
 onstart:
@@ -14,7 +15,7 @@ rule all:
 include: "rules/standardise_rule.smk"
 
 onsuccess:
-    onsuccess()
+    onsuccess(pipeline_name, is_test=pipeline.is_test)
 
 onerror:
-    onerror_message()
+    onerror_message(pipeline_name, is_test=pipeline.is_test)

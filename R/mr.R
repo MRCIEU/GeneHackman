@@ -2,8 +2,17 @@
 perform_mr_on_metabrain_datasets <- function(gwas_filename, ancestry="EUR", subcategory=NULL, exposures=c(), results_output) {
   file_pattern <- paste0(tolower(subcategory), "_", tolower(ancestry))
   metabrain_top_hits <- list.files(metabrain_top_hits_dir, pattern = file_pattern, full.names = T)
+  print(metabrain_top_hits)
+  print(exposures)
 
-  run_mr_on_qtl_data(gwas_filename, results_output = results_output, qtl_files = metabrain_top_hits, exposures)
+  run_mr_on_qtl_data(gwas_filename, qtl_files = metabrain_top_hits, results_output = results_output, exposures = exposures)
+}
+
+perform_mr_on_eqtlgen_datasets <- function(gwas_filename, subcategory=NULL, exposures=c(), results_output) {
+  file_pattern <- tolower(subcategory)
+  eqtlgen_top_hits <- list.files(eqtlgen_top_hits_dir, pattern = file_pattern, full.names = T)
+
+  run_mr_on_qtl_data(gwas_filename, results_output = results_output, qtl_files = eqtlgen_top_hits, exposures = exposures)
 }
 
 
@@ -54,8 +63,6 @@ run_mr_on_qtl_data <- function(gwas_filename, qtl_files, results_output, exposur
       mr_results <- subset(mr_results, exposure %in% exposures)
     }
 
-    mr_results$p.adjusted <- p.adjust(mr_results$pval, "fdr")
-
     qtl_dataset <- vroom::vroom(qtl_file, show_col_types=F) |>
       calculate_f_statistic()
     matching <- match(mr_results$exposure, qtl_dataset$EXPOSURE)
@@ -65,6 +72,9 @@ run_mr_on_qtl_data <- function(gwas_filename, qtl_files, results_output, exposur
     return(mr_results)
   }) |> dplyr::bind_rows()
 
+  all_qtl_mr_results <- tidyr::separate(all_qtl_mr_results, col = "SNP", into = c("CHR", "BP", "EA", "OA"), sep = "[:_]", remove = F) |>
+    dplyr::rename(BETA="b", SE="se", P="pval", EXPOSURE="exposure") |>
+    dplyr::mutate(p.adjusted = p.adjust(P, "fdr"))
 
   vroom::vroom_write(all_qtl_mr_results, results_output)
 }

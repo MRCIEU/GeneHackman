@@ -12,15 +12,14 @@ get_file_or_dataframe <- function(input, columns=NULL, snps=NULL) {
   if (is.data.frame(input)) {
     output <- dplyr::select(input, `if`(is.null(columns), dplyr::all_of(dplyr::everything()), dplyr::all_of(columns))) |>
         dplyr::filter(`if`(is.null(snps), T, SNP %in% snps))
-  }
-  else {
-    if (!file.exists(input)) stop(paste("Error:", input, "can't be found"))
-    else {
+  } else {
+    if (!file.exists(input)) {
+      stop(paste("Error:", input, "can't be found"))
+    } else {
       if (!is.null(snps)) {
         output <- vroom_snps(input, snps) |>
             dplyr::select(`if`(is.null(columns), dplyr::all_of(dplyr::everything()), dplyr::all_of(columns)))
-      }
-      else {
+      } else {
         if (is.null(columns)) {
           output <- vroom::vroom(input, col_type = vroom::cols(vroom::col_character()), show_col_types=F)
         } else {
@@ -46,8 +45,7 @@ vroom_snps <- function(gwas_file, snps=c()){
     } else {
       grep_command <- paste0("zcat ", gwas_file, " | head -n 1 && rg -Iz '", snps, "' ", gwas_file)
     }
-  }
-  else {
+  } else {
     grep_command <- paste0("head -n 1", gwas_file, " && rg -I '", snps, "' ", gwas_file)
   }
 
@@ -121,7 +119,7 @@ create_html_from_rmd <- function(rmd_file, params = list(), output_file) {
 #' @import httr
 get_other_docker_tag <- function() {
   tag_to_match <- "test"
-  docker_url <- "https://hub.docker.com/v2/repositories/andrewrrelmore/genepi_pipeline/tags/"
+  docker_url <- "https://hub.docker.com/v2/repositories/mrcieu/gwaspipeline/tags/"
   tag_information <- c()
   tryCatch(
    expr = {

@@ -2,14 +2,25 @@ import csv
 import gzip
 import json
 import os
-import time
 import re
+import time
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from pathlib import Path
 from types import SimpleNamespace
 
 include: "constants.smk"
+include: "log_results.smk"
+
+def get_docker_container():
+    version = "latest"
+    with open("DESCRIPTION") as file:
+        for line in file:
+            match = re.match(r"^Version: ([\w\.]+)", line)
+            if match:
+                version = match.group(1)
+                break
+    return docker_repo + ":" + version
 
 def parse_pipeline_input():
     if not os.path.isfile(".env"):
@@ -20,6 +31,7 @@ def parse_pipeline_input():
     with open(input_file) as pipeline_input:
         pipeline = json.load(pipeline_input,object_hook=lambda data: SimpleNamespace(**data))
 
+    if not hasattr(pipeline, "is_test"): pipeline.is_test = False
     if not hasattr(pipeline, "output"): pipeline.output = default_output_options
     else:
         if not hasattr(pipeline.output, "build"): pipeline.output.build = default_output_options.build
@@ -173,7 +185,7 @@ def copy_data_to_rdfs(files_created):
         print(f"Files successfully copied to {RDFS_DIR}")
 
 
-def onsuccess(files_created=list(), results_file=None):
+def onsuccess(pipeline_name, files_created=list(), results_file=None, is_test=False):
     print("\nPipeline finished, no errors.  List of created files:")
     print(*files_created, sep='\n')
 
@@ -184,12 +196,17 @@ def onsuccess(files_created=list(), results_file=None):
 
     copy_data_to_rdfs(files_created)
 
+    update_google_sheet(pipeline_name, succeeded=True, is_test=is_test)
 
-def onerror_message():
+
+def onerror_message(pipeline_name, is_test=False):
     last_log = subprocess.check_output(f"ls -t {slurm_log_directory} | head -n1", shell=True, universal_newlines=True)
+    log_full_path = slurm_log_directory + last_log
     print("\n---------------------")
     print("There was an error in the pipeline, please check the last written slurm log to see the error:")
-    print(slurm_log_directory + last_log)
+    print(log_full_path)
+
+    update_google_sheet(pipeline_name, succeeded=False, error_file=log_full_path, is_test=is_test)
 
 
 cleanup_old_slurm_logs()

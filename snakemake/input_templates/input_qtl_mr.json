@@ -3,16 +3,14 @@
     {
       "file": "",
       "columns": {"CHR":"", "BP":"", "EA":"", "OA":"", "EAF":"", "P":"", "BETA":"", "SE":""},
-      "build": "GRCh37"
-    },
-    {
-      "file": "",
-      "columns": {}
+      "ancestry": "EUR",
+      "N": 0
     }
   ],
-  "output": {
-    "build": "GRCh37",
-    "columns": {}
+  "qtl": {
+    "dataset": "",
+    "subcategory": "",
+    "exposures": []
   },
   "populate_rsid": false
 }
