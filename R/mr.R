@@ -2,8 +2,6 @@
 perform_mr_on_metabrain_datasets <- function(gwas_filename, ancestry="EUR", subcategory=NULL, exposures=c(), results_output) {
   file_pattern <- paste0(tolower(subcategory), "_", tolower(ancestry))
   metabrain_top_hits <- list.files(metabrain_top_hits_dir, pattern = file_pattern, full.names = T)
-  print(metabrain_top_hits)
-  print(exposures)
 
   run_mr_on_qtl_data(gwas_filename, qtl_files = metabrain_top_hits, results_output = results_output, exposures = exposures)
 }
@@ -62,15 +60,18 @@ run_mr_on_qtl_data <- function(gwas_filename, qtl_files, results_output, exposur
     if (length(exposures) > 0) {
       mr_results <- subset(mr_results, exposure %in% exposures)
     }
+    harmonised_data$SNP <- toupper(harmonised_data$SNP)
 
     qtl_dataset <- vroom::vroom(qtl_file, show_col_types=F) |>
       calculate_f_statistic()
-    matching <- match(mr_results$exposure, qtl_dataset$EXPOSURE)
-    mr_results$SNP <- qtl_dataset$SNP[matching]
-    mr_results$F_STAT <- qtl_dataset$F_STAT[matching]
+    relevant_qtl_results <- qtl_dataset |>
+      dplyr::filter(SNP %in% toupper(harmonised_data$SNP)) |>
+      dplyr::select(SNP, F_STAT, EXPOSURE)
 
+    mr_results <- merge(mr_results, relevant_qtl_results, by.x="exposure", by.y="EXPOSURE")
     return(mr_results)
   }) |> dplyr::bind_rows()
+
 
   all_qtl_mr_results <- tidyr::separate(all_qtl_mr_results, col = "SNP", into = c("CHR", "BP", "EA", "OA"), sep = "[:_]", remove = F) |>
     dplyr::rename(BETA="b", SE="se", P="pval", EXPOSURE="exposure") |>
@@ -84,13 +85,9 @@ run_mr_on_qtl_data <- function(gwas_filename, qtl_files, results_output, exposur
 #' @import dplyr
 #' @import vroom
 compare_interesting_mr_results <- function(pqtl_mr_results, forest_plot_output_file) {
-  pqtl_mr_results <- vroom::vroom(pqtl_mr_results, show_col_types=F)
-  significant_pqtl_mr_results <- subset(pqtl_mr_results, p.adjusted < 0.05)
-
-  interesting_pqtl_mr_results <- subset(pqtl_mr_results, exposure %in% significant_pqtl_mr_results$exposure) |>
-    dplyr::select(exposure, dplyr::everything())
-  interesting_pqtl_mr_results$BETA <- interesting_pqtl_mr_results$b
-  interesting_pqtl_mr_results$SE <- interesting_pqtl_mr_results$se
+  interesting_pqtl_mr_results <- vroom::vroom(pqtl_mr_results, show_col_types=F) |>
+    dplyr::filter(p.adjusted < 0.05) |>
+    dplyr::select(EXPOSURE, dplyr::everything())
 
   grouped_forest_plot(interesting_pqtl_mr_results,
                       "Comparing MR Results across pQTL data sets",

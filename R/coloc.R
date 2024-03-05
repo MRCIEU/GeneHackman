@@ -75,8 +75,9 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
     bp <- as.numeric(mr_result[["BP"]])
     result <- coloc_analysis(gwas, qtl_gwas, mr_result[["EXPOSURE"]], chr, bp, range, default_n=default_n)
 
-    miami_filename <- paste0("scratch/results/plots/mr_metabrain_coloc_", file_prefix(gwas_file), "_", mr_result[["EXPOSURE"]], ".png")
-    miami_plot(qtl_gwas_file, gwas_file, miami_filename, paste0("Miami Plot of", mr_result[["EXPOSURE"]]), chr, bp, range)
+    #TODO: should we create Miami Plots for coloc results?
+    #miami_filename <- paste0(user_results_dir, "plots/mr_metabrain_coloc_", file_prefix(gwas_file), "_", mr_result[["EXPOSURE"]], ".png")
+    #miami_plot(qtl_gwas_file, gwas_file, miami_filename, paste0("Miami Plot of", mr_result[["EXPOSURE"]]), chr, bp, range)
 
     return(result)
   }) |> dplyr::bind_rows()

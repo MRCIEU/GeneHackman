@@ -30,7 +30,7 @@ parser <- add_argument(parser, "--output_file",
 )
 
 args <- parse_args(parser)
-create_dir_for_files(args$output_file, paste0(Sys.getenv("RESULTS_DIR"), "/plots"))
+create_dir_for_files(args$output_file, paste0(user_results_dir, "/plots"))
 exposures <- split_string_into_vector(args$exposures)
 
 run_coloc_on_qtl_mr_results(args$mr_results_filename, args$gwas_filename, args$dataset, exposures, output_file=args$output_file, default_n=args$N)
