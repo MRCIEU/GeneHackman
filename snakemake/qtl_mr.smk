@@ -15,7 +15,7 @@ exposures_string = " ".join(pipeline.qtl.exposures)
 gwas_prefix = file_prefix(gwas.file)
 mr_results = RESULTS_DIR + "mr/" + gwas_prefix + "_" + qtl_name + ".tsv.gz"
 coloc_results = RESULTS_DIR + "mr/coloc_" + gwas_prefix + "_" + qtl_name + ".tsv"
-volcano_plot = RESULTS_DIR + "plots/volcano_plot" + gwas_prefix  + "_" + qtl_name + ".png"
+volcano_plot = RESULTS_DIR + "plots/volcano_plot_" + gwas_prefix  + "_" + qtl_name + ".png"
 results_file = RESULTS_DIR + "mr/result_" + qtl_name + "_" + gwas_prefix  + ".html"
 
 

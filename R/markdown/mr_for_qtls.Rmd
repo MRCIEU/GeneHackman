@@ -27,6 +27,7 @@ knitr::kable(head(mr_results, 20))
 
 ### Coloc Results
 ```{r echo=F}
+coloc_results <- coloc_results |> dplyr::filter(exposure %in% mr_results$EXPOSURE)
 knitr::kable(coloc_results)
 ```
 

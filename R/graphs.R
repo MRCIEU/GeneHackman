@@ -199,7 +199,7 @@ volcano_plot <- function(results_file, title="Volcano Plot of Results", label="E
   ))
 
   #filter label to only showing the more 'important' labels
-  important_labels <- dplyr::filter(table, get({{p_val}} < 0.05)) |>
+  important_labels <- dplyr::filter(table, get({{p_val}}) < 0.05) |>
     dplyr::arrange(dplyr::desc(-log10(get({{p_val}}) * abs(BETA))))
   important_labels <- head(important_labels, num_labels)[[label]]
   table[[label]] <- ifelse(table[[label]] %in% important_labels, table[[label]], NA)
