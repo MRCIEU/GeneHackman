@@ -14,7 +14,6 @@ run_coloc_on_list_of_datasets <- function(first_gwas_list=list(),
   input_lengths <- c(length(first_gwas_list), length(second_gwas_list), length(chr_list), length(bp_list))
   if (var(input_lengths) != 0) {
     stop("Error: Input lengths are not equal")
-      
   }
 
   data_for_coloc <- tibble::tibble(
@@ -53,7 +52,9 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
   gwas <- get_file_or_dataframe(gwas_file, columns = coloc_columns) |> dplyr::filter(EAF > 0 & EAF < 1)
   range <- 500000
 
-  mr_results <- get_file_or_dataframe(mr_results_file)
+  mr_results <- get_file_or_dataframe(mr_results_file) |>
+    dplyr::filter(p.adjusted < 0.05)
+
   if (length(exposures) > 0) {
     mr_results <- subset(mr_results, exposure %in% exposures)
   }
@@ -61,7 +62,7 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
     if (qtl_dataset == qtl_datasets$metabrain) {
       outcome <- unlist(strsplit(mr_result[["outcome"]], "_"))
       brain_region <- outcome[1]
-      ancestry <- outcome[2]
+      ancestry <- toupper(outcome[2])
 
       qtl_gwas_file <- paste0(metabrain_gwas_dir, "/", brain_region, "/", mr_result[["EXPOSURE"]], "_", ancestry, ".tsv.gz")
       qtl_gwas <- get_file_or_dataframe(qtl_gwas_file) |> dplyr::filter(EAF > 0 & EAF < 1)
@@ -75,8 +76,9 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
     bp <- as.numeric(mr_result[["BP"]])
     result <- coloc_analysis(gwas, qtl_gwas, mr_result[["EXPOSURE"]], chr, bp, range, default_n=default_n)
 
-    miami_filename <- paste0("scratch/results/plots/mr_metabrain_coloc_", file_prefix(gwas_file), "_", mr_result[["EXPOSURE"]], ".png")
-    miami_plot(qtl_gwas_file, gwas_file, miami_filename, paste0("Miami Plot of", mr_result[["EXPOSURE"]]), chr, bp, range)
+    #TODO: should we create Miami Plots for coloc results?
+    #miami_filename <- paste0(user_results_dir, "plots/mr_metabrain_coloc_", file_prefix(gwas_file), "_", mr_result[["EXPOSURE"]], ".png")
+    #miami_plot(qtl_gwas_file, gwas_file, miami_filename, paste0("Miami Plot of", mr_result[["EXPOSURE"]]), chr, bp, range)
 
     return(result)
   }) |> dplyr::bind_rows()

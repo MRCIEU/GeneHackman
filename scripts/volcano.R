@@ -15,7 +15,7 @@ parser <- add_argument(parser, "--title",
 parser <- add_argument(parser, "--label",
              help = "column name to be used as label name in plot",
              type = "character",
-             default = "exposure"
+             default = "EXPOSURE"
 )
 parser <- add_argument(parser, "--num_labels",
              help = "Number of labels to include in volcano plot",

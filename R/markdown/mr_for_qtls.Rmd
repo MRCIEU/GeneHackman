@@ -19,7 +19,7 @@ options(scipen=1)
 Only showing top 20 results if there are more.
 ```{r echo=F}
 mr_results <- vroom::vroom(params$mr_results, show_col_types = F) |>
-  subset(p.adjusted < 0.05 & exposure %in% coloc_results$exposure) |>
+  subset(p.adjusted < 0.05 & EXPOSURE %in% coloc_results$exposure) |>
   dplyr::arrange(p.adjusted) |> select(-c(id.exposure, id.outcome))
 
 knitr::kable(head(mr_results, 20))
@@ -27,10 +27,11 @@ knitr::kable(head(mr_results, 20))
 
 ### Coloc Results
 ```{r echo=F}
+coloc_results <- coloc_results |> dplyr::filter(exposure %in% mr_results$EXPOSURE)
 knitr::kable(coloc_results)
 ```
 
 ### Additional info
 
 * This pipeline was run using the github repository: https://github.com/MRCIEU/gwaspipeline
-* and the docker image: docker://mrcieu/gwaspipeline:`r get_other_docker_tag()`
+* and the docker image: docker://mrcieu/gwaspipeline:`r get_docker_image_tag()`

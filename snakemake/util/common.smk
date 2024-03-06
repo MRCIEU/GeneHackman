@@ -13,6 +13,8 @@ include: "constants.smk"
 include: "log_results.smk"
 
 def get_docker_container():
+    if DOCKER_VERSION: return DOCKER_VERSION
+
     version = "latest"
     with open("DESCRIPTION") as file:
         for line in file:

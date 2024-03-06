@@ -39,6 +39,7 @@ if not os.getenv("DATA_DIR") or not os.getenv("RESULTS_DIR"):
 if not os.getenv("RDFS_DIR"):
     print("Please populate RDFS_DIR in .env if you want the generated files to be automatically copied to RDFS")
 
+DOCKER_VERSION = os.getenv('DOCKER_VERSION')
 DATA_DIR = format_dir_string(os.getenv('DATA_DIR'))
 RESULTS_DIR = format_dir_string(os.getenv('RESULTS_DIR'))
 RDFS_DIR = format_dir_string(os.getenv('RDFS_DIR'))

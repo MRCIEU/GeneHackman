@@ -6,6 +6,9 @@ get_env_var <- function(env_var_name, default_value) {
   }
 }
 
+user_data_dir <- get_env_var("DATA_DIR")
+user_results_dir <- get_env_var("RESULTS_DIR")
+
 number_of_cpus_available <- as.numeric(get_env_var("SLURM_CPUS_ON_NODE", 1))
 genomic_data_dir <- get_env_var("GENOMIC_DATA_DIR", "/mnt/storage/private/mrcieu/data/genomic_data/")
 qtl_directory <- get_env_var("QTL_TOP_HITS_DIR", "/mnt/storage/private/mrcieu/data/qtl_top_hits/")

@@ -185,26 +185,26 @@ miami_plot <- function(first_gwas_filename,
 #' @import ggplot2
 #' @import ggrepel
 #' @export
-volcano_plot <- function(results_file, title="Volcano Plot of Results", label="exposure", num_labels=30, output_file) {
+volcano_plot <- function(results_file, title="Volcano Plot of Results", label="EXPOSURE", num_labels=30, output_file, p_val="p.adjusted")  {
   table <- get_file_or_dataframe(results_file)
 
-  if (!all(c("BETA", "P") %in% names(table))) {
-    stop("data frame needs to have BETA and P columns")
+  if (!all(c("BETA", p_val) %in% names(table))) {
+    stop(paste("data frame needs to have BETA and", p_val, "columns"))
   }
 
   table <- dplyr::mutate(table, category = dplyr::case_when(
-    P > 0.05 ~ "Not Significant",
-    P < 0.05 & BETA < 0 ~ "Deleterious",
-    P < 0.05 & BETA > 0 ~ "Protective"
+    get({{p_val}}) > 0.05 ~ "Not Significant",
+    get({{p_val}}) < 0.05 & BETA < 0 ~ "Deleterious",
+    get({{p_val}}) < 0.05 & BETA > 0 ~ "Protective"
   ))
-  table <- table[!(abs(table$BETA) > 1 & table$P > 0.05), ]
 
   #filter label to only showing the more 'important' labels
-  most_interesting_labels <- head(table[order(-log10(table$P) * abs(table$BETA), decreasing = T), ], num_labels)[[label]]
-  print(most_interesting_labels)
-  table[[label]] <- ifelse(table[[label]] %in% most_interesting_labels, table[[label]], NA)
+  important_labels <- dplyr::filter(table, get({{p_val}}) < 0.05) |>
+    dplyr::arrange(dplyr::desc(-log10(get({{p_val}}) * abs(BETA))))
+  important_labels <- head(important_labels, num_labels)[[label]]
+  table[[label]] <- ifelse(table[[label]] %in% important_labels, table[[label]], NA)
 
-  ggplot2::ggplot(data = table, ggplot2::aes(x = BETA , y = -log10(P), col = category, label = .data[[label]])) +
+  ggplot2::ggplot(data = table, ggplot2::aes(x = BETA , y = -log10(.data[[p_val]]), col = category, label = .data[[label]])) +
     ggplot2::geom_vline(xintercept = c(-0.1, 0.1), col = "gray", linetype = 'dashed') +
     ggplot2::geom_hline(yintercept = -log10(0.05), col = "tomato2", linetype = 'dashed') +
     ggplot2::geom_point(size = 1) +

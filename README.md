@@ -15,7 +15,7 @@ Here is a list of available pipelines, and the steps they run
 
 | standardise_gwas.smk                                          | compare_gwases.smk                     | qtl_mr.smk                              | disease_progression.smk                        |
 |---------------------------------------------------------------|----------------------------------------|-----------------------------------------|------------------------------------------------|
-| Populate RSID from CHR:POS                                    | All steps in 'standardise_gwas.smk'    | All steps in 'standardise_gwas.smk'     | All steps in 'standardise_gwas.smk'            |
+| Populate RSID from CHR, BP, EA, and OA                        | All steps in 'standardise_gwas.smk'    | All steps in 'standardise_gwas.smk'     | All steps in 'standardise_gwas.smk'            |
 | Convert Reference Build<br/>(eg. GRCh38 -> GRCh37)            | PLINK clumping                         | Run MR against preformatted QTL dataset | Run Collider Bias Corrections, compare results |
 | Unique SNP = CHR:BP_EA_OA<br/> (where EA < OA alphabetically) | Calculate heterogeneity between GWASes | Volcano Plot of Results                 | Miami Plot of Collider Bias Results            |
 | Auto-populate GENE ID <-> ENSEMBL ID                          | LDSC h2 and rg                         | Run coloc of significant MR results     | Expected vs. Observed Comparison               |
@@ -45,11 +45,11 @@ ends in `working/`
 * Each pipeline (as defined in `snakemake` directory) has its own input format.
   * [Here are example pipelines here, copy to input.json](snakemake/input_templates/)
   * [Documentation per pipeline](snakemake/PIPELINES.md)
-* With each GWAS, you can specify header names ex. `{"P":"your_gwas_pval_col", ...}`, if you do not specify header names it will assume your GWAS has the headers below.
 * You can either copy into input.json, or supply the file into the script from another location
 
 ### 4. Run the pipeline
-### `./run_pipeline.sh snakemake/<specific_pipeline>.smk <optional_input_file.json>`
+
+`./run_pipeline.sh snakemake/<specific_pipeline>.smk <optional_input_file.json>`
 
 If there are errors while running the pipeline, you can find error messages either directly on the screen, or in slurm log file that is outputted on error
 
@@ -67,7 +67,7 @@ There are 3 main components to the pipeline
 2. Docker / Singularity container with installed languages (R and python), packages, os libraries, and code
 3. Slurm: each snakemake step spins up a singularity container inside a slurm job.  Each step can specify different slurm requirements.
 
-## Repository Organisation
+### Repository Organisation
 
 * `R` directory holds R package code that can also be called and reused by any step in the pipeline (accessed by a cli script)
 * `scripts` directory holds the scripts that can be easily called by snakemake (`Rscript example.R --input_ex example_input`)
@@ -75,6 +75,6 @@ There are 3 main components to the pipeline
 * `docker` directory holds the information for creating the docker image that the pipeline runs
 * `tests` directory holds all R tests, and a end to end pipeline test script 
 
-## Making changes
+### Making changes
 
-If you want to make any additions / changes please contact andrew.elmore@bristol.ac.uk, or open a ticket on this repo.
+If you want to make any additions / changes please contact andrew.elmore@bristol.ac.uk, or open an issue in this repo.
