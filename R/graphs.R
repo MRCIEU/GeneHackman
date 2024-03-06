@@ -199,13 +199,10 @@ volcano_plot <- function(results_file, title="Volcano Plot of Results", label="E
   ))
 
   #filter label to only showing the more 'important' labels
-  print(names(table))
-  print(table[[label]])
-
-  most_interesting_labels <- head(table[order(-log10(as.numeric(table[[p_val]])) * abs(table$BETA), decreasing = T), ], num_labels)[[label]]
-  print(most_interesting_labels)
-  table[[label]] <- ifelse(table[[label]] %in% most_interesting_labels, table[[label]], NA)
-  print(table)
+  important_labels <- dplyr::filter(table, get({{p_val}} < 0.05)) |>
+    dplyr::arrange(dplyr::desc(-log10(get({{p_val}}) * abs(BETA))))
+  important_labels <- head(important_labels, num_labels)[[label]]
+  table[[label]] <- ifelse(table[[label]] %in% important_labels, table[[label]], NA)
 
   ggplot2::ggplot(data = table, ggplot2::aes(x = BETA , y = -log10(.data[[p_val]]), col = category, label = .data[[label]])) +
     ggplot2::geom_vline(xintercept = c(-0.1, 0.1), col = "gray", linetype = 'dashed') +
