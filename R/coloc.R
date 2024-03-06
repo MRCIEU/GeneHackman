@@ -14,7 +14,6 @@ run_coloc_on_list_of_datasets <- function(first_gwas_list=list(),
   input_lengths <- c(length(first_gwas_list), length(second_gwas_list), length(chr_list), length(bp_list))
   if (var(input_lengths) != 0) {
     stop("Error: Input lengths are not equal")
-      
   }
 
   data_for_coloc <- tibble::tibble(
@@ -53,7 +52,9 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
   gwas <- get_file_or_dataframe(gwas_file, columns = coloc_columns) |> dplyr::filter(EAF > 0 & EAF < 1)
   range <- 500000
 
-  mr_results <- get_file_or_dataframe(mr_results_file)
+  mr_results <- get_file_or_dataframe(mr_results_file) |>
+    dplyr::filter(p.adjusted < 0.05)
+
   if (length(exposures) > 0) {
     mr_results <- subset(mr_results, exposure %in% exposures)
   }

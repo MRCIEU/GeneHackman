@@ -206,11 +206,20 @@ convert_z_score_to_beta <- function(gwas) {
     (2 * gwas$EAF) * (1 - gwas$EAF) * (gwas$N + gwas$Z^2)
   )
 
+  #if (!"P" %in% names(gwas)) {
+  #  gwas$P <- convert_z_to_p(gwas)
+  #}
+  return(gwas)
+}
+
+#' @import stats
+convert_z_to_p <- function(gwas) {
+  gwas$P <- 2 * pnorm(-abs(gwas$Z))
   return(gwas)
 }
 
 #TODO: don't think this is right...
-# convert_beta_to_z_score <- function(gwas) {
+# convert_beta_and_se_to_z_score <- function(gwas) {
 #   mean_beta <- mean(gwas$BETA)
 #   sd_beta <- sd(gwas$BETA)
 #   gwas$Z <- (gwas$BETA - mean_beta) / sd_beta
@@ -224,12 +233,6 @@ convert_negative_log_p_to_p <- function(gwas) {
 
 convert_p_to_negative_log_p <- function(gwas) {
   gwas$LOG_P <- -log10(gwas$P)
-  return(gwas)
-}
-
-#' @import stats
-convert_z_to_p <- function(gwas) {
-  gwas$P <- 2 * pnorm(-abs(gwas$Z))
   return(gwas)
 }
 

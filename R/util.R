@@ -121,36 +121,6 @@ get_docker_image_tag <- function() {
   #return(packageVersion("gwaspipeline"))
 }
 
-#' @import httr
-get_other_docker_tag <- function() {
-  tag_to_match <- "test"
-  docker_url <- "https://hub.docker.com/v2/repositories/mrcieu/gwaspipeline/tags/"
-  tag_information <- c()
-  tryCatch(
-   expr = {
-      response <- httr::GET(docker_url, httr::accept_json())
-      tag_information <- httr::content(response, type="application/json")$results
-   },
-   error = function(e) {
-     message(paste("Call to docker hub failed:", e))
-     return(tag_to_match)
-   }
-  )
-
-  #we can't be sure about tag order, so iterating over it twice
-  for (tag in tag_information) {
-    if (tag$name == tag_to_match) {
-      digest <- tag$digest
-    }
-  }
-  for (tag in tag_information) {
-    if (tag$digest == digest & tag$name != tag_to_match) {
-      return(tag$name)
-    }
-  }
-  return(tag_to_match)
-}
-
 #' @import vroom
 run_sqlite_command <- function(db_name, query, col_names = c()) {
   query <- paste0('"', query, '"')
