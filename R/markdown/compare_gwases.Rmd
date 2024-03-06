@@ -35,4 +35,4 @@ knitr::kable(heterogeneity_results)
 ### Additional info
 
 * This pipeline was run using the github repository: https://github.com/MRCIEU/gwaspipeline
-* and the docker image: docker://mrcieu/gwaspipeline:`r get_other_docker_tag()`
+* and the docker image: docker://mrcieu/gwaspipeline:`r get_docker_image_tag()`

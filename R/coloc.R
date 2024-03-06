@@ -61,7 +61,7 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
     if (qtl_dataset == qtl_datasets$metabrain) {
       outcome <- unlist(strsplit(mr_result[["outcome"]], "_"))
       brain_region <- outcome[1]
-      ancestry <- outcome[2]
+      ancestry <- toupper(outcome[2])
 
       qtl_gwas_file <- paste0(metabrain_gwas_dir, "/", brain_region, "/", mr_result[["EXPOSURE"]], "_", ancestry, ".tsv.gz")
       qtl_gwas <- get_file_or_dataframe(qtl_gwas_file) |> dplyr::filter(EAF > 0 & EAF < 1)
