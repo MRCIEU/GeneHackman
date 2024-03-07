@@ -26,5 +26,4 @@ export INPUT_FILE=$2
 ADDITIONAL_ARGS="${@:3}"
 
 module load apps/singularity/3.8.3
-conda activate ${GENOMIC_DATA_DIR}pipeline/conda_pipeline
 snakemake --snakefile ${SMK_FILE} --profile ${PROFILE} ${ADDITIONAL_ARGS}
