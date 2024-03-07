@@ -13,25 +13,21 @@ Goals:
 
 Here is a list of available pipelines, and the steps they run
 
-| standardise_gwas.smk                                          | compare_gwases.smk                     | qtl_mr.smk                              | disease_progression.smk                        |
-|---------------------------------------------------------------|----------------------------------------|-----------------------------------------|------------------------------------------------|
-| Populate RSID from CHR, BP, EA, and OA                        | All steps in 'standardise_gwas.smk'    | All steps in 'standardise_gwas.smk'     | All steps in 'standardise_gwas.smk'            |
-| Convert Reference Build<br/>(eg. GRCh38 -> GRCh37)            | PLINK clumping                         | Run MR against preformatted QTL dataset | Run Collider Bias Corrections, compare results |
-| Unique SNP = CHR:BP_EA_OA<br/> (where EA < OA alphabetically) | Calculate heterogeneity between GWASes | Volcano Plot of Results                 | Miami Plot of Collider Bias Results            |
-| Auto-populate GENE ID <-> ENSEMBL ID                          | LDSC h2 and rg                         | Run coloc of significant MR results     | Expected vs. Observed Comparison               |
-|                                                               | Expected vs. Observed Comparison       |                                         |                                                |
+| standardise_gwas.smk                                          | compare_gwases.smk                     | qtl_mr.smk                                  | disease_progression.smk                        |
+|---------------------------------------------------------------|----------------------------------------|---------------------------------------------|------------------------------------------------|
+| Populate RSID from CHR, BP, EA, and OA                        | All steps in 'standardise_gwas.smk'    | All steps in 'standardise_gwas.smk'         | All steps in 'standardise_gwas.smk'            |
+| Convert Reference Build<br/>(eg. GRCh38 -> GRCh37)            | PLINK clumping                         | Run MR against top hits of QTL dataset      | Run Collider Bias Corrections, compare results |
+| Unique SNP = CHR:BP_EA_OA<br/> (where EA < OA alphabetically) | Calculate heterogeneity between GWASes | Volcano Plot of Results                     | Miami Plot of Collider Bias Results            |
+| Auto-populate GENE ID <-> ENSEMBL ID                          | LDSC h2 and rg                         | Run coloc of significant top hit MR results | Expected vs. Observed Comparison               |
+|                                                               | Expected vs. Observed Comparison       |                                             |                                                |
 
 ## Onboarding
 
 ### 1. Clone the repository into your personal space on BlueCrystal 4
 `git clone git@github.com:MRCIEU/gwaspipeline.git && cd gwaspipeline`
 
-### 2. Create and activate conda environment
-Ensure you [have conda installed and initialised](https://www.acrc.bris.ac.uk/protected/hpc-docs/software/python_conda.html) before running these commands:
-```
-conda env create --file environment.yml #only needed the first time
-conda activate gwaspipeline
-```
+### 2. Ensure you [have conda installed and initialised](https://www.acrc.bris.ac.uk/protected/hpc-docs/software/python_conda.html)
+
 ### 3. Populate .env and input.json files
 
 ### `cp .env_example .env`

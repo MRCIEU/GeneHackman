@@ -97,3 +97,15 @@ test_that("gwas_formatting.convert_beta_to_or and back returns the same results"
   expect_true(all(abs(gwas$BETA - original_gwas$BETA) < floating_point_tolerance))
   expect_true(all(abs(gwas$SE - original_gwas$SE) < floating_point_tolerance))
 })
+
+# test_that("gwas_formatting.convert_beta_and_se_to_z_score and back returns the same results", {
+#   original_gwas <- vroom::vroom("data/test_data_small.tsv.gz", show_col_types=F)
+#
+#   gwas <- convert_beta_and_se_to_z_score(original_gwas)
+#   gwas <- convert_z_score_to_beta(gwas)
+#   print(abs(gwas$BETA - original_gwas$BETA))
+#
+#   floating_point_tolerance <- 1e-10
+#   expect_true(all(abs(gwas$BETA - original_gwas$BETA) < floating_point_tolerance))
+#   expect_true(all(abs(gwas$SE - original_gwas$SE) < floating_point_tolerance))
+# })
