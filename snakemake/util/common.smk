@@ -13,16 +13,22 @@ include: "constants.smk"
 include: "log_results.smk"
 
 def get_docker_container():
-    if DOCKER_VERSION: return DOCKER_VERSION
-
-    version = "latest"
+    version = DOCKER_VERSION if DOCKER_VERSION else None
     with open("DESCRIPTION") as file:
         for line in file:
             match = re.match(r"^Version: ([\w\.]+)", line)
             if match:
                 version = match.group(1)
                 break
-    return docker_repo + ":" + version
+
+    sif_file = f"{PIPELINE_DATA_DIR}/gwaspipeline_{version}.sif"
+    if os.path.isfile(sif_file):
+        return sif_file
+    elif version:
+        return f"{docker_repo}:{version}"
+    else:
+        return f"{docker_repo}:latest"
+
 
 def parse_pipeline_input():
     if not os.path.isfile(".env"):

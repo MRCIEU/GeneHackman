@@ -218,11 +218,9 @@ convert_z_to_p <- function(gwas) {
   return(gwas)
 }
 
-#TODO: don't think this is right...
+# #TODO: don't think this is right...
 # convert_beta_and_se_to_z_score <- function(gwas) {
-#   mean_beta <- mean(gwas$BETA)
-#   sd_beta <- sd(gwas$BETA)
-#   gwas$Z <- (gwas$BETA - mean_beta) / sd_beta
+#   gwas$Z <- gwas$BETA / gwas$SE
 #   return(gwas)
 # }
 

@@ -43,10 +43,10 @@ DOCKER_VERSION = os.getenv('DOCKER_VERSION')
 DATA_DIR = format_dir_string(os.getenv('DATA_DIR'))
 RESULTS_DIR = format_dir_string(os.getenv('RESULTS_DIR'))
 RDFS_DIR = format_dir_string(os.getenv('RDFS_DIR'))
-GENOMIC_DATA_DIR = format_dir_string(os.getenv('GENOMIC_DATA_DIR'))
-THOUSAND_GENOMES_DIR = format_dir_string(os.getenv('GENOMIC_DATA_DIR') + "/1000genomes")
 LDSC_DIR = format_dir_string(os.getenv('LDSC_DIR'))
-QTL_TOP_HITS_DIR = format_dir_string(os.getenv('QTL_TOP_HITS'))
+GENOMIC_DATA_DIR = format_dir_string(os.getenv('GENOMIC_DATA_DIR'))
+THOUSAND_GENOMES_DIR = GENOMIC_DATA_DIR + "/1000genomes"
+PIPELINE_DATA_DIR = GENOMIC_DATA_DIR + "/pipeline"
 
 if RDFS_DIR and not RDFS_DIR.endswith("working/"):
     raise ValueError("Please ensure RDFS_DIR ends with working/ to ensure the data gets copied to the correct place")

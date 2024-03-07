@@ -10,6 +10,14 @@ if [[ $# -lt 1 ]] ; then
   exit 1
 fi
 
+if [ -f .env ]
+then
+  export $(cat .env | xargs)
+else
+  echo "Error: .env file missing"
+  exit 1
+fi
+
 #if [$(hostname)...] set PROFILE accordingly, for when multiple HPCs are 
 PROFILE=snakemake/bc4/
 
