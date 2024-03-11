@@ -2,14 +2,13 @@ include: "util/common.smk"
 singularity: get_docker_container()
 
 pipeline_name = "compare_gwases"
-pipeline = parse_pipeline_input()
+pipeline = parse_pipeline_input(pipeline_includes_clumping=True)
 
 onstart:
     print("##### GWAS Comparison Pipeline #####")
 
 ancestries = list([g.ancestry for g in pipeline.gwases])
 validate_ancestries(ancestries)
-
 
 #List of output files
 expected_vs_observed_results = RESULTS_DIR + "gwas_comparison/expected_vs_observed_outcomes.tsv"

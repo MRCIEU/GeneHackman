@@ -6,7 +6,7 @@ rule standardise_gwases:
         input_build = lambda wildcards: getattr(pipeline, wildcards.prefix).build,
         input_columns = lambda wildcards: getattr(pipeline, wildcards.prefix).input_columns,
         output_columns = lambda wildcards: getattr(pipeline, wildcards.prefix).output_columns,
-        populate_rsid = lambda wildcards: getattr(pipeline, wildcards.prefix).populate_rsid or pipeline.populate_rsid
+        populate_rsid = lambda wildcards: getattr(pipeline, wildcards.prefix).populate_rsid.value
     threads: 8
     resources:
         mem=lambda wildcards: f"{getattr(pipeline, wildcards.prefix).standardised_memory}G"

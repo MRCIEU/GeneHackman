@@ -37,9 +37,9 @@ parser <- add_argument(parser, "--output_build",
                        default = reference_builds$GRCh37
 )
 parser <- add_argument(parser, "--populate_rsid",
-                       help = "Should GWAS Populate RSID (based on 1000 genomes data)",
-                       type = "logical",
-                       default = F
+											 help = paste(c("Should GWAS Populate RSID, options:", populate_rsid_options), collapse = " "),
+                       type = "character",
+                       default = "none"
 )
 
 args <- parse_args(parser)

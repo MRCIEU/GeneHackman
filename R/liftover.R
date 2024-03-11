@@ -17,6 +17,7 @@ convert_reference_build_via_liftover <- function(gwas,
                                                  input_reference_build=reference_builds$GRCh37,
                                                  output_reference_build=reference_builds$GRCh37,
                                                  output_file) {
+  gc()
   gwas <- get_file_or_dataframe(gwas)
 
   if (input_reference_build == output_reference_build) {
@@ -61,7 +62,7 @@ convert_reference_build_via_liftover <- function(gwas,
     file.copy(unmapped, unmapped_file_location)
   }
 
-  message("Liftover time taken:")
+  print("Liftover time taken:")
   print(Sys.time() - start)
   return(gwas)
 }

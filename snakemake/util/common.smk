@@ -30,7 +30,7 @@ def get_docker_container():
         return f"{docker_repo}:latest"
 
 
-def parse_pipeline_input():
+def parse_pipeline_input(pipeline_includes_clumping=False):
     if not os.path.isfile(".env"):
         raise ValueError("Error: .env file doesn't exist")
     if not os.path.isfile(input_file):
@@ -53,14 +53,23 @@ def parse_pipeline_input():
         if not hasattr(g, "N"): g.N = 0
         if not hasattr(g, "build"): g.build = "GRCh37"
         if not hasattr(g, "populate_rsid"): g.populate_rsid = False
+        g.populate_rsid = resolve_rsid_population(pipeline_includes_clumping, g.populate_rsid or pipeline.populate_rsid)
+        g.standardised_memory = 48*(g.populate_rsid == populate_rsid_options.full) + 24
         g.prefix = file_prefix(g.file)
         g.vcf_columns = get_columns_for_vcf_parsing(g.columns)
         g.input_columns = resolve_gwas_columns(g.file, g.columns)
         g.output_columns = resolve_gwas_columns(g.file, pipeline.output.columns, check_input_columns=False)
         g.standardised_gwas = standardised_gwas_name(g.file)
-        g.standardised_memory = 56*(g.populate_rsid or pipeline.populate_rsid) + 16
         setattr(pipeline,g.prefix,g)
     return pipeline
+
+def resolve_rsid_population(pipeline_includes_clumping, populate_rsid):
+    if not populate_rsid and pipeline_includes_clumping:
+        return populate_rsid_options.partial
+    elif not populate_rsid and not pipeline_includes_clumping:
+        return populate_rsid_options.none
+    else:
+        return populate_rsid_options.full
 
 
 def resolve_gwas_columns(gwas_file, column_name_map=None, additional_mandatory_columns=[], check_input_columns=True):

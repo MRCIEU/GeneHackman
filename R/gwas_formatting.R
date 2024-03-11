@@ -16,7 +16,7 @@
 standardise_gwas <- function(gwas,
                              output_file,
                              N=0,
-                             populate_rsid_option=F,
+                             populate_rsid_option=populate_rsid_options$none,
                              input_reference_build=reference_builds$GRCh37,
                              output_reference_build=reference_builds$GRCh37,
                              input_columns="default",
@@ -111,6 +111,13 @@ standardise_columns <- function(gwas, N) {
   if ("P" %in% gwas_columns) {
     gwas$P <- as.numeric(gwas$P)
     gwas$P[gwas$P == 0] <- .Machine$double.xmin
+  }
+  if ("BETA" %in% gwas_columns) {
+    gwas$BETA <- as.numeric(gwas$BETA)
+  }
+
+  if ("BETA" %in% gwas_columns) {
+    gwas$BETA <- as.numeric(gwas$BETA)
   }
 
   return(gwas)

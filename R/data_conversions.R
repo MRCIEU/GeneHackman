@@ -30,27 +30,33 @@ gene_name_to_ensembl_id <- function(gwas) {
 }
 
 #' @export
-populate_rsid <- function(gwas, option = F) {
+populate_rsid <- function(gwas, option = populate_rsid_options$none) {
+  gc()
   start <- Sys.time()
-  if (option == F || "RSID" %in% colnames(gwas)) {
+  if (option == populate_rsid_options$none || "RSID" %in% colnames(gwas)) {
     message("Skipping RSID population for GWAS")
-  } else {
+  } else if (option == populate_rsid_options$partial) {
+    gwas <- populate_partial_rsids(gwas)
+  } else if (option == populate_rsid_options$full){
     gwas <- populate_full_rsids(gwas)
   }
+  else {
+    stop(paste("Invalid RSID population option", option))
+  }
 
-  message("RSID population time taken:")
-  message(Sys.time() - start)
-  return (gwas)
+  print(paste0("RSID population option: ", option, ". Time taken:"))
+  print(Sys.time() - start)
+  return(gwas)
 }
 
-# populate_partial_rsids <- function(gwas) {
-#   message("populating RSIDs based on 1000genomes...")
-#   marker_to_rsid_file <- paste0(genomic_data_dir, "1000genomes/marker_to_rsid.tsv.gz")
-#   chrpos_to_rsid <- vroom::vroom(marker_to_rsid_file, col_select = c("HG37", "RSID"), show_col_types=F)
-#   gwas$RSID <- chrpos_to_rsid$RSID[match(gwas$SNP, chrpos_to_rsid$HG37)]
-#
-#   return(gwas)
-# }
+populate_partial_rsids <- function(gwas) {
+  message("populating RSIDs based on 1000genomes...")
+  marker_to_rsid_file <- paste0(genomic_data_dir, "1000genomes/marker_to_rsid.tsv.gz")
+  chrpos_to_rsid <- vroom::vroom(marker_to_rsid_file, col_select = c("HG37", "RSID"), show_col_types=F)
+  gwas$RSID <- chrpos_to_rsid$RSID[match(gwas$SNP, chrpos_to_rsid$HG37)]
+
+  return(gwas)
+}
 
 #' @import data.table
 #' @import tibble
@@ -59,7 +65,6 @@ populate_rsid <- function(gwas, option = F) {
 populate_full_rsids <- function(gwas, build = rsid_builds$GRCh37) {
   dbsnp_dir <- paste0(genomic_data_dir, "dbsnp")
   if (!build %in% rsid_builds) stop(paste("Error: invalid rsid build option:", build))
-  gc()
 
   gwas <- data.table::as.data.table(gwas)
   future::plan(future::multisession, workers = number_of_cpus_available)

@@ -2,7 +2,7 @@ include: "util/common.smk"
 singularity: get_docker_container()
 
 pipeline_name = "disease_progression"
-pipeline = parse_pipeline_input()
+pipeline = parse_pipeline_input(pipeline_includes_clumping=True)
 incident = pipeline.gwases[0]
 subsequent = pipeline.gwases[1]
 
