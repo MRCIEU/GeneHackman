@@ -112,6 +112,9 @@ standardise_columns <- function(gwas, N) {
     gwas$P <- as.numeric(gwas$P)
     gwas$P[gwas$P == 0] <- .Machine$double.xmin
   }
+  if ("BETA" %in% gwas_columns) {
+    gwas$BETA <- as.numeric(gwas$BETA)
+  }
 
   return(gwas)
 }

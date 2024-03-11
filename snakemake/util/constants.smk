@@ -1,6 +1,7 @@
 from datetime import datetime
 from dotenv import load_dotenv
 from types import SimpleNamespace
+from enum import Enum
 
 docker_repo = "docker://mrcieu/gwaspipeline"
 
@@ -19,7 +20,11 @@ default_columns = dict(SNP="SNP", CHR="CHR", BP="BP", EA="EA", OA="OA", EAF="EAF
     SE="SE", OR="OR", OR_LB="OR_LB", OR_UB="OR_UB", RSID="RSID", N="N",
     ENSEMBL_ID="ENSEMBL_ID", GENE_NAME="GENE_NAME"
 )
-populate_rsid_options = dict(none="none", partial="partial", full="full")
+#populate_rsid_options = dict(none="none", partial="partial", full="full")
+class populate_rsid_options(Enum):
+    none = "none"
+    partial = "partial"
+    full = "full"
 
 default_mandatory_columns = ["EA", "OA"]
 snp_options = ["SNP", "BP"]
