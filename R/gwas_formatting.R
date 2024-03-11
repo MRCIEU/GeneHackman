@@ -116,6 +116,10 @@ standardise_columns <- function(gwas, N) {
     gwas$BETA <- as.numeric(gwas$BETA)
   }
 
+  if ("BETA" %in% gwas_columns) {
+    gwas$BETA <- as.numeric(gwas$BETA)
+  }
+
   return(gwas)
 }
 

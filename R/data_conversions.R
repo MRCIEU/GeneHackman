@@ -31,6 +31,7 @@ gene_name_to_ensembl_id <- function(gwas) {
 
 #' @export
 populate_rsid <- function(gwas, option = populate_rsid_options$none) {
+  gc()
   start <- Sys.time()
   if (option == populate_rsid_options$none || "RSID" %in% colnames(gwas)) {
     message("Skipping RSID population for GWAS")
@@ -43,7 +44,7 @@ populate_rsid <- function(gwas, option = populate_rsid_options$none) {
     stop(paste("Invalid RSID population option", option))
   }
 
-  print(paste("RSID", option, "option.  Time taken:"))
+  print(paste0("RSID population option: ", option, ". Time taken:"))
   print(Sys.time() - start)
   return(gwas)
 }
@@ -64,7 +65,6 @@ populate_partial_rsids <- function(gwas) {
 populate_full_rsids <- function(gwas, build = rsid_builds$GRCh37) {
   dbsnp_dir <- paste0(genomic_data_dir, "dbsnp")
   if (!build %in% rsid_builds) stop(paste("Error: invalid rsid build option:", build))
-  gc()
 
   gwas <- data.table::as.data.table(gwas)
   future::plan(future::multisession, workers = number_of_cpus_available)
