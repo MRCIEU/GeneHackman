@@ -16,7 +16,7 @@
 standardise_gwas <- function(gwas,
                              output_file,
                              N=0,
-                             populate_rsid_option=F,
+                             populate_rsid_option=populate_rsid_options$none,
                              input_reference_build=reference_builds$GRCh37,
                              output_reference_build=reference_builds$GRCh37,
                              input_columns="default",

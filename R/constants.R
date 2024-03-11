@@ -21,3 +21,4 @@ eqtlgen_top_hits_dir <- paste0(qtl_directory, "/eqtlgen/top_hits")
 eqtlgen_gwas_dir <- paste0(qtl_directory, "/eqtlgen/gwas")
 
 qtl_datasets <- list(metabrain="metabrain", eqtlgen="eqtlgen")
+populate_rsid_options <- list(full="full", partial="partial", none="none")
