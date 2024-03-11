@@ -39,10 +39,13 @@ populate_rsid <- function(gwas, option = populate_rsid_options$none) {
   } else if (option == populate_rsid_options$full){
     gwas <- populate_full_rsids(gwas)
   }
+  else {
+    stop(paste("Invalid RSID population option", option))
+  }
 
-  message("RSID population time taken:")
-  message(Sys.time() - start)
-  return (gwas)
+  print(paste("RSID", option, "option.  Time taken:"))
+  print(Sys.time() - start)
+  return(gwas)
 }
 
 populate_partial_rsids <- function(gwas) {

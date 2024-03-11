@@ -61,7 +61,7 @@ convert_reference_build_via_liftover <- function(gwas,
     file.copy(unmapped, unmapped_file_location)
   }
 
-  message("Liftover time taken:")
+  print("Liftover time taken:")
   print(Sys.time() - start)
   return(gwas)
 }
