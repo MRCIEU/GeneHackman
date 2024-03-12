@@ -51,6 +51,7 @@ def parse_pipeline_input(pipeline_includes_clumping=False):
 
     for g in pipeline.gwases:
         if not hasattr(g, "N"): g.N = 0
+        if not hasattr(g, "remove_extra_columns"): g.remove_extra_columns = False
         if not hasattr(g, "build"): g.build = "GRCh37"
         if not hasattr(g, "populate_rsid"): g.populate_rsid = False
         g.populate_rsid = resolve_rsid_population(pipeline_includes_clumping, g.populate_rsid or pipeline.populate_rsid)
