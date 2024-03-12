@@ -41,6 +41,11 @@ parser <- add_argument(parser, "--populate_rsid",
                        type = "character",
                        default = "none"
 )
+parser <- add_argument(parser, "--remove_extra_columns",
+											 help = "Remove additional columns in GWAS that are not specified as an input column",
+											 type = "logical",
+											 default = FALSE
+)
 
 args <- parse_args(parser)
 create_dir_for_files(args$output_gwas)
@@ -52,5 +57,6 @@ standardise_gwas(gwas = args$input_gwas,
                  input_reference_build = args$input_build,
                  output_reference_build = args$output_build,
                  input_columns = args$input_columns,
-                 output_columns = args$output_columns
+                 output_columns = args$output_columns,
+								 remove_extra_columns = args$remove_extra_columns
 )

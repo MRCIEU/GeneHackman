@@ -49,7 +49,7 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
                                         default_n=NA,
                                         output_file) {
   coloc_columns <- c("SNP", "CHR", "BP", "P", "SE", "N", "EAF")
-  gwas <- get_file_or_dataframe(gwas_file, columns = coloc_columns) |> dplyr::filter(EAF > 0 & EAF < 1)
+  gwas <- get_file_or_dataframe(gwas_file, columns = coloc_columns)
   range <- 500000
 
   mr_results <- get_file_or_dataframe(mr_results_file) |>
@@ -65,10 +65,10 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
       ancestry <- toupper(outcome[2])
 
       qtl_gwas_file <- paste0(metabrain_gwas_dir, "/", brain_region, "/", mr_result[["EXPOSURE"]], "_", ancestry, ".tsv.gz")
-      qtl_gwas <- get_file_or_dataframe(qtl_gwas_file) |> dplyr::filter(EAF > 0 & EAF < 1)
+      qtl_gwas <- get_file_or_dataframe(qtl_gwas_file)
     } else if (qtl_dataset == qtl_datasets$eqtlgen) {
       qtl_gwas_file <- paste0(eqtlgen_gwas_dir, "/", mr_result[["outcome"]], "/", mr_result[["EXPOSURE"]], ".tsv.gz")
-      qtl_gwas <- get_file_or_dataframe(qtl_gwas_file) |> dplyr::filter(EAF > 0 & EAF < 1)
+      qtl_gwas <- get_file_or_dataframe(qtl_gwas_file)
     } else {
       stop("Error: qtl dataset not supported for coloc right now")
     }
@@ -94,13 +94,17 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
 #' @import tibble
 #' @export
 coloc_analysis <- function(first_gwas, second_gwas, exposure_name, chr=NA, bp=NA, range=NA, default_n=NA) {
+  numeric_columns <- c("P", "SE", "EAF")
+  first_gwas[,numeric_columns] <- lapply(first_gwas[,numeric_columns,drop=FALSE], as.numeric)
+  second_gwas[,numeric_columns] <- lapply(second_gwas[,numeric_columns,drop=FALSE], as.numeric)
+
+  first_gwas <- dplyr::filter(first_gwas, EAF > 0 & EAF < 1)
+  second_gwas <- dplyr::filter(second_gwas, EAF > 0 & EAF < 1)
+
   if (!is.na(chr) & !is.na(bp) & !is.na(range)) {
     first_gwas <- gwas_region(first_gwas, chr, bp, range)
     second_gwas <- gwas_region(second_gwas, chr, bp, range)
   }
-  numeric_columns <- c("P", "SE", "EAF")
-  first_gwas[,numeric_columns] <- lapply(first_gwas[,numeric_columns,drop=FALSE], as.numeric)
-  second_gwas[,numeric_columns] <- lapply(second_gwas[,numeric_columns,drop=FALSE], as.numeric)
 
   harmonised_gwases <- harmonise_gwases(first_gwas, second_gwas)
   first_gwas <- harmonised_gwases[[1]]

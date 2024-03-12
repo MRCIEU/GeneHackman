@@ -9,6 +9,7 @@
 #'   can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values
 #' @param output_columns: column header map used for renaming GWAS:
 #'   can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values
+#' @param r: reference build of CHR and BP of data.  Defaults to GRCh37
 #' @return modified gwas: saves new gwas in {output_file} if present
 #' @import vroom
 #' @import shiny
@@ -20,14 +21,15 @@ standardise_gwas <- function(gwas,
                              input_reference_build=reference_builds$GRCh37,
                              output_reference_build=reference_builds$GRCh37,
                              input_columns="default",
-                             output_columns="default") {
+                             output_columns="default",
+                             remove_extra_columns=F) {
   input_gwas_columns <- resolve_column_map(input_columns)
   output_gwas_columns <- resolve_column_map(output_columns)
 
   #TODO: if we need to add bespoke input format wrangling here, we can
 
   gwas <- get_file_or_dataframe(gwas) |>
-    change_column_names(input_gwas_columns) |>
+    change_column_names(input_gwas_columns, remove_extra_columns) |>
     standardise_columns(N) |>
     filter_incomplete_rows() |>
     convert_reference_build_via_liftover(input_reference_build, output_reference_build) |>
@@ -140,9 +142,14 @@ health_check <- function(gwas) {
 #' @param: gwas dataframe of gwas to standardise column names
 #' @param: columns named list for
 #' @param: opposite_mapping logical flag on if we are mapping from key to value or vice verca
-change_column_names <- function(gwas, columns = list()) {
+change_column_names <- function(gwas, columns = list(), remove_extra_columns = F) {
   for (name in names(columns)) {
-   names(gwas)[names(gwas) == columns[name]] <- name
+    names(gwas)[names(gwas) == columns[name]] <- name
+  }
+
+  if (remove_extra_columns) {
+    columns_to_remove <- setdiff(colnames(gwas), names(columns))
+    gwas <- gwas[,-which(colnames(gwas) %in% columns_to_remove)]
   }
 
   return(gwas)

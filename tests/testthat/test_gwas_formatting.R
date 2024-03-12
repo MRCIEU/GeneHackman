@@ -66,10 +66,20 @@ test_that("gwas_formatting.standardise_gwas standardises an gwama output", {
   standardise_gwas(filename, output_file, input_columns = "gwama")
   result <- vroom::vroom(output_file, show_col_types=F)
 
-  opengwas_lines <-  as.numeric(R.utils::countLines(filename)) - 1
-  expect_equal(nrow(result), opengwas_lines)
+  number_of_lines <-  as.numeric(R.utils::countLines(filename)) - 1
+  expect_equal(nrow(result), number_of_lines)
   expect_true(all(result$EA < result$OA))
   expect_true(all(grep("\\d+:\\d+_\\w+_\\w+", result$SNP)))
+})
+
+test_that("gwas_formatting.standardise_gwas with remove_extra_columns removes extra columns", {
+  filename <- "data/gwama_output.txt.gz"
+  result <- standardise_gwas(filename, output_file=F, input_columns = "gwama", remove_extra_columns = T)
+
+  suppressWarnings(
+    expect_true(all(is.null(result$effects), is.null(result$q_statistic), is.null(result$i2), is.null(result$n_studies)))
+  )
+  expect_true(all(!is.null(result$BETA), !is.null(result$SE), !is.null(result$P), !is.null(result$RSID)))
 })
 
 
