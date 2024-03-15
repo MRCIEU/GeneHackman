@@ -107,8 +107,9 @@ def get_columns_for_vcf_parsing(columns):
             results = list(filter(lambda x: x['name'] in (columns), list(reader)))
             columns = {k: v for k, v in results[0].items() if v}
             columns = SimpleNamespace(**columns)
-
-    vcf_column_string = ','.join(list(columns.__dict__.values())[1:]),
+        vcf_column_string = ','.join(list(columns.__dict__.values())[1:]),
+    else:
+        vcf_column_string = ','.join(list(columns.__dict__.values())),
     return vcf_column_string
 
 

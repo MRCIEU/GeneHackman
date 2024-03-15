@@ -37,7 +37,7 @@ include: "rules/clumping_rule.smk"
 
 rule compare_observed_vs_expected_gwas:
     resources:
-        mem = f"{len(pipeline.gwases)*10}G"
+        mem = f"{len(pipeline.gwases)*16}G"
     input:
         gwases = [g.standardised_gwas for g in pipeline.gwases],
         clumped_files = [g.clumped_file for g in pipeline.gwases]
@@ -56,7 +56,7 @@ rule compare_observed_vs_expected_gwas:
 
 rule heterogeneity_between_gwases:
     resources:
-        mem = f"{len(pipeline.gwases)*10}G"
+        mem = f"{len(pipeline.gwases)*16}G"
     input:
         gwases = [g.standardised_gwas for g in pipeline.gwases],
         clumped_files = [g.clumped_file for g in pipeline.gwases]
@@ -78,7 +78,7 @@ rule heterogeneity_between_gwases:
 
 rule calculate_ldsc_and_genetic_correlation:
     resources:
-        mem = "8G"
+        mem = "16G"
     params:
         gwases = lambda wildcards: ','.join([g.standardised_gwas for g in pipeline.gwases if g.ancestry == wildcards.ancestry]),
         ns = lambda wildcards: ','.join([str(g.N) for g in pipeline.gwases if g.ancestry == wildcards.ancestry]),

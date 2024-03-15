@@ -13,13 +13,11 @@ forest_plot <- function(table, title, output_file, y_column=NA) {
   table$LL <- table$BETA - (1.96 * table$SE)
   table$UL <- table$BETA + (1.96 * table$SE)
 
-  ggplot2::ggplot(table,
-                  ggplot2::aes(y = .data[[first_column_name]],
-                               x = BETA,
-                               xmin = LL,
-                               xmax = UL,
-                               color = .data[[first_column_name]])
-    ) +
+  ggplot2::ggplot(table,ggplot2::aes(y = .data[[first_column_name]],
+                                     x = BETA,
+                                     xmin = LL,
+                                     xmax = UL,
+                                     color = .data[[first_column_name]])) +
     ggplot2::geom_pointrange(cex = 1) +
     ggplot2::geom_vline(xintercept = 0) +
     ggplot2::theme(legend.position = "none") +
