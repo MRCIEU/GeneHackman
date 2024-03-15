@@ -79,6 +79,8 @@ rule heterogeneity_between_gwases:
 rule calculate_ldsc_and_genetic_correlation:
     resources:
         mem = "16G"
+    input:
+        gwases = [g.standardised_gwas for g in pipeline.gwases]
     params:
         gwases = lambda wildcards: ','.join([g.standardised_gwas for g in pipeline.gwases if g.ancestry == wildcards.ancestry]),
         ns = lambda wildcards: ','.join([str(g.N) for g in pipeline.gwases if g.ancestry == wildcards.ancestry]),
