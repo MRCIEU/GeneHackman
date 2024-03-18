@@ -2,6 +2,7 @@ rule standardise_gwases:
     params:
         input_gwas = lambda wildcards: getattr(pipeline, wildcards.prefix).file,
         N = lambda wildcards: getattr(pipeline, wildcards.prefix).N,
+        remove_extra_columns = lambda wildcards: getattr(pipeline, wildcards.prefix).remove_extra_columns,
         vcf_columns = lambda wildcards: getattr(pipeline, wildcards.prefix).vcf_columns,
         input_build = lambda wildcards: getattr(pipeline, wildcards.prefix).build,
         input_columns = lambda wildcards: getattr(pipeline, wildcards.prefix).input_columns,
@@ -23,6 +24,7 @@ rule standardise_gwases:
             --input_gwas $INPUT_GWAS \
             --output_gwas {output} \
             --N {params.N} \
+            --remove_extra_columns {params.remove_extra_columns} \
             --input_build {params.input_build} \
             --output_build {pipeline.output.build} \
             --input_columns {params.input_columns} \

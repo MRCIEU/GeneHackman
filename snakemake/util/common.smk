@@ -51,6 +51,7 @@ def parse_pipeline_input(pipeline_includes_clumping=False):
 
     for g in pipeline.gwases:
         if not hasattr(g, "N"): g.N = 0
+        if not hasattr(g, "remove_extra_columns"): g.remove_extra_columns = False
         if not hasattr(g, "build"): g.build = "GRCh37"
         if not hasattr(g, "populate_rsid"): g.populate_rsid = False
         g.populate_rsid = resolve_rsid_population(pipeline_includes_clumping, g.populate_rsid or pipeline.populate_rsid)
@@ -106,8 +107,9 @@ def get_columns_for_vcf_parsing(columns):
             results = list(filter(lambda x: x['name'] in (columns), list(reader)))
             columns = {k: v for k, v in results[0].items() if v}
             columns = SimpleNamespace(**columns)
-
-    vcf_column_string = ','.join(list(columns.__dict__.values())[1:]),
+        vcf_column_string = ','.join(list(columns.__dict__.values())[1:]),
+    else:
+        vcf_column_string = ','.join(list(columns.__dict__.values())),
     return vcf_column_string
 
 

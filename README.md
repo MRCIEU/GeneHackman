@@ -26,7 +26,7 @@ Here is a list of available pipelines, and the steps they run
 ### 1. Clone the repository into your personal space on BlueCrystal 4
 `git clone git@github.com:MRCIEU/gwaspipeline.git && cd gwaspipeline`
 
-### 2. Ensure you [have conda initialised and activate this encirontment](https://www.acrc.bris.ac.uk/protected/hpc-docs/software/python_conda.html)
+### 2. Ensure you [have conda installed and initialised before activating](https://www.acrc.bris.ac.uk/protected/hpc-docs/software/python_conda.html)
 
 `conda activate /mnt/storage/private/mrcieu/data/genomic_data/pipeline/conda_pipeline`
 

@@ -59,7 +59,7 @@ rule collider_bias_correction:
 rule unadjusted_miami_plot:
     threads: 4
     resources:
-        mem = "8G",
+        mem = "16G",
         time = "02:00:00"
     input:
         first_gwas = incident.standardised_gwas,
@@ -77,7 +77,7 @@ rule unadjusted_miami_plot:
 rule slopehunter_adjusted_miami_plot:
     threads: 4
     resources:
-        mem = "8G",
+        mem = "16G",
         time = "02:00:00"
     input:
         first_gwas = incident.standardised_gwas,
@@ -94,7 +94,7 @@ rule slopehunter_adjusted_miami_plot:
 
 rule compare_observed_vs_expected_gwas:
     resources:
-        mem = "16G"
+        mem = "32G"
     input:
         gwases = [incident.standardised_gwas, subsequent.standardised_gwas],
         clumped_files = [incident.clumped_file]

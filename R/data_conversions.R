@@ -32,9 +32,10 @@ gene_name_to_ensembl_id <- function(gwas) {
 #' @export
 populate_rsid <- function(gwas, option = populate_rsid_options$none) {
   gc()
-  start <- Sys.time()
+  start_time <- Sys.time()
   if (option == populate_rsid_options$none || "RSID" %in% colnames(gwas)) {
     message("Skipping RSID population for GWAS")
+    return(gwas)
   } else if (option == populate_rsid_options$partial) {
     gwas <- populate_partial_rsids(gwas)
   } else if (option == populate_rsid_options$full){
@@ -45,7 +46,7 @@ populate_rsid <- function(gwas, option = populate_rsid_options$none) {
   }
 
   print(paste0("RSID population option: ", option, ". Time taken:"))
-  print(Sys.time() - start)
+  print(Sys.time() - start_time)
   return(gwas)
 }
 
