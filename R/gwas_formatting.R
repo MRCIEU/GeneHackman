@@ -256,7 +256,7 @@ calculate_f_statistic <- function(gwas) {
 }
 
 resolve_column_map <- function(column_map) {
-  column_map_file <- system.file("extdata", "predefined_column_maps.csv", package = "gwaspipeline")
+  column_map_file <- system.file("extdata", "predefined_column_maps.csv", package = "GeneHackman")
   if (!file.exists(column_map_file)) {
     predefined_column_maps <- vroom::vroom("../inst/extdata/predefined_column_maps.csv")
   } else {

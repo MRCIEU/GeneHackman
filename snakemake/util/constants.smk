@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from types import SimpleNamespace
 from enum import Enum
 
-docker_repo = "docker://mrcieu/gwaspipeline"
+docker_repo = "docker://mrcieu/genehackman"
 
 def format_dir_string(directory):
     if not directory: return None

@@ -21,7 +21,7 @@ def get_docker_container():
                 version = match.group(1)
                 break
 
-    sif_file = f"{PIPELINE_DATA_DIR}/gwaspipeline_{version}.sif"
+    sif_file = f"{PIPELINE_DATA_DIR}/genehackman_{version}.sif"
     if os.path.isfile(sif_file):
         return sif_file
     elif version:
@@ -55,7 +55,7 @@ def parse_pipeline_input(pipeline_includes_clumping=False):
         if not hasattr(g, "build"): g.build = "GRCh37"
         if not hasattr(g, "populate_rsid"): g.populate_rsid = False
         g.populate_rsid = resolve_rsid_population(pipeline_includes_clumping, g.populate_rsid or pipeline.populate_rsid)
-        g.standardised_memory = 48*(g.populate_rsid == populate_rsid_options.full) + 24
+        g.standardised_memory = 200*(g.populate_rsid == populate_rsid_options.full) + 24
         g.prefix = file_prefix(g.file)
         g.vcf_columns = get_columns_for_vcf_parsing(g.columns)
         g.input_columns = resolve_gwas_columns(g.file, g.columns)
@@ -177,6 +177,11 @@ def cleanup_old_slurm_logs():
         file = os.path.join(slurm_log_directory, filename)
         file_timestamp = datetime.utcfromtimestamp(os.stat(file).st_mtime)
         if file_timestamp < one_month_ago: os.remove(file)
+
+
+def estimate_memory_needed_for_rsid_map(gwas_file):
+    #https://superuser.com/questions/135329/count-lines-in-a-compressed-file
+    return 1
 
 
 def file_prefix(filename):

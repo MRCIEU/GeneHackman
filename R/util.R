@@ -118,7 +118,7 @@ create_html_from_rmd <- function(rmd_file, params = list(), output_file) {
 
 get_docker_image_tag <- function() {
   return("latest")
-  #return(packageVersion("gwaspipeline"))
+  #return(packageVersion("GeneHackman"))
 }
 
 #' @import vroom

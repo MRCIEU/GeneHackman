@@ -1,12 +1,12 @@
 {
   "gwases": [
     {
-      "file": "/user/home/wt23152/gwaspipeline/tests/testthat/data/test_data_small.tsv.gz",
+      "file": "/user/home/wt23152/GeneHackman/tests/testthat/data/test_data_small.tsv.gz",
       "columns": {},
       "ancestry": "EUR"
     },
     {
-      "file": "/user/home/wt23152/gwaspipeline/tests/testthat/data/test_data_small_hg38.tsv.gz",
+      "file": "/user/home/wt23152/GeneHackman/tests/testthat/data/test_data_small_hg38.tsv.gz",
       "columns": {},
       "build": "GRCh38",
       "ancestry": "EUR"
