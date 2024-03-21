@@ -5,4 +5,4 @@ install.packages(c("devtools", "argparser", "gmp", "corrplot", "broom", "conflic
 #install.packages('https://homepages.uni-regensburg.de/~wit59712/easyqc/EasyQC_23.8.tar.gz', repos = NULL, type = 'source')
 .libPaths( c( .libPaths(), "/usr/lib/R/site-library") )
 
-devtools::install_github(c("MRCIEU/GeneHackman", "phenoscanner/phenoscanner", "suchestoncampbelllab/gwasurvivr"))
+devtools::install_github(c("MRCIEU/gwaspipeline@feature/GeneHackman-name-change", "phenoscanner/phenoscanner", "suchestoncampbelllab/gwasurvivr"))
