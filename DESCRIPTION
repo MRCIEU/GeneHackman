@@ -38,5 +38,5 @@ Remotes:
     github::MRCIEU/TwoSampleMR,
     github::MRCIEU/ieugwasr,
     github::Osmahmoud/SlopeHunter,
-    github::nicksunderland/genepi.utils@v0.0.5,
+    github::nicksunderland/genepi.utils@v0.0.1,
     github::yixuan/prettydoc

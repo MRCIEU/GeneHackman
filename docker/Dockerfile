@@ -6,7 +6,7 @@ RUN apt update && \
     libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev libfreetype6-dev libharfbuzz-dev libfribidi-dev \ 
     libxml2-dev libcurl4-gnutls-dev libssl-dev libgmp-dev libnlopt-dev cmake libcairo2-dev libxt-dev \
     texlive-latex-recommended r-cran-sass r-cran-mime \
-    plink1.9 sqlite3 wget vim ripgrep git && \
+    plink1.9 plink2 sqlite3 wget vim ripgrep git && \
     mkdir -p /home/scripts && \
     rm -rf /var/lib/apt/lists/* && \
     wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh && \
