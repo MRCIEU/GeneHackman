@@ -3,7 +3,6 @@ import gzip
 import json
 import os
 import re
-import time
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from pathlib import Path
@@ -55,7 +54,7 @@ def parse_pipeline_input(pipeline_includes_clumping=False):
         if not hasattr(g, "build"): g.build = "GRCh37"
         if not hasattr(g, "populate_rsid"): g.populate_rsid = False
         g.populate_rsid = resolve_rsid_population(pipeline_includes_clumping, g.populate_rsid or pipeline.populate_rsid)
-        g.standardised_memory = 200*(g.populate_rsid == populate_rsid_options.full) + 24
+        g.standardised_memory = estimate_memory_needed_for_standardisation(g.file, g.populate_rsid)
         g.prefix = file_prefix(g.file)
         g.vcf_columns = get_columns_for_vcf_parsing(g.columns)
         g.input_columns = resolve_gwas_columns(g.file, g.columns)
@@ -72,6 +71,16 @@ def resolve_rsid_population(pipeline_includes_clumping, populate_rsid):
     else:
         return populate_rsid_options.full
 
+
+def estimate_memory_needed_for_standardisation(gwas_file, populate_rsid):
+    baseline_standardisation_gb = 24
+    if populate_rsid != populate_rsid_options.full: return baseline_standardisation_gb
+    file_compression_multiplier = 3 if gwas_file.endswith(".gz") or gwas_file.endswith(".zip") else 1
+    file_size_gb = os.path.getsize(gwas_file) / (1024**3) * file_compression_multiplier
+
+    slope = 20
+    intercept_gb = 33
+    return (baseline_standardisation_gb + intercept_gb) + (slope * file_size_gb)
 
 def resolve_gwas_columns(gwas_file, column_name_map=None, additional_mandatory_columns=[], check_input_columns=True):
     if isinstance(column_name_map, str):
@@ -179,9 +188,6 @@ def cleanup_old_slurm_logs():
         if file_timestamp < one_month_ago: os.remove(file)
 
 
-def estimate_memory_needed_for_rsid_map(gwas_file):
-    #https://superuser.com/questions/135329/count-lines-in-a-compressed-file
-    return 1
 
 
 def file_prefix(filename):

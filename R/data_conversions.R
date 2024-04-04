@@ -1,8 +1,5 @@
-rsid_builds <- list(GRCh37="b37_dbsnp156", GRCh38="b38_dbsnp156")
-
 #' @export
 populate_gene_names <- function(gwas) {
-  return(gwas)
   if ("ENSEMBL_ID" %in% colnames(gwas) && !"GENE_NAME" %in% colnames(gwas)) {
     return(ensembl_id_to_gene_name(gwas))
   } else if ("GENE_NAME" %in% colnames(gwas) && !"ENSEMBL_ID" %in% colnames(gwas)) {
@@ -68,8 +65,7 @@ populate_full_rsids <- function(gwas, build = rsid_builds$GRCh37) {
   if (!build %in% rsid_builds) stop(paste("Error: invalid rsid build option:", build))
 
   gwas <- data.table::as.data.table(gwas)
-  future::plan(future::multisession, workers = number_of_cpus_available)
-  gwas <- genepi.utils::chrpos_to_rsid(gwas, "CHR", "BP", "EA", "OA", flip = "allow", dbsnp_dir=dbsnp_dir, build=build, alt_rsids = F)
+  gwas <- genepi.utils::chrpos_to_rsid(gwas, "CHR", "BP", "EA", "OA", flip = "allow", dbsnp_dir=dbsnp_dir, build=build, alt_rsids = F, parallel_cores=number_of_cpus_available)
   gwas <- tibble::as_tibble(gwas)
   return(gwas)
 }

@@ -22,3 +22,4 @@ eqtlgen_gwas_dir <- paste0(qtl_directory, "/eqtlgen/gwas")
 
 qtl_datasets <- list(metabrain="metabrain", eqtlgen="eqtlgen")
 populate_rsid_options <- list(full="full", partial="partial", none="none")
+rsid_builds <- list(GRCh37="b37_dbsnp156", GRCh38="b38_dbsnp156")
