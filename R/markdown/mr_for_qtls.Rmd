@@ -33,5 +33,7 @@ knitr::kable(coloc_results)
 
 ### Additional info
 
-* This pipeline was run using the github repository: https://github.com/MRCIEU/GeneHackman
-* and the docker image: docker://mrcieu/genehackman:`r get_docker_image_tag()`
+**Please do us a favour and cite this pipeline:: https://doi.org/10.5281/zenodo.10624713**
+
+This pipeline was run using the github repository: https://github.com/MRCIEU/GeneHackman
+and the docker image: docker://mrcieu/genehackman:`r get_docker_image_tag()`
