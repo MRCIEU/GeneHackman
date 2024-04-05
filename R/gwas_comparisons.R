@@ -12,7 +12,7 @@ compare_replication_across_all_gwas_permutations <- function(gwas_filenames = c(
                                                              variants_output_file) {
   if (length(gwas_filenames) < 2) {
     empty_dataframe <- data.frame(SNP=c())
-    vroom::vroom_write(empty_dataframe, results_output_file)
+    vroom::vroom_write(empty_dataframe, result_output_file)
     vroom::vroom_write(empty_dataframe, variants_output_file)
     return()
   }

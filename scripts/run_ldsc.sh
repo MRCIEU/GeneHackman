@@ -64,8 +64,6 @@ if [[ $GWASES =~ "," ]]; then
     --out $OUTPUT_PREFIX
 
     ldsc_rg_log="$OUTPUT_PREFIX".log
-    genetic_correlation=$(awk '/p1   /' RS= "$ldsc_rg_log" | tr -s ' ' ' ')
-    echo "$genetic_correlation" > "${OUTPUT_PREFIX}".tsv
 else
   python2.7 /home/ldsc/ldsc.py \
     --h2 "$SUMSTATS" \

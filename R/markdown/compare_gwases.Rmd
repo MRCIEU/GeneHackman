@@ -5,9 +5,17 @@ output:
   prettydoc::html_pretty:
     theme: cayman
 ---
-```{r include = F}
-library(vroom)
-library(dplyr, quietly=T)
+
+### LDSC Result Files
+
+
+```{r echo = F}
+ldsc_result_file <- Sys.glob(params$ldsc_result_regex)
+for (file in ldsc_result_file) {
+  cat(file)
+  base::readlines(file) |> paste0(collapse = "\n") |> cat()
+}
+
 ```
 
 ### Plots Comparing Heterogeneity Across Significant SNPs
