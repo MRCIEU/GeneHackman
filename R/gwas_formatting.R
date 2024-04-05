@@ -86,7 +86,7 @@ filter_incomplete_rows <- function(gwas) {
 standardise_columns <- function(gwas, N) {
   gwas_columns <- colnames(gwas)
 
-  if (!"N" %in% gwas_columns && N > 0) {
+  if (N > 0) {
     gwas$N <- N
   }
 

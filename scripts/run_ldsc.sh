@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 source /home/scripts/conda_init.sh
 conda activate ldsc
 
@@ -42,8 +43,8 @@ for gwas in ${GWASES//,/ } ; do
   python2.7 /home/ldsc/munge_sumstats.py \
       --sumstats "${gwas}" \
       --N "$n" \
-      --merge-alleles "${LDSC_DIR}/chrpos_w_hm3.snplist" \
-      --snp SNP --a1 EA --a2 OA --p P --signed-sumstats BETA,0 \
+      --merge-alleles "${LDSC_DIR}/w_hm3.snplist" \
+      --snp RSID --a1 EA --a2 OA --p P --signed-sumstats BETA,0 --frq EAF \
       --chunksize 500000 \
       --out "$LDSC_DATA/${file_prefix}"
 

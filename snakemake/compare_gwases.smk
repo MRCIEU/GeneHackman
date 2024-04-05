@@ -20,7 +20,6 @@ results_file = RESULTS_DIR + "gwas_comparison/result_compare_gwases.html"
 
 std_file_pattern = standardised_gwas_name("{prefix}")
 ldsc_result_pattern = RESULTS_DIR + "ldsc/results_{ancestry}.log"
-ldsc_result_regex = RESULTS_DIR + "ldsc/results_*.log"
 
 rule all:
     input: expand(std_file_pattern, prefix=[g.prefix for g in pipeline.gwases]),
@@ -56,7 +55,7 @@ rule compare_observed_vs_expected_gwas:
 
 rule heterogeneity_between_gwases:
     resources:
-        mem = f"{len(pipeline.gwases)*16}G"
+        mem = f"{len(pipeline.gwases)*12}G"
     input:
         gwases = [g.standardised_gwas for g in pipeline.gwases],
         clumped_files = [g.clumped_file for g in pipeline.gwases]
@@ -98,7 +97,7 @@ files_created = {
     "heterogeneity_scores": heterogeneity_scores,
     "heterogeneity_plot": heterogeneity_plot,
     "heterogeneity_snp_comparison": heterogeneity_snp_comparison,
-    "ldsc_result_regex": ldsc_result_regex
+    "ldsc_directory": RESULTS_DIR + "ldsc/"
 }
 results_string = turn_dict_into_cli_string(files_created)
 

@@ -50,6 +50,7 @@ def parse_pipeline_input(pipeline_includes_clumping=False):
 
     for g in pipeline.gwases:
         if not hasattr(g, "N"): g.N = 0
+        if not hasattr(g, "columns"): g.columns = SimpleNamespace()
         if not hasattr(g, "remove_extra_columns"): g.remove_extra_columns = False
         if not hasattr(g, "build"): g.build = "GRCh37"
         if not hasattr(g, "populate_rsid"): g.populate_rsid = False
@@ -75,12 +76,14 @@ def resolve_rsid_population(pipeline_includes_clumping, populate_rsid):
 def estimate_memory_needed_for_standardisation(gwas_file, populate_rsid):
     baseline_standardisation_gb = 24
     if populate_rsid != populate_rsid_options.full: return baseline_standardisation_gb
+
     file_compression_multiplier = 3 if gwas_file.endswith(".gz") or gwas_file.endswith(".zip") else 1
     file_size_gb = os.path.getsize(gwas_file) / (1024**3) * file_compression_multiplier
+    if file_size_gb < 1.3:
+        return 80
+    else:
+        return 130
 
-    slope = 20
-    intercept_gb = 33
-    return (baseline_standardisation_gb + intercept_gb) + (slope * file_size_gb)
 
 def resolve_gwas_columns(gwas_file, column_name_map=None, additional_mandatory_columns=[], check_input_columns=True):
     if isinstance(column_name_map, str):
@@ -223,6 +226,7 @@ def onsuccess(pipeline_name, files_created=list(), results_file=None, is_test=Fa
         print("\n---------------------")
         print("PLEASE VIEW THIS HTML FILE FOR A SUMMARY OF RESULTS:")
         print(f"scp {user}@bc4login1.acrc.bris.ac.uk:{results_file} .")
+        print(f"\n\n\033[1;35;40m Please do us a favour and cite this pipeline: https://doi.org/10.5281/zenodo.10624713 \033[0m\n")
 
     copy_data_to_rdfs(files_created)
 
