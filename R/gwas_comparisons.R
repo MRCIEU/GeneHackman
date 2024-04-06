@@ -41,14 +41,9 @@ compare_replication_across_all_gwas_permutations <- function(gwas_filenames = c(
 #' @import data.table
 compare_two_gwases_from_clumped_hits <- function(first_gwas, second_gwas, clumped_snps) {
   comparison_name <- paste0(file_prefix(first_gwas), "_vs_", file_prefix(second_gwas))
-
   comparison_columns <- c("SNP", "BETA", "SE", "P", "RSID")
-  clump_columns <- c("SNP")
 
-  #vroom has trouble reading plink --clump output
-  clumped_snps <- data.table::fread(clumped_snps, select = clump_columns)
-  first_gwas <- get_file_or_dataframe(first_gwas, columns = comparison_columns) |>
-    dplyr::filter(RSID %in% clumped_snps$SNP)
+  first_gwas <- filter_gwas_by_clumped_results(first_gwas, clumped_snps)
   second_gwas <- get_file_or_dataframe(second_gwas, columns = comparison_columns)
 
   harmonised_gwases <- harmonise_gwases(first_gwas, second_gwas)

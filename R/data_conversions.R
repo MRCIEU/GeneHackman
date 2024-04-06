@@ -9,21 +9,15 @@ populate_gene_names <- function(gwas) {
 }
 
 ensembl_id_to_gene_name <- function(gwas) {
-  sqlite_db <- paste0(genomic_data_dir, "EnsDb.Hsapiens.v79.sqlite")
-  ensembl_id_list <- toString(gwas$ENSEMBL_ID)
-  command <- paste0("select gene_id || ',' || gene_name from gene where gene_id in (", ensembl_id_list, ")")
-
-  gene_map <- run_sqlite_command(sqlite_db, command, c("ENSEMBL_ID", "GENE_NAME"))
+  gene_map <- vroom::vroom(paste0(genomic_data_dir, "gene_name_map.tsv"))
   gwas$GENE_NAME <- gene_map$GENE_NAME[match(gwas$ENSEMBL_ID, gene_map$ENSEMBL_ID)]
+  return(gwas)
 }
 
 gene_name_to_ensembl_id <- function(gwas) {
-  sqlite_db <- paste0(genomic_data_dir, "EnsDb.Hsapiens.v79.sqlite")
-  ensembl_id_list <- toString(gwas$GENE_NAME)
-  command <- paste0("select gene_id || ',' || gene_name from gene where gene_id in (", ensembl_id_list, ")")
-
-  gene_map <- run_sqlite_command(sqlite_db, command, c("ENSEMBL_ID", "GENE_NAME"))
+  gene_map <- vroom::vroom(paste0(genomic_data_dir, "gene_name_map.tsv"))
   gwas$ENSEMBL_ID <- gene_map$ENSEMBL_ID[match(gwas$GENE_NAME, gene_map$GENE_NAME)]
+  return(gwas)
 }
 
 #' @export
