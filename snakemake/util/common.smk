@@ -54,6 +54,7 @@ def parse_pipeline_input(pipeline_includes_clumping=False):
         if not hasattr(g, "remove_extra_columns"): g.remove_extra_columns = False
         if not hasattr(g, "build"): g.build = "GRCh37"
         if not hasattr(g, "populate_rsid"): g.populate_rsid = False
+        g.file = os.path.abspath(g.file)
         g.populate_rsid = resolve_rsid_population(pipeline_includes_clumping, g.populate_rsid or pipeline.populate_rsid)
         g.standardised_memory = estimate_memory_needed_for_standardisation(g.file, g.populate_rsid)
         g.prefix = file_prefix(g.file)
@@ -237,6 +238,7 @@ def onerror_message(pipeline_name, is_test=False):
     last_log = subprocess.check_output(f"ls -t {slurm_log_directory} | head -n1", shell=True, universal_newlines=True)
     log_full_path = slurm_log_directory + last_log
     print("\n---------------------")
+    print("There are some documented common errors here: https://github.com/MRCIEU/GeneHackman/wiki")
     print("There was an error in the pipeline, please check the last written slurm log to see the error:")
     print(log_full_path)
 

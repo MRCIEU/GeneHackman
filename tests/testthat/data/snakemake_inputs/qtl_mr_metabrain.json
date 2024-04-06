@@ -1,14 +1,15 @@
 {
   "gwases": [
     {
-      "file": "/user/home/wt23152/GeneHackman/tests/testthat/data/test_data_small.tsv.gz",
+      "file": "tests/testthat/data/test_data_small.tsv.gz",
       "columns": {},
       "ancestry": "EUR"
     }
   ],
   "qtl": {
     "dataset": "metabrain",
-    "subcategory": "cortex"
+    "subcategory": "cortex",
+    "exposures": []
   },
   "is_test": true
 }

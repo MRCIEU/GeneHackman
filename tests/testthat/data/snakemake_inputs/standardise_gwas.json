@@ -1,16 +1,16 @@
 {
   "gwases": [
     {
-      "file": "/user/home/wt23152/GeneHackman/tests/testthat/data/opengwas_example.vcf.gz",
+      "file": "tests/testthat/data/opengwas_example.vcf.gz",
       "columns": "opengwas"
     },
     {
-      "file": "/user/home/wt23152/GeneHackman/tests/testthat/data/metal_output.txt",
+      "file": "tests/testthat/data/metal_output.txt",
       "columns": "metal",
       "populate_rsid": true
     },
     {
-      "file": "/user/home/wt23152/GeneHackman/tests/testthat/data/test_data_small_hg38.tsv.gz",
+      "file": "tests/testthat/data/test_data_small_hg38.tsv.gz",
       "columns": {},
       "build": "GRCh38"
     }
