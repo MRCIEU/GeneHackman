@@ -57,4 +57,4 @@ Available Datasets and Subcategories:
 * dataset: `metabrain`
   * subcategories: `basalganglia, cerebellum, cortex, hippocampus, spinalcord`
 * dataset: `eqtlgen`
-  * subcategories: `cis, trans`
+  * subcategories: `cis` (future: `trans`)
