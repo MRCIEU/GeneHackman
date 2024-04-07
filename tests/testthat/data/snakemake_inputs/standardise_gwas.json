@@ -1,6 +1,10 @@
 {
   "gwases": [
     {
+      "file": "tests/testthat/data/some_eqtlgen_hits.tsv.gz",
+      "columns": {}
+    },
+    {
       "file": "tests/testthat/data/opengwas_example.vcf.gz",
       "columns": "opengwas"
     },
