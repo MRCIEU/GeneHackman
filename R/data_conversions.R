@@ -1,8 +1,5 @@
-rsid_builds <- list(GRCh37="b37_dbsnp156", GRCh38="b38_dbsnp156")
-
 #' @export
 populate_gene_names <- function(gwas) {
-  return(gwas)
   if ("ENSEMBL_ID" %in% colnames(gwas) && !"GENE_NAME" %in% colnames(gwas)) {
     return(ensembl_id_to_gene_name(gwas))
   } else if ("GENE_NAME" %in% colnames(gwas) && !"ENSEMBL_ID" %in% colnames(gwas)) {
@@ -12,21 +9,15 @@ populate_gene_names <- function(gwas) {
 }
 
 ensembl_id_to_gene_name <- function(gwas) {
-  sqlite_db <- paste0(genomic_data_dir, "EnsDb.Hsapiens.v79.sqlite")
-  ensembl_id_list <- toString(gwas$ENSEMBL_ID)
-  command <- paste0("select gene_id || ',' || gene_name from gene where gene_id in (", ensembl_id_list, ")")
-
-  gene_map <- run_sqlite_command(sqlite_db, command, c("ENSEMBL_ID", "GENE_NAME"))
+  gene_map <- vroom::vroom(paste0(genomic_data_dir, "gene_name_map.tsv"))
   gwas$GENE_NAME <- gene_map$GENE_NAME[match(gwas$ENSEMBL_ID, gene_map$ENSEMBL_ID)]
+  return(gwas)
 }
 
 gene_name_to_ensembl_id <- function(gwas) {
-  sqlite_db <- paste0(genomic_data_dir, "EnsDb.Hsapiens.v79.sqlite")
-  ensembl_id_list <- toString(gwas$GENE_NAME)
-  command <- paste0("select gene_id || ',' || gene_name from gene where gene_id in (", ensembl_id_list, ")")
-
-  gene_map <- run_sqlite_command(sqlite_db, command, c("ENSEMBL_ID", "GENE_NAME"))
+  gene_map <- vroom::vroom(paste0(genomic_data_dir, "gene_name_map.tsv"))
   gwas$ENSEMBL_ID <- gene_map$ENSEMBL_ID[match(gwas$GENE_NAME, gene_map$GENE_NAME)]
+  return(gwas)
 }
 
 #' @export
@@ -68,8 +59,7 @@ populate_full_rsids <- function(gwas, build = rsid_builds$GRCh37) {
   if (!build %in% rsid_builds) stop(paste("Error: invalid rsid build option:", build))
 
   gwas <- data.table::as.data.table(gwas)
-  future::plan(future::multisession, workers = number_of_cpus_available)
-  gwas <- genepi.utils::chrpos_to_rsid(gwas, "CHR", "BP", "EA", "OA", flip = "allow", dbsnp_dir=dbsnp_dir, build=build, alt_rsids = F)
+  gwas <- genepi.utils::chrpos_to_rsid(gwas, "CHR", "BP", "EA", "OA", flip = "allow", dbsnp_dir=dbsnp_dir, build=build, alt_rsids = F, parallel_cores=number_of_cpus_available)
   gwas <- tibble::as_tibble(gwas)
   return(gwas)
 }

@@ -102,7 +102,7 @@ manhattan_and_qq <- function(gwas_filename, manhattan_filename, qq_filename, inc
     grDevices::png(qq_filename, width = 500, height = 500)
 
     qqman::qq(gwas$P, main = "Q-Q plot of GWAS p-values")
-    lambda <- median(qchisq(1 - gwas$P, 1)) / qchisq(0.5, 1)
+    lambda <- calculate_lambda_statistic(gwas)
     graphics::text(0.5, 4, paste("lambda", "=", signif(lambda, digits = 3)))
 
     grDevices::dev.off()

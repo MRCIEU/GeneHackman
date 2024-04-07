@@ -9,7 +9,7 @@ def update_google_sheet(pipeline_name, succeeded=True, error_file=None, is_test=
 
     try:
         gc = pygsheets.authorize(service_file=GENOMIC_DATA_DIR + "/googlesheets/google_sheets_creds.json")
-        spreadsheet = gc.open('gwaspipeline')
+        spreadsheet = gc.open('GeneHackman')
         worksheet = spreadsheet[0]
 
         user = os.getenv('USER')

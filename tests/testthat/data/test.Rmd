@@ -15,5 +15,5 @@ installed_packages[is.na(installed_packages$Priority), 1:2, drop=FALSE]
 ```
 ### Additional info
 
-* This pipeline was run using the github repository: https://github.com/MRCIEU/gwaspipeline
-* and the docker image: docker://mrcieu/gwaspipeline:`r get_docker_image_tag()`
+* This pipeline was run using the github repository: https://github.com/MRCIEU/GeneHackman
+* and the docker image: docker://mrcieu/genehackman:`r get_docker_image_tag()`

@@ -13,15 +13,6 @@ perform_mr_on_eqtlgen_datasets <- function(gwas_filename, subcategory=NULL, expo
   run_mr_on_qtl_data(gwas_filename, results_output = results_output, qtl_files = eqtlgen_top_hits, exposures = exposures)
 }
 
-
-#'
-perform_mr_on_pqtl_datasets <- function(gwas_filename, results_output, qtl_dir=pqtl_top_hits_dir, subcategory=None, cis_only = T) {
-  pqtl_file_pattern <- if(cis_only) ".*_cis_only.*" else ".*_cis_trans.*"
-  pqtl_datasets <- list.files(qtl_dir, pattern = pqtl_file_pattern, full.names = T)
-
-  run_mr_on_qtl_data(gwas_filename, qtl_files = pqtl_datasets, results_output = results_output)
-}
-
 #' @import dplyr
 #' @import vroom
 #' @import TwoSampleMR

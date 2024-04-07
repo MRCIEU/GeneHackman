@@ -5,8 +5,8 @@ RUN apt update && \
     build-essential software-properties-common dirmngr gnupg pandoc lmodern texlive-latex-base \
     libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev libfreetype6-dev libharfbuzz-dev libfribidi-dev \ 
     libxml2-dev libcurl4-gnutls-dev libssl-dev libgmp-dev libnlopt-dev cmake libcairo2-dev libxt-dev \
-    texlive-latex-recommended r-cran-sass r-cran-mime \
-    plink1.9 sqlite3 wget vim ripgrep git && \
+    texlive-latex-recommended r-cran-sass r-cran-mime libudunits2-dev libgdal-dev \
+    plink1.9 plink2 sqlite3 wget vim ripgrep git && \
     mkdir -p /home/scripts && \
     rm -rf /var/lib/apt/lists/* && \
     wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh && \
@@ -33,7 +33,7 @@ RUN cd /home && \
 #    tar -xf finemap_v1.4.2_x86_64.tgz && \
 #    mv finemap_v1.4.2_x86_64 /usr/local/bin/finemap
 
-COPY docker/ docker
+COPY docker/requirements.* docker/
 RUN Rscript docker/requirements.R
 RUN pip install -r docker/requirements.txt
 

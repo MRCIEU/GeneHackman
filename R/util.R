@@ -31,6 +31,15 @@ get_file_or_dataframe <- function(input, columns=NULL, snps=NULL) {
   }
   return(output)
 }
+#' @import data.table
+#' @import dplyr
+filter_gwas_by_clumped_results <- function(gwas, clumped_results) {
+  #vroom has trouble reading plink --clump output, so using fread
+  rsids <- data.table::fread(clumped_results, select = "SNP")$SNP
+  gwas <- get_file_or_dataframe(gwas) |>
+    dplyr::filter(RSID %in% rsids)
+  return(gwas)
+}
 
 #' vroom_snps: If you only need to get a handful of SNPs out of a whole GWAS, this saves time and memory
 #' NOTE: only works with data that has been standardised, through `standardise_gwas`, or at least a tsv
@@ -117,8 +126,8 @@ create_html_from_rmd <- function(rmd_file, params = list(), output_file) {
 }
 
 get_docker_image_tag <- function() {
-  return("latest")
-  #return(packageVersion("gwaspipeline"))
+  return("1.0.0")
+  #return(packageVersion("GeneHackman"))
 }
 
 #' @import vroom

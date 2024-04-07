@@ -7,6 +7,6 @@
 # * https://testthat.r-lib.org/articles/special-files.html
 
 library(testthat)
-library(gwaspipeline)
+library(GeneHackman)
 
-test_check("gwaspipeline")
+test_check("GeneHackman")

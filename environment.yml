@@ -1,4 +1,4 @@
-name: gwaspipeline
+name: genehackman
 channels:
   - conda-forge
   - bioconda

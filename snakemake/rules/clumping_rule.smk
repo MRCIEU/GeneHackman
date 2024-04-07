@@ -24,7 +24,7 @@ rule clump_gwases:
         for i in "${{!gwases[@]}}"
         do
             ancestry=${{ancestries[$i]}}
-            plink1.9 --bfile {THOUSAND_GENOMES_DIR}/$ancestry \
+            plink1.9 --bfile {THOUSAND_GENOMES_DIR}/new_bfiles/$ancestry \
                 --clump ${{gwases[$i]}} \
                 --clump-snp-field RSID \
                 {pipeline.plink_clump_arguments} \

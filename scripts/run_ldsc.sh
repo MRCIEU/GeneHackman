@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 source /home/scripts/conda_init.sh
 conda activate ldsc
 
@@ -43,7 +44,7 @@ for gwas in ${GWASES//,/ } ; do
       --sumstats "${gwas}" \
       --N "$n" \
       --merge-alleles "${LDSC_DIR}/w_hm3.snplist" \
-      --snp RSID --a1 EA --a2 OA --p P --signed-sumstats BETA,0 \
+      --snp RSID --a1 EA --a2 OA --p P --signed-sumstats BETA,0 --frq EAF \
       --chunksize 500000 \
       --out "$LDSC_DATA/${file_prefix}"
 
@@ -64,8 +65,6 @@ if [[ $GWASES =~ "," ]]; then
     --out $OUTPUT_PREFIX
 
     ldsc_rg_log="$OUTPUT_PREFIX".log
-    genetic_correlation=$(awk '/p1   /' RS= "$ldsc_rg_log" | tr -s ' ' ' ')
-    echo "$genetic_correlation" > "${OUTPUT_PREFIX}".tsv
 else
   python2.7 /home/ldsc/ldsc.py \
     --h2 "$SUMSTATS" \

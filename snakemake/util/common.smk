@@ -3,7 +3,6 @@ import gzip
 import json
 import os
 import re
-import time
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from pathlib import Path
@@ -21,7 +20,7 @@ def get_docker_container():
                 version = match.group(1)
                 break
 
-    sif_file = f"{PIPELINE_DATA_DIR}/gwaspipeline_{version}.sif"
+    sif_file = f"{PIPELINE_DATA_DIR}/genehackman_{version}.sif"
     if os.path.isfile(sif_file):
         return sif_file
     elif version:
@@ -51,11 +50,13 @@ def parse_pipeline_input(pipeline_includes_clumping=False):
 
     for g in pipeline.gwases:
         if not hasattr(g, "N"): g.N = 0
+        if not hasattr(g, "columns"): g.columns = SimpleNamespace()
         if not hasattr(g, "remove_extra_columns"): g.remove_extra_columns = False
         if not hasattr(g, "build"): g.build = "GRCh37"
         if not hasattr(g, "populate_rsid"): g.populate_rsid = False
+        g.file = os.path.abspath(g.file)
         g.populate_rsid = resolve_rsid_population(pipeline_includes_clumping, g.populate_rsid or pipeline.populate_rsid)
-        g.standardised_memory = 48*(g.populate_rsid == populate_rsid_options.full) + 24
+        g.standardised_memory = estimate_memory_needed_for_standardisation(g.file, g.populate_rsid)
         g.prefix = file_prefix(g.file)
         g.vcf_columns = get_columns_for_vcf_parsing(g.columns)
         g.input_columns = resolve_gwas_columns(g.file, g.columns)
@@ -71,6 +72,18 @@ def resolve_rsid_population(pipeline_includes_clumping, populate_rsid):
         return populate_rsid_options.none
     else:
         return populate_rsid_options.full
+
+
+def estimate_memory_needed_for_standardisation(gwas_file, populate_rsid):
+    baseline_standardisation_gb = 24
+    if populate_rsid != populate_rsid_options.full: return baseline_standardisation_gb
+
+    file_compression_multiplier = 3 if gwas_file.endswith(".gz") or gwas_file.endswith(".zip") else 1
+    file_size_gb = os.path.getsize(gwas_file) / (1024**3) * file_compression_multiplier
+    if file_size_gb < 1.3:
+        return 80
+    else:
+        return 130
 
 
 def resolve_gwas_columns(gwas_file, column_name_map=None, additional_mandatory_columns=[], check_input_columns=True):
@@ -179,6 +192,8 @@ def cleanup_old_slurm_logs():
         if file_timestamp < one_month_ago: os.remove(file)
 
 
+
+
 def file_prefix(filename):
     stem = Path(rf"{filename}").stem
     prefix = stem.split('.')[0]
@@ -212,6 +227,7 @@ def onsuccess(pipeline_name, files_created=list(), results_file=None, is_test=Fa
         print("\n---------------------")
         print("PLEASE VIEW THIS HTML FILE FOR A SUMMARY OF RESULTS:")
         print(f"scp {user}@bc4login1.acrc.bris.ac.uk:{results_file} .")
+        print(f"\n\n\033[1;35;40m Please do us a favour and cite this pipeline: https://doi.org/10.5281/zenodo.10624713 \033[0m\n")
 
     copy_data_to_rdfs(files_created)
 
@@ -222,6 +238,7 @@ def onerror_message(pipeline_name, is_test=False):
     last_log = subprocess.check_output(f"ls -t {slurm_log_directory} | head -n1", shell=True, universal_newlines=True)
     log_full_path = slurm_log_directory + last_log
     print("\n---------------------")
+    print("There are some documented common errors here: https://github.com/MRCIEU/GeneHackman/wiki")
     print("There was an error in the pipeline, please check the last written slurm log to see the error:")
     print(log_full_path)
 

@@ -2,20 +2,22 @@ from datetime import datetime
 from dotenv import load_dotenv
 from types import SimpleNamespace
 from enum import Enum
+import os
 
-docker_repo = "docker://mrcieu/gwaspipeline"
 
 def format_dir_string(directory):
     if not directory: return None
     return directory + "/" if not directory.endswith('/') else directory
 
 load_dotenv()
+docker_repo = "docker://mrcieu/genehackman"
 user = os.getenv('USER')
 input_file = os.getenv('INPUT_FILE') or "input.json"
 start_time = datetime.now()
 slurm_log_directory = f"/user/work/{user}/slurm_logs/"
 
 default_clump_headers = "CHR F SNP BP P TOTAL NSIG S05 S01 S001 S0001 SP2"
+#TODO: this should be read from predefined_column_map.csv
 default_columns = dict(SNP="SNP", CHR="CHR", BP="BP", EA="EA", OA="OA", EAF="EAF", P="P", BETA="BETA",
     SE="SE", OR="OR", OR_LB="OR_LB", OR_UB="OR_UB", RSID="RSID", N="N",
     ENSEMBL_ID="ENSEMBL_ID", GENE_NAME="GENE_NAME"

@@ -6,10 +6,17 @@
 #' @param result_output_file: data frame of all results of gwas comparisons concatenated
 #' @param variants_output_file: data frame of every SNP comparison from clumped list concatenated
 #' @import vroom
-compare_replication_across_all_gwas_permutations <- function(gwas_filenames,
-                                                             clumped_filenames,
+compare_replication_across_all_gwas_permutations <- function(gwas_filenames = c(),
+                                                             clumped_filenames = c(),
                                                              result_output_file,
                                                              variants_output_file) {
+  if (length(gwas_filenames) < 2) {
+    empty_dataframe <- data.frame(SNP=c())
+    vroom::vroom_write(empty_dataframe, result_output_file)
+    vroom::vroom_write(empty_dataframe, variants_output_file)
+    return()
+  }
+
   expected_vs_observed_results <- list()
   expected_vs_observed_variants <- list()
 
@@ -34,14 +41,9 @@ compare_replication_across_all_gwas_permutations <- function(gwas_filenames,
 #' @import data.table
 compare_two_gwases_from_clumped_hits <- function(first_gwas, second_gwas, clumped_snps) {
   comparison_name <- paste0(file_prefix(first_gwas), "_vs_", file_prefix(second_gwas))
-
   comparison_columns <- c("SNP", "BETA", "SE", "P", "RSID")
-  clump_columns <- c("SNP")
 
-  #vroom has trouble reading plink --clump output
-  clumped_snps <- data.table::fread(clumped_snps, select = clump_columns)
-  first_gwas <- get_file_or_dataframe(first_gwas, columns = comparison_columns) |>
-    dplyr::filter(RSID %in% clumped_snps$SNP)
+  first_gwas <- filter_gwas_by_clumped_results(first_gwas, clumped_snps)
   second_gwas <- get_file_or_dataframe(second_gwas, columns = comparison_columns)
 
   harmonised_gwases <- harmonise_gwases(first_gwas, second_gwas)
@@ -122,12 +124,21 @@ expected_vs_observed_replication <- function(b_disc, se_disc, b_rep, se_rep, alp
 #' @import dplyr
 #' @import rlang
 #' @import stats
-compare_heterogeneity_across_ancestries <- function(gwas_filenames,
-                                                    clumped_filenames,
-                                                    ancestry_list,
+compare_heterogeneity_across_ancestries <- function(gwas_filenames = c(),
+                                                    clumped_filenames = c(),
+                                                    ancestry_list = c(),
                                                     heterogeneity_score_file,
                                                     heterogeneity_plot_file,
                                                     heterogeneity_plots_per_snp_file) {
+
+  if (length(gwas_filenames) < 2) {
+    empty_dataframe <- data.frame(SNP=c())
+    vroom::vroom_write(empty_dataframe, heterogeneity_score_file)
+    file.create(heterogeneity_plot_file)
+    file.create(heterogeneity_plots_per_snp_file)
+    return()
+  }
+
   comparison_columns <- c("SNP", "BETA", "SE", "RSID")
   clumped_snps <- data.table::rbindlist(lapply(clumped_filenames, data.table::fread))$SNP
   clumped_snps <- unique(clumped_snps)

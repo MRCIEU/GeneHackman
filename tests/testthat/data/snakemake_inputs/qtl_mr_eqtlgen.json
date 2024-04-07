@@ -1,7 +1,7 @@
 {
   "gwases": [
     {
-      "file": "/user/home/wt23152/gwaspipeline/tests/testthat/data/test_data_small.tsv.gz",
+      "file": "tests/testthat/data/test_data_small.tsv.gz",
       "columns": {},
       "ancestry": "EUR"
     }

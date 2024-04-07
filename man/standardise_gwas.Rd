@@ -8,11 +8,12 @@ standardise_gwas(
   gwas,
   output_file,
   N = 0,
-  populate_rsid_option = F,
+  populate_rsid_option = populate_rsid_options$none,
   input_reference_build = reference_builds$GRCh37,
   output_reference_build = reference_builds$GRCh37,
   input_columns = "default",
-  output_columns = "default"
+  output_columns = "default",
+  remove_extra_columns = F
 )
 }
 \arguments{
@@ -33,6 +34,8 @@ can be list() of key/value pairs, string of row in predefined_column_maps, or co
 
 \item{output_columns:}{column header map used for renaming GWAS:
 can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values}
+
+\item{r:}{reference build of CHR and BP of data.  Defaults to GRCh37}
 }
 \value{
 modified gwas: saves new gwas in {output_file} if present

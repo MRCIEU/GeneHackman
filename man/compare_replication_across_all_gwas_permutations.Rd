@@ -5,8 +5,8 @@
 \title{compare_replication_across_all_gwas_permutations}
 \usage{
 compare_replication_across_all_gwas_permutations(
-  gwas_filenames,
-  clumped_filenames,
+  gwas_filenames = c(),
+  clumped_filenames = c(),
   result_output_file,
   variants_output_file
 )

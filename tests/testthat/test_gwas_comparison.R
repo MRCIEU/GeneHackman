@@ -28,6 +28,24 @@ test_that("gwas_comparison.run_cross_section_of_gwas_comparisons works well", {
   expect_equal(nrow(variants), 29 * length(input_gwases))
 })
 
+test_that("gwas_comparison.run_cross_section_of_gwas_comparisons deson't error with only one gwas", {
+  input_gwases <- "data/test_data_small.tsv.gz"
+  input_clumps <- "data/clumped_snps.tsv.gz"
+
+  output_file <- tempfile(fileext = ".tsv")
+  variants_output_file <- tempfile(fileext = ".tsv")
+
+  compare_replication_across_all_gwas_permutations(input_gwases, input_clumps, output_file, variants_output_file)
+
+  expect_true(file.exists(output_file))
+  results <- vroom::vroom(output_file, show_col_types=F)
+  expect_equal(nrow(results), 0)
+
+  expect_true(file.exists(variants_output_file))
+  variants <- vroom::vroom(variants_output_file, show_col_types=F)
+  expect_equal(nrow(variants), 0)
+})
+
 test_that("gwas_comparison.compare_heterogeneity_across_ancestries works well", {
   input_gwases <- c("data/test_data_small.tsv.gz",
                     "data/test_data_small.tsv.gz",

@@ -86,7 +86,7 @@ filter_incomplete_rows <- function(gwas) {
 standardise_columns <- function(gwas, N) {
   gwas_columns <- colnames(gwas)
 
-  if (!"N" %in% gwas_columns && N > 0) {
+  if (N > 0) {
     gwas$N <- N
   }
 
@@ -255,8 +255,14 @@ calculate_f_statistic <- function(gwas) {
   return(gwas)
 }
 
+#' @import stats
+calculate_lambda_statistic <- function(gwas) {
+  lambda <- median(stats::qchisq(1 - gwas$P, 1)) / stats::qchisq(0.5, 1)
+  return(lambda)
+}
+
 resolve_column_map <- function(column_map) {
-  column_map_file <- system.file("extdata", "predefined_column_maps.csv", package = "gwaspipeline")
+  column_map_file <- system.file("extdata", "predefined_column_maps.csv", package = "GeneHackman")
   if (!file.exists(column_map_file)) {
     predefined_column_maps <- vroom::vroom("../inst/extdata/predefined_column_maps.csv")
   } else {

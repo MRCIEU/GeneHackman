@@ -1,5 +1,5 @@
-Package: gwaspipeline
-Title: R package to support the GWAS pipeline to be run on the Bristol University HPC
+Package: GeneHackman
+Title: R package to support pipelines to run analyses on genetic summary statistics on the University of Bristol HPC
 Version: 1.0.0
 Authors@R: 
     person("Andrew", "Elmore", , "andrew.elmore@bristol.ac.uk", role = c("aut", "cre"),
@@ -38,5 +38,5 @@ Remotes:
     github::MRCIEU/TwoSampleMR,
     github::MRCIEU/ieugwasr,
     github::Osmahmoud/SlopeHunter,
-    github::nicksunderland/genepi.utils,
+    github::nicksunderland/genepi.utils@v0.0.5,
     github::yixuan/prettydoc
