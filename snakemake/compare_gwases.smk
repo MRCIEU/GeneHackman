@@ -1,3 +1,5 @@
+import pathlib
+
 include: "util/common.smk"
 singularity: get_docker_container()
 
@@ -20,6 +22,8 @@ results_file = RESULTS_DIR + "gwas_comparison/result_compare_gwases.html"
 
 std_file_pattern = standardised_gwas_name("{prefix}")
 ldsc_result_pattern = RESULTS_DIR + "ldsc/results_{ancestry}.log"
+ldsc_directory = RESULTS_DIR + "ldsc/"
+pathlib.Path(ldsc_directory).mkdir(parents=True, exist_ok=True)
 
 rule all:
     input: expand(std_file_pattern, prefix=[g.prefix for g in pipeline.gwases]),
@@ -97,7 +101,7 @@ files_created = {
     "heterogeneity_scores": heterogeneity_scores,
     "heterogeneity_plot": heterogeneity_plot,
     "heterogeneity_snp_comparison": heterogeneity_snp_comparison,
-    "ldsc_directory": RESULTS_DIR + "ldsc/"
+    "ldsc_directory": ldsc_directory
 }
 results_string = turn_dict_into_cli_string(files_created)
 
@@ -106,7 +110,7 @@ rule create_results_file:
     threads: 4
     resources:
         mem = "8G",
-    input: list(files_created.values())
+    input: list(files_created.values()), expand(ldsc_result_pattern, ancestry=ancestries)
     output: results_file
     shell:
         """

@@ -28,7 +28,9 @@ Here is a list of available pipelines, and the steps they run
 
 ### 2. Ensure you [have conda installed and initialised before activating](https://www.acrc.bris.ac.uk/protected/hpc-docs/software/python_conda.html)
 
-`conda activate /mnt/storage/private/mrcieu/data/genomic_data/pipeline/conda_pipeline`
+`conda activate /mnt/storage/private/mrcieu/data/genomic_data/pipeline/genehackman`
+
+(you can alternatively create your own conda environment if you like: `conda env create --file environment.yml`)
 
 ### 3. Populate .env and input.json files
 
@@ -48,6 +50,8 @@ ends in `working/`
 ### 4. Run the pipeline
 
 `./run_pipeline.sh snakemake/<specific_pipeline>.smk <optional_input_file.json>`
+
+`run_pipeline.sh` is just a convience wrapper around the `snakemake` command, if you want to do anything out of the ordinary, [please read up on snakemake](https://snakemake.readthedocs.io/en/v7.26.0/)
 
 If there are errors while running the pipeline, you can find error messages either directly on the screen, or in slurm log file that is outputted on error
 
