@@ -51,9 +51,9 @@ ends in `working/`
 
 `./run_pipeline.sh snakemake/<specific_pipeline>.smk <optional_input_file.json>`
 
-`run_pipeline.sh` is just a convience wrapper around the `snakemake` command, if you want to do anything out of the ordinary, [please read up on snakemake](https://snakemake.readthedocs.io/en/v7.26.0/)
-
-If there are errors while running the pipeline, you can find error messages either directly on the screen, or in slurm log file that is outputted on error
+* `run_pipeline.sh` is just a convience wrapper around the `snakemake` command, if you want to do anything out of the ordinary, [please read up on snakemake](https://snakemake.readthedocs.io/en/v7.26.0/)
+* If there are errors while running the pipeline, you can find error messages either directly on the screen, or in slurm log file that is outputted on error
+* It is recommended that you run the your pipeline [inside a tmux session](https://github.com/MRCIEU/GeneHackman/wiki/Common-Errors#ssh-disconnection-while-pipeline-is-running).
 
 ## How it works:
 
