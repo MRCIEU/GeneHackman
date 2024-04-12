@@ -11,6 +11,7 @@ user_results_dir <- get_env_var("RESULTS_DIR", "")
 
 number_of_cpus_available <- as.numeric(get_env_var("SLURM_CPUS_ON_NODE", 1))
 genomic_data_dir <- get_env_var("GENOMIC_DATA_DIR", "/mnt/storage/private/mrcieu/data/genomic_data/")
+thousand_genomes_dir <- get_env_var("THOUSAND_GENOMES_DIR", "/mnt/storage/private/mrcieu/data/genomic_data/1000genomes/b37_dbsnp156/")
 qtl_directory <- get_env_var("QTL_DIRECTORY", "/mnt/storage/private/mrcieu/data/qtl_datasets/")
 liftover_dir <- get_env_var("LIFTOVER_DIR", "/mnt/storage/private/mrcieu/data/genomic_data/liftover/")
 

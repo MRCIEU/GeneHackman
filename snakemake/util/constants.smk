@@ -54,7 +54,7 @@ RESULTS_DIR = format_dir_string(os.getenv('RESULTS_DIR'))
 RDFS_DIR = format_dir_string(os.getenv('RDFS_DIR'))
 LDSC_DIR = format_dir_string(os.getenv('LDSC_DIR'))
 GENOMIC_DATA_DIR = format_dir_string(os.getenv('GENOMIC_DATA_DIR'))
-THOUSAND_GENOMES_DIR = GENOMIC_DATA_DIR + "/1000genomes"
+THOUSAND_GENOMES_DIR = format_dir_string(os.getenv('THOUSAND_GENOMES_DIR'))
 PIPELINE_DATA_DIR = GENOMIC_DATA_DIR + "/pipeline"
 
 if RDFS_DIR and not RDFS_DIR.endswith("working/"):
