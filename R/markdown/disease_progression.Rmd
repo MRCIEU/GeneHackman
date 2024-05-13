@@ -22,9 +22,14 @@ knitr::kable(collider_bias_results)
 ### Expected vs Observed Results
 
 This shows all expected vs. observed results when comparing the incident vs. subsequent GWASes
+First table: Expected vs. Observed before adjusted for Collider Bias
+Second table: Expected vs. Observed after adjusting with SlopeHunter
 ```{r echo=F}
-expected_vs_observed <- vroom::vroom(params$expected_vs_observed, show_col_types = F)
-knitr::kable(expected_vs_observed)
+original_expected_vs_observed <- vroom::vroom(params$original_expected_vs_observed, show_col_types = F)
+knitr::kable(original_expected_vs_observed)
+
+adjusted_expected_vs_observed <- vroom::vroom(params$adjusted_expected_vs_observed, show_col_types = F)
+knitr::kable(adjusted_expected_vs_observed)
 ```
 
 ### Adjusted Manhattan Plots of GWAS

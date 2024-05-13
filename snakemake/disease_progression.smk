@@ -19,15 +19,19 @@ slopehunter_results = RESULTS_DIR + "collider_bias/" + subsequent.prefix + "_slo
 unadjusted_miami_plot = RESULTS_DIR + "plots/" + subsequent.prefix + "_miami_plot.png"
 slopehunter_adjusted_miami_plot = RESULTS_DIR + "plots/" + file_prefix(slopehunter_results) + "_miami_plot.png"
 results_file = RESULTS_DIR + "collider_bias/result_" + incident.prefix + "_" + subsequent.prefix + ".html"
-expected_vs_observed_results = RESULTS_DIR + "collider_bias/expected_vs_observed_outcomes.tsv"
-expected_vs_observed_variants = RESULTS_DIR + "collider_bias/expected_vs_observed_variants.tsv"
+
+original_expected_vs_observed_results = RESULTS_DIR + "collider_bias/original_expected_vs_observed_outcomes.tsv"
+original_expected_vs_observed_variants = RESULTS_DIR + "collider_bias/original_expected_vs_observed_variants.tsv"
+adjusted_expected_vs_observed_results = RESULTS_DIR + "collider_bias/adjusted_expected_vs_observed_outcomes.tsv"
+adjusted_expected_vs_observed_variants = RESULTS_DIR + "collider_bias/adjusted_expected_vs_observed_variants.tsv"
 
 std_file_pattern = standardised_gwas_name("{prefix}")
 
 rule all:
     input: expand(std_file_pattern, prefix=[incident.prefix, subsequent.prefix]),
         collider_bias_results, slopehunter_results, harmonised_effects, unadjusted_miami_plot,
-        slopehunter_adjusted_miami_plot, expected_vs_observed_results, expected_vs_observed_variants, results_file
+        slopehunter_adjusted_miami_plot, original_expected_vs_observed_results, original_expected_vs_observed_variants,
+        adjusted_expected_vs_observed_results, adjusted_expected_vs_observed_variants, results_file
 
 include: "rules/standardise_rule.smk"
 include: "rules/clumping_rule.smk"
@@ -92,15 +96,33 @@ rule slopehunter_adjusted_miami_plot:
             --title "Comparing Incidence and SlopeHunter Adjusted Subsequent GWAS"
         """
 
-rule compare_observed_vs_expected_gwas:
+rule compare_original_observed_vs_expected_gwas:
     resources:
         mem = "32G"
     input:
         gwases = [incident.standardised_gwas, subsequent.standardised_gwas],
         clumped_files = [incident.clumped_file]
     output:
-        results = expected_vs_observed_results,
-        variants = expected_vs_observed_variants
+        results = original_expected_vs_observed_results,
+        variants = original_expected_vs_observed_variants
+    shell:
+        """
+        Rscript compare_observed_vs_expected_gwas.R  \
+            --gwas_filenames {input.gwases} \
+            --clumped_filenames {input.clumped_files} \
+            --result_output {output.results} \
+            --variants_output {output.variants}
+        """
+
+rule compare_adjusted_observed_vs_expected_gwas:
+    resources:
+        mem = "32G"
+    input:
+        gwases = [incident.standardised_gwas, slopehunter_results],
+        clumped_files = [incident.clumped_file]
+    output:
+        results = adjusted_expected_vs_observed_results,
+        variants = adjusted_expected_vs_observed_variants
     shell:
         """
         Rscript compare_observed_vs_expected_gwas.R  \
@@ -120,7 +142,8 @@ files_created = {
     "slopehunter_results": slopehunter_results,
     "unadjuested_miami_plot": unadjusted_miami_plot,
     "slopehunter_adjusted_miami_plot": slopehunter_adjusted_miami_plot,
-    "expected_vs_observed": expected_vs_observed_results
+    "original_expected_vs_observed": original_expected_vs_observed_results,
+    "adjusted_expected_vs_observed": adjusted_expected_vs_observed_results
 }
 results_string = turn_dict_into_cli_string(files_created)
 
