@@ -59,3 +59,5 @@ PIPELINE_DATA_DIR = GENOMIC_DATA_DIR + "/pipeline"
 
 if RDFS_DIR and not RDFS_DIR.endswith("working/"):
     raise ValueError("Please ensure RDFS_DIR ends with working/ to ensure the data gets copied to the correct place")
+if DATA_DIR == RESULTS_DIR:
+    raise ValueError("DATA_DIR and RESULTS_DIR must be different directories")
