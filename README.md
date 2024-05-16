@@ -13,13 +13,14 @@ Goals:
 
 Here is a list of available pipelines, and the steps they run
 
-| standardise_gwas.smk                                          | compare_gwases.smk                     | qtl_mr.smk                                      | disease_progression.smk                        |
-|---------------------------------------------------------------|----------------------------------------|-------------------------------------------------|------------------------------------------------|
-| Populate RSID from CHR, BP, EA, and OA                        | All steps in 'standardise_gwas.smk'    | All steps in 'standardise_gwas.smk'             | All steps in 'standardise_gwas.smk'            |
-| Convert Reference Build<br/>(eg. GRCh38 -> GRCh37)            | PLINK clumping                         | Run MR against top hits of specific QTL dataset | Run Collider Bias Corrections, compare results |
-| Unique SNP = CHR:BP_EA_OA<br/> (where EA < OA alphabetically) | Calculate heterogeneity between GWASes | Volcano Plot of Results                         | Miami Plot of Collider Bias Results            |
-| Auto-populate GENE ID <-> ENSEMBL ID                          | LDSC h2 and rg                         | Run coloc of significant top hit MR results     | Expected vs. Observed Comparison               |
-|                                                               | Expected vs. Observed Comparison       |                                                 |                                                |
+| standardise_gwas.smk                                    | compare_gwases.smk                     | disease_progression.smk                               | qtl_mr.smk                                      |
+|---------------------------------------------------------|----------------------------------------|-------------------------------------------------------|-------------------------------------------------|
+| Takes in any of: vcf, csv, tsv, txt (and zip, gz)       | All steps in 'standardise_gwas.smk'    | All steps in 'standardise_gwas.smk'                   | All steps in 'standardise_gwas.smk'             |
+| Convert Reference Build<br/>(GRCh38 -> GRCh37)          | PLINK clumping                         | Runs some collider bias corrections, compares results | Run MR against top hits of specific QTL dataset |
+| Populate RSID from CHR, BP, EA, and OA                  | Calculate heterogeneity between GWASes | Miami Plot of Collider Bias Results                   | Volcano Plot of Results                         |
+| Converts z-scores and OR to BETA                        | LDSC h2 and rg                         | Expected vs. Observed Comparison                      | Run coloc of significant top hit MR results     |
+| Auto-populate GENE ID <-> ENSEMBL ID                    | Expected vs. Observed Comparison       |                                                       |                                                 |
+| Unique SNP = CHR:BP_EA_OA<br/> (EA < OA alphabetically) |                                        |                                                       |                                                 |
 
 ## Onboarding
 
