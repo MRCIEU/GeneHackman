@@ -1,4 +1,5 @@
 import csv
+import zipfile
 import gzip
 import json
 import os
@@ -135,6 +136,11 @@ def ensure_mandatory_columns_are_present(gwas_file, mandatory_column_names_in_gw
         if gwas_file.endswith(".gz"):
             with gzip.open(gwas_file) as f:
                 gwas_headers = f.readline().decode("utf-8").strip()
+        elif gwas_file.endswith(".zip"):
+            with zipfile.ZipFile(gwas_file) as zf:
+                unzipped_file = f"{os.path.dirname(gwas_file)}/{zf.namelist()[0]}"
+                with open(unzipped_file) as f:
+                    gwas_headers = str(f.readline()).strip()
         else:
             with open(gwas_file) as f:
                 gwas_headers = str(f.readline()).strip()
