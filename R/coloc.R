@@ -48,8 +48,7 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
                                         exposures=c(),
                                         default_n=NA,
                                         output_file) {
-  coloc_columns <- c("SNP", "CHR", "BP", "P", "SE", "N", "EAF")
-  gwas <- get_file_or_dataframe(gwas_file, columns = coloc_columns)
+  gwas <- get_file_or_dataframe(gwas_file)
   range <- 500000
 
   mr_results <- get_file_or_dataframe(mr_results_file) |>

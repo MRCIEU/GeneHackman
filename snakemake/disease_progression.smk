@@ -40,7 +40,7 @@ include: "rules/clumping_rule.smk"
 rule collider_bias_correction:
     threads: 8
     resources:
-        mem = "32G"
+        mem = "48G"
     input:
         incidence_gwas = incident.standardised_gwas,
         subsequent_gwas = subsequent.standardised_gwas,
@@ -150,7 +150,7 @@ results_string = turn_dict_into_cli_string(files_created)
 rule create_results_file:
     threads: 4
     resources:
-        mem = "8G",
+        mem = "16G",
     input: list(files_created.values())
     output: results_file
     shell:
