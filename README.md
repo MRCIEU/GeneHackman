@@ -42,7 +42,7 @@ These should probably be in your *work* or *scratch* space (`/user/work/userid/.
 ends in `working/`
 
 ### Fill out input.json file
-* Ex: `cp snakemake/input_templates/input_compare_gwases.json input.json`
+* Ex: `cp snakemake/input_templates/compare_gwases.json input.json`
 * Each pipeline (as defined in `snakemake` directory) has its own input format.
   * [Here are example pipelines here, copy to input.json](snakemake/input_templates/)
   * [Documentation per pipeline](snakemake/PIPELINES.md)

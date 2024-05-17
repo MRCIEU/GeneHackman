@@ -125,6 +125,7 @@ conduct_collider_bias_analysis <- function(incidence_gwas,
       error = function(e){
         message(paste("Couldn't run SlopeHunter::hunt for p-val theshold", p_value_threshold, ", skipping"))
         message(e)
+        message('\n')
       }
     )
   }

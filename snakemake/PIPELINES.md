@@ -41,6 +41,7 @@ All pipelines will standardise each GWAS before running the subsequent steps.  T
 ## compare_gwases 
 
 * `n GWAS objects`: See above for GWAS Object explanation
+  * Please also explicitly include `N` in the GWAS object, for use in the LDSC tool
 * `plink_clump_arguments`: arguments that are fed into the `plink --clump` call.  [Options here](https://zzz.bwh.harvard.edu/plink/clump.shtml)
 
 ## qtl_mr

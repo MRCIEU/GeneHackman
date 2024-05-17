@@ -3,16 +3,19 @@
     {
       "file": "",
       "columns": {"SNP":"", "CHR":"", "BP":"", "EA":"", "OA":"", "EAF":"", "P":"", "BETA":"", "SE":""},
+      "N": 10000,
       "ancestry": "EUR"
     },
     {
       "file": "",
       "columns": {},
+      "N": 10000,
       "ancestry": "AFR"
     },
     {
       "file": "",
       "columns": {},
+      "N": 10000,
       "ancestry": "EAS"
     }
   ],
