@@ -25,5 +25,5 @@ SMK_FILE=$1
 export INPUT_FILE=$2
 ADDITIONAL_ARGS="${@:3}"
 
-module load apps/singularity/3.8.3
+module load apptainer/1.1.9
 snakemake --snakefile ${SMK_FILE} --profile ${PROFILE} ${ADDITIONAL_ARGS}
