@@ -1,6 +1,6 @@
 cluster:
   export USER=$(whoami) &&
-  export ACCOUNT_ID=$(sacctmgr show user withassoc format=account where user=$USER | grep smed) &&
+  export ACCOUNT_ID=$(sacctmgr show user withassoc format=account where user=$USER | grep '[0-9]' | head -n1) &&
   mkdir -p /user/work/$USER/slurm_logs &&
   sbatch
     --partition={resources.partition}
