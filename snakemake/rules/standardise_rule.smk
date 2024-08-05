@@ -10,7 +10,8 @@ rule standardise_gwases:
         populate_rsid = lambda wildcards: getattr(pipeline, wildcards.prefix).populate_rsid.value
     threads: 8
     resources:
-        mem=lambda wildcards: f"{getattr(pipeline, wildcards.prefix).standardised_memory}G"
+        mem = lambda wildcards: f"{getattr(pipeline, wildcards.prefix).standardised_memory}G",
+        time = '04:00:00'
     output: std_file_pattern
     shell:
         """
