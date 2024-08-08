@@ -84,6 +84,7 @@ def estimate_memory_needed_for_standardisation(gwas_file, populate_rsid):
     else:
         number_of_lines = subprocess.check_output(f"wc -l < {gwas_file}", shell=True, universal_newlines=True)
 
+    number_of_lines = int(number_of_lines)
     if number_of_lines < 10_000_000:
         return 80
     elif number_of_lines < 35_000_000:

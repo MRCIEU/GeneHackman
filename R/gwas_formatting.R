@@ -143,6 +143,12 @@ health_check <- function(gwas) {
 #' @param: columns named list for
 #' @param: opposite_mapping logical flag on if we are mapping from key to value or vice verca
 change_column_names <- function(gwas, columns = list(), remove_extra_columns = F) {
+  columns_to_overwrite <- names(gwas)[names(gwas) %in% names(columns)]
+
+  for (name in columns_to_overwrite) {
+    names(gwas)[names(gwas) == name] <- paste0(name, "_OLD")
+  }
+
   for (name in names(columns)) {
     names(gwas)[names(gwas) == columns[name]] <- name
   }
