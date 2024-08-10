@@ -86,10 +86,6 @@ split_string_into_named_list <- function(input_string) {
   names <- split[c(T, F)]
   values <- split[c(F, T)]
 
-  filter_identical <- names == values
-  names <- names[!filter_identical]
-  values <- values[!filter_identical]
-
   return(structure(as.list(values), names=names))
 }
 

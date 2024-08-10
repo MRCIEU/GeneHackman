@@ -37,7 +37,11 @@ def parse_pipeline_input(pipeline_includes_clumping=False):
         raise ValueError(f"Error: {input_file} file doesn't exist")
 
     with open(input_file) as pipeline_input:
-        pipeline = json.load(pipeline_input,object_hook=lambda data: SimpleNamespace(**data))
+        try:
+            pipeline = json.load(pipeline_input,object_hook=lambda data: SimpleNamespace(**data))
+        except Exception as e:
+            raise Exception('ERROR: There is an error with the JSON file, '
+                        + 'please ensure it is valid JSON: https://jsonlint.com/') from e
 
     if not hasattr(pipeline, "is_test"): pipeline.is_test = False
     if not hasattr(pipeline, "output"): pipeline.output = default_output_options
