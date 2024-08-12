@@ -33,10 +33,11 @@ All pipelines will standardise each GWAS before running the subsequent steps.  T
   * `build`: one of the supported reference builds.  Default: `GRCh37`
   * `columns`: same format as input columns.  Either a object {} or predefined map string
 
-## collider_bias 
+## disease_progression 
 
 * `2 GWAS objects`: Incident and Subsequent GWAS.  See above for GWAS Object explanation
 * `plink_clump_arguments`: arguments that are fed into the `plink --clump` call.  [Options here](https://zzz.bwh.harvard.edu/plink/clump.shtml)
+* `output`: 2 fields in `adjusted_gwas`, where `type` can be `slopehunter`, `cwls`, or `mr_ivw`, and `p_val` can be any of `0.1, 0.01, 0.001, 1e-5`
 
 ## compare_gwases 
 
