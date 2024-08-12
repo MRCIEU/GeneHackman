@@ -144,6 +144,12 @@ health_check <- function(gwas) {
 #' @param: opposite_mapping logical flag on if we are mapping from key to value or vice verca
 change_column_names <- function(gwas, columns = list(), remove_extra_columns = F) {
   for (name in names(columns)) {
+    #this deletes an existing column that we're about to rename, so we don't have 2 columns
+    already <- name != columns[[name]]
+    already <- already %in% TRUE
+    if (name %in% names(gwas) & already) {
+      gwas <- gwas[ , -which(names(gwas) %in% c(name))]
+    }
     names(gwas)[names(gwas) == columns[name]] <- name
   }
 
@@ -271,17 +277,19 @@ resolve_column_map <- function(column_map) {
   predefined_column_maps <- tibble::column_to_rownames(predefined_column_maps, "name")
 
   if (is.vector(column_map) && length(column_map) > 1) {
-    return(column_map)
+    resolved_column_map <- column_map
   } else if (is.character(column_map) && length(column_map) == 1) {
     if (column_map %in% row.names(predefined_column_maps)) {
       predefined_map <- predefined_column_maps[column_map, ]
-      return(as.list(predefined_map))
+      resolved_column_map <- as.list(predefined_map)
     } else {
       split_map <- split_string_into_named_list(column_map)
       if (length(split_map) == 0) stop(paste("Error resolving column map for", column_map))
-      return(split_map)
+      resolved_column_map <- split_map
     }
   } else {
     stop(paste("Error resolving column map for", column_map))
   }
+
+  return(resolved_column_map)
 }

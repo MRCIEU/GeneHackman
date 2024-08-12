@@ -10,6 +10,24 @@ test_that("gwas_formatting.standardise_gwas standardises a gwas", {
   expect_true(all(grep("\\d+:\\d+_\\w+_\\w+", result$SNP)))
 })
 
+test_that("gwas_formatting.standardise_gwas deletes clashing columns", {
+  test_gwas <- vroom::vroom("data/test_data_tiny_existing_column.tsv.gz", show_col_types=F)
+  output_file  <- tempfile(fileext = ".tsv.gz")
+  map <- "N=NEW_N,SNP=MARKER,CHR=CHR,BP=BP,EA=A0,OA=A1,EAF=A0FREQ,P=P,BETA=BETA,SE=SE,OR=OR,OR_LB=OR_LB,OR_UB=OR_UB,RSID=RSID"
+  bespoke_column_map <- split_string_into_named_list(map)
+
+  standardise_gwas("data/test_data_tiny_existing_column.tsv.gz", output_file, input_columns = bespoke_column_map)
+  result <- vroom::vroom(output_file, show_col_types=F)
+
+  expect_true('N' %in% names(result))
+  expect_true(all(result$N == 123))
+  expect_false('NEW_N' %in% names(result))
+
+  expect_equal(nrow(result), nrow(test_gwas))
+  expect_true(all(result$EA < result$OA))
+  expect_true(all(grep("\\d+:\\d+_\\w+_\\w+", result$SNP)))
+})
+
 test_that("gwas_formatting.standardise_gwas with bespoke_column_map standardises a gwas", {
   output_file  <- tempfile(fileext = ".tsv.gz")
   map <- "SNP=MARKER,CHR=CHR,BP=BP,EA=A0,OA=A1,EAF=A0FREQ,P=P,BETA=BETA,SE=SE,OR=OR,OR_LB=OR_LB,OR_UB=OR_UB,RSID=RSID"

@@ -12,7 +12,7 @@ cluster:
     --cpus-per-task={threads}
     --mem={resources.mem}
     --job-name={rule}-{wildcards}
-    --output=/user/work/$USER/slurm_logs/{rule}{wildcards}_%j.out
+    --output=/user/work/$USER/slurm_logs/{rule}_%j.out
 default-resources:
   - time='01:00:00'
   - partition=mrcieu

@@ -25,7 +25,7 @@ This shows all expected vs. observed results when comparing the incident vs. sub
 
 First table: Expected vs. Observed before adjusted for Collider Bias
 
-Second table: Expected vs. Observed after adjusting with SlopeHunter
+Second table: Expected vs. Observed after adjusting for Collider Bias 
 ```{r echo=F}
 original_expected_vs_observed <- vroom::vroom(params$original_expected_vs_observed, show_col_types = F)
 knitr::kable(original_expected_vs_observed)
@@ -35,7 +35,7 @@ knitr::kable(adjusted_expected_vs_observed)
 ```
 
 ### Adjusted Manhattan Plots of GWAS
-`r sprintf("![Miami Plot of SlopeHunter Adjusted GWAS at p = 0.0001](%s)", params$slopehunter_adjusted_miami_plot)`
+`r sprintf("![Miami Plot of Adjusted GWAS at p = 0.0001](%s)", params$adjusted_miami_plot)`
 
 ### Comparing GWAS Results Across Top Hits in Subsequent GWAS
 
@@ -52,7 +52,7 @@ incidence <- vroom::vroom(params$incidence_gwas, show_col_types = F) |>
   subset(RSID %in% subsequent$RSID, select = columns)
 incidence$GWAS <- "Incidence"
 
-subsequent_adjusted <- vroom::vroom(params$slopehunter_results, show_col_types = F) |>
+subsequent_adjusted <- vroom::vroom(params$adjusted_results, show_col_types = F) |>
   subset(RSID %in% subsequent$RSID, select = columns)
 subsequent_adjusted$GWAS <- "Subsequent Adjusted"
 

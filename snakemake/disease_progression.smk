@@ -6,6 +6,9 @@ pipeline = parse_pipeline_input(pipeline_includes_clumping=True)
 incident = pipeline.gwases[0]
 subsequent = pipeline.gwases[1]
 
+adjusted_gwas = SimpleNamespace(**{"type": "slopehunter", "p_val": 0.001})
+if not hasattr(pipeline, "output"): pipeline.output= SimpleNamespace(**{'adjusted_gwas': adjusted_gwas})
+
 onstart:
     print("##### Pipeline to Calculate Slope and Apply Correction on Collider Bias #####")
 
@@ -14,10 +17,10 @@ validate_ancestries(ancestries)
 
 collider_bias_results = RESULTS_DIR + "collider_bias/" + subsequent.prefix + "_collider_bias_results.tsv"
 harmonised_effects = RESULTS_DIR + "collider_bias/" + subsequent.prefix + "_harmonised_effects.tsv.gz"
-slopehunter_results = RESULTS_DIR + "collider_bias/" + subsequent.prefix + "_slopehunter.tsv.gz"
+adjusted_results = RESULTS_DIR + "collider_bias/" + subsequent.prefix + "_" + pipeline.output.adjusted_gwas.type + "_adjusted.tsv.gz"
 
 unadjusted_miami_plot = RESULTS_DIR + "plots/" + subsequent.prefix + "_miami_plot.png"
-slopehunter_adjusted_miami_plot = RESULTS_DIR + "plots/" + file_prefix(slopehunter_results) + "_miami_plot.png"
+collider_bias_adjusted_miami_plot = RESULTS_DIR + "plots/" + file_prefix(adjusted_results) + "_miami_plot.png"
 results_file = RESULTS_DIR + "collider_bias/result_" + incident.prefix + "_" + subsequent.prefix + ".html"
 
 original_expected_vs_observed_results = RESULTS_DIR + "collider_bias/original_expected_vs_observed_outcomes.tsv"
@@ -29,8 +32,8 @@ std_file_pattern = standardised_gwas_name("{prefix}")
 
 rule all:
     input: expand(std_file_pattern, prefix=[incident.prefix, subsequent.prefix]),
-        collider_bias_results, slopehunter_results, harmonised_effects, unadjusted_miami_plot,
-        slopehunter_adjusted_miami_plot, original_expected_vs_observed_results, original_expected_vs_observed_variants,
+        collider_bias_results, adjusted_results, harmonised_effects, unadjusted_miami_plot,
+        collider_bias_adjusted_miami_plot, original_expected_vs_observed_results, original_expected_vs_observed_variants,
         adjusted_expected_vs_observed_results, adjusted_expected_vs_observed_variants, results_file
 
 include: "rules/standardise_rule.smk"
@@ -47,7 +50,7 @@ rule collider_bias_correction:
         clumped_file = incident.clumped_file
     output:
         results = collider_bias_results,
-        slophunter_adjusted = slopehunter_results,
+        adjusted_results = adjusted_results,
         harmonised_effects_results_file = harmonised_effects
     shell:
         """
@@ -55,9 +58,11 @@ rule collider_bias_correction:
             --incidence_gwas {input.incidence_gwas} \
             --subsequent_gwas {input.subsequent_gwas} \
             --clumped_file {input.clumped_file} \
+            --adjustment_type {pipeline.output.adjusted_gwas.type} \
+            --adjustment_pval {pipeline.output.adjusted_gwas.p_val} \
             --collider_bias_results_output {output.results} \
             --harmonised_effects_output {output.harmonised_effects_results_file} \
-            --collider_bias_slopehunter_output {output.slophunter_adjusted}
+            --collider_bias_adjusted_output {output.adjusted_results}
         """
 
 rule unadjusted_miami_plot:
@@ -78,22 +83,22 @@ rule unadjusted_miami_plot:
             --title "Comparing Incidence and Subsequent GWAS"
         """
 
-rule slopehunter_adjusted_miami_plot:
+rule collider_bias_adjusted_miami_plot:
     threads: 4
     resources:
         mem = "16G",
         time = "02:00:00"
     input:
         first_gwas = incident.standardised_gwas,
-        second_gwas = slopehunter_results
-    output: slopehunter_adjusted_miami_plot
+        second_gwas = adjusted_results
+    output: collider_bias_adjusted_miami_plot
     shell:
         """
         Rscript miami.R \
             --first_gwas {input.first_gwas} \
             --second_gwas {input.second_gwas} \
             --miami_filename {output} \
-            --title "Comparing Incidence and SlopeHunter Adjusted Subsequent GWAS"
+            --title "Comparing Incidence and Collider Bias Adjusted Subsequent GWAS"
         """
 
 rule compare_original_observed_vs_expected_gwas:
@@ -118,7 +123,7 @@ rule compare_adjusted_observed_vs_expected_gwas:
     resources:
         mem = "32G"
     input:
-        gwases = [incident.standardised_gwas, slopehunter_results],
+        gwases = [incident.standardised_gwas, adjusted_results],
         clumped_files = [incident.clumped_file]
     output:
         results = adjusted_expected_vs_observed_results,
@@ -139,9 +144,9 @@ files_created = {
     "clumped_subsequent": subsequent.clumped_file,
     "collider_bias_results": collider_bias_results,
     "harmonised_gwas": harmonised_effects,
-    "slopehunter_results": slopehunter_results,
+    "adjusted_results": adjusted_results,
     "unadjuested_miami_plot": unadjusted_miami_plot,
-    "slopehunter_adjusted_miami_plot": slopehunter_adjusted_miami_plot,
+    "adjusted_miami_plot": collider_bias_adjusted_miami_plot,
     "original_expected_vs_observed": original_expected_vs_observed_results,
     "adjusted_expected_vs_observed": adjusted_expected_vs_observed_results
 }

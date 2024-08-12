@@ -3,6 +3,7 @@ collider_bias_type <- list(
   cwls = "cwls",
   mr_ivw = "mr_ivw"
 )
+thresholds <- c(0.1, 0.01, 0.001, 1e-05)
 
 collider_bias_results <- data.frame(
   METHOD = character(),
@@ -30,10 +31,21 @@ collider_bias_results <- data.frame(
 conduct_collider_bias_analysis <- function(incidence_gwas,
                                            subsequent_gwas,
                                            clumped_snps_file,
+                                           adjustment_type,
+                                           adjustment_pval,
                                            collider_bias_results_file,
                                            harmonised_effects_result_file,
-                                           slopehunter_adjusted_file,
-                                           p_value_thresholds = c(0.1, 0.01, 0.001, 1e-05)) {
+                                           adjusted_output_file,
+                                           p_value_thresholds = thresholds) {
+
+  if (!adjustment_type %in% collider_bias_type) {
+    throw(paste('Error: invalid adjustment_type', adjustment_type, 'Use one of', paste(collider_bias_type, collapse = ', ')))
+  }
+
+  adjustment_pval <- as.numeric(adjustment_pval)
+  if (!adjustment_pval %in% thresholds) {
+    throw(paste('Error: invalid adjustment_pval', adjustment_pval, 'Use one of', paste(thresholds, collapse = ', ')))
+  }
 
   clumped_snps <- data.table::fread(clumped_snps_file)
   incidence <- get_file_or_dataframe(incidence_gwas)
@@ -210,12 +222,16 @@ conduct_collider_bias_analysis <- function(incidence_gwas,
 
   vroom::vroom_write(collider_bias_results, collider_bias_results_file)
 
-  slopehunter_default_result <- dplyr::filter(collider_bias_results, METHOD == collider_bias_type$slopehunter & P_VALUE_THRESHOLD == 0.001)
-  harmonised_effects <- adjust_gwas_data_from_weights_and_save(subsequent,harmonised_effects,
+  if (adjustment_type == collider_bias_type$cwls) {
+    slopehunter_default_result <- dplyr::filter(collider_bias_results, METHOD == adjustment_type)
+  } else {
+    slopehunter_default_result <- dplyr::filter(collider_bias_results, METHOD == adjustment_type & P_VALUE_THRESHOLD == adjustment_pval)
+  }
+  harmonised_effects <- adjust_gwas_data_from_weights_and_save(subsequent, harmonised_effects,
                                                                slopehunter_default_result$METHOD,
                                                                slopehunter_default_result$BETA,
                                                                slopehunter_default_result$SE,
-                                                               slopehunter_adjusted_file
+                                                               adjusted_output_file
   )
 }
 

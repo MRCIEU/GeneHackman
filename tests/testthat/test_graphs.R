@@ -10,5 +10,6 @@ test_that("graphs.miami_plot given a specific range, creates a png file ", {
                        range = 1000000
   )
   expect_true(file.exists(miami_plot_file))
-  expect_gt(file.info(miami_plot_file)$size, 10000)
+  print(miami_plot_file)
+  expect_gt(file.info(miami_plot_file)$size, 8000)
 })

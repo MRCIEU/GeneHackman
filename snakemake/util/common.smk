@@ -37,7 +37,11 @@ def parse_pipeline_input(pipeline_includes_clumping=False):
         raise ValueError(f"Error: {input_file} file doesn't exist")
 
     with open(input_file) as pipeline_input:
-        pipeline = json.load(pipeline_input,object_hook=lambda data: SimpleNamespace(**data))
+        try:
+            pipeline = json.load(pipeline_input,object_hook=lambda data: SimpleNamespace(**data))
+        except Exception as e:
+            raise Exception('ERROR: There is an error with the JSON file, '
+                        + 'please ensure it is valid JSON: https://jsonlint.com/') from e
 
     if not hasattr(pipeline, "is_test"): pipeline.is_test = False
     if not hasattr(pipeline, "output"): pipeline.output = default_output_options
@@ -79,12 +83,18 @@ def estimate_memory_needed_for_standardisation(gwas_file, populate_rsid):
     baseline_standardisation_gb = 24
     if populate_rsid != populate_rsid_options.full: return baseline_standardisation_gb
 
-    file_compression_multiplier = 3 if gwas_file.endswith(".gz") or gwas_file.endswith(".zip") else 1
-    file_size_gb = os.path.getsize(gwas_file) / (1024**3) * file_compression_multiplier
-    if file_size_gb < 1.3:
-        return 80
+    if gwas_file.endswith(".gz") or gwas_file.endswith(".zip"):
+        number_of_lines = subprocess.check_output(f"zcat {gwas_file} | wc -l", shell=True, universal_newlines=True)
     else:
+        number_of_lines = subprocess.check_output(f"wc -l < {gwas_file}", shell=True, universal_newlines=True)
+
+    number_of_lines = int(number_of_lines)
+    if number_of_lines < 10_000_000:
+        return 80
+    elif number_of_lines < 35_000_000:
         return 130
+    else:
+        return 200
 
 
 def resolve_gwas_columns(gwas_file, column_name_map=None, additional_mandatory_columns=[], check_input_columns=True):
@@ -144,6 +154,8 @@ def ensure_mandatory_columns_are_present(gwas_file, mandatory_column_names_in_gw
         else:
             with open(gwas_file) as f:
                 gwas_headers = str(f.readline()).strip()
+
+        gwas_headers = re.sub('["\']', '', gwas_headers)
         gwas_headers = re.split('\n|,| |\t',gwas_headers)
 
         missing = set(mandatory_column_names_in_gwas) - set(gwas_headers)
