@@ -16,7 +16,7 @@
   "output": {
     "adjusted_gwas":
       {
-        "type" : "slopehunter",
+        "type" : "cwls",
         "p_val": 0.001
       }
   }

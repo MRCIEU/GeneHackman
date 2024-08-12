@@ -154,6 +154,8 @@ def ensure_mandatory_columns_are_present(gwas_file, mandatory_column_names_in_gw
         else:
             with open(gwas_file) as f:
                 gwas_headers = str(f.readline()).strip()
+
+        gwas_headers = re.sub('["\']', '', gwas_headers)
         gwas_headers = re.split('\n|,| |\t',gwas_headers)
 
         missing = set(mandatory_column_names_in_gwas) - set(gwas_headers)
