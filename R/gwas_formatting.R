@@ -170,6 +170,9 @@ standardise_alleles <- function(gwas) {
   if (any(to_flip)) {
     gwas$EAF[to_flip] <- 1 - gwas$EAF[to_flip]
     gwas$BETA[to_flip] <- -1 * gwas$BETA[to_flip]
+    if ('Z' %in% names(gwas)) {
+      gwas$Z[to_flip] <- -1 * gwas$Z[to_flip]
+    }
 
     temp <- gwas$OA[to_flip]
     gwas$OA[to_flip] <- gwas$EA[to_flip]
@@ -215,22 +218,28 @@ convert_beta_to_or <- function(gwas) {
   return(gwas)
 }
 
-#' convert_z_score_to_beta
-#' taken from here: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8432599/ under "Correlation of trans-eQTL effects"
-#' @export
-convert_z_score_to_beta <- function(gwas) {
-  gwas$BETA <- gwas$Z / sqrt(
-    (2 * gwas$EAF) * (1 - gwas$EAF) * (gwas$N + gwas$Z^2)
-  )
-  gwas$SE <- 1 / sqrt(
-    (2 * gwas$EAF) * (1 - gwas$EAF) * (gwas$N + gwas$Z^2)
-  )
+convert_z_score_to_beta <- function(gwas, sample_size) {
+  gwas$SE_new <- 1 / sqrt(2 * gwas$EAF * (1 - gwas$EAF) * sample_size)
+  gwas$BETA_new <- gwas$Z * gwas$SE_new
 
-  #if (!"P" %in% names(gwas)) {
-  #  gwas$P <- convert_z_to_p(gwas)
-  #}
+  correction_gwas <- dplyr::filter(gwas, !is.na(BETA) & !is.null(BETA))
+  correction_gwas$BETA_new[which(!is.finite(correction_gwas$BETA_new))] <- NA
+  correction <- lm(correction_gwas$BETA_new ~ correction_gwas$BETA, na.action=na.omit)$coef[2]
+
+  gwas$BETA_new <- gwas$BETA_new / correction
+  gwas$SE_new <- gwas$SE_new / correction
+  gwas$P_new <- abs(2 * pnorm(abs(gwas$Z), lower.tail = F))
+
+  gwas <- dplyr::mutate(gwas, BETA = dplyr::if_else(is.na(BETA), BETA_new, BETA),
+                              SE = dplyr::if_else(is.na(SE), SE_new, SE),
+                              P = dplyr::if_else(is.na(P), P_new, P) ) |>
+    dplyr::select(-BETA_new, -SE_new, -P_new) |>
+    dplyr::filter(!is.na(BETA) & !is.na(SE) & BETA != Inf & SE != Inf)
+
   return(gwas)
 }
+
+
 
 #' @import stats
 convert_z_to_p <- function(gwas) {
