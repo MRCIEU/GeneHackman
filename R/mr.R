@@ -86,3 +86,34 @@ compare_interesting_mr_results <- function(pqtl_mr_results, forest_plot_output_f
                       forest_plot_output_file
   )
 }
+
+
+#TODO: Si needs to fill this out...
+extract_instrumental_variables <- function(gwas_filename, clumped_filename = NULL, pval_threshold = 5e-8) {
+  # Read the GWAS data
+  gwas_data <- TwoSampleMR::read_outcome_data(
+    filename = gwas_filename,
+    sep = "\t",
+    snp_col = "SNP",
+    beta_col = "BETA",
+    se_col = "SE",
+    effect_allele_col = "A1",
+    other_allele_col = "A2",
+    pval_col = "P",
+    chr_col = "CHR",
+    pos_col = "BP"
+  )
+
+  # If clumped file is provided, use those SNPs, otherwise extract based on p-value
+  if (!is.null(clumped_filename)) {
+    clumped_snps <- data.table::fread(clumped_filename)$SNP
+    instruments <- gwas_data[gwas_data$SNP %in% clumped_snps, ]
+  } else {
+    instruments <- TwoSampleMR::extract_instruments(
+      gwas_data,
+      p1 = pval_threshold
+    )
+  }
+
+  return(instruments)
+}
