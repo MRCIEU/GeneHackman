@@ -139,7 +139,7 @@ def get_columns_for_vcf_parsing(columns):
 
 def ensure_mandatory_columns_are_present(gwas_file, mandatory_column_names_in_gwas, column_name_map, check_input_columns):
     if not Path(gwas_file).is_file():
-        raise ValueError(f"Error: {gwas_file} does not exist")
+        raise ValueError(f"Error: GWAS file {gwas_file} does not exist")
     if not check_input_columns: return
 
     if not ".vcf" in gwas_file:
