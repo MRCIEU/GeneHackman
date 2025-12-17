@@ -19,7 +19,7 @@ else
 fi
 
 #if [$(hostname)...] set PROFILE accordingly, for when multiple HPCs are 
-PROFILE=snakemake/bc4/
+PROFILE=snakemake/bp1/
 
 SMK_FILE=$1
 export INPUT_FILE=$2

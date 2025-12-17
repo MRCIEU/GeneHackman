@@ -15,7 +15,7 @@ cluster:
     --output=/user/work/$USER/slurm_logs/{rule}_%j.out
 default-resources:
   - time='01:00:00'
-  - partition=mrcieu
+  - partition=compute
   - mem='1G'
   - ntasks_per_node=1
   - nodes=1
