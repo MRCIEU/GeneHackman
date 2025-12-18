@@ -19,11 +19,11 @@ else
 fi
 
 #if [$(hostname)...] set PROFILE accordingly, for when multiple HPCs are 
-PROFILE=snakemake/bc4/
+PROFILE=snakemake/bp1/
 
 SMK_FILE=$1
 export INPUT_FILE=$2
 ADDITIONAL_ARGS="${@:3}"
 
-module load apptainer/1.1.9
+module load apptainer/1.3.1-ksax
 snakemake --snakefile ${SMK_FILE} --profile ${PROFILE} ${ADDITIONAL_ARGS}
