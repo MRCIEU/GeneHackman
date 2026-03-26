@@ -7,7 +7,9 @@ rule standardise_gwases:
         input_build = lambda wildcards: getattr(pipeline, wildcards.prefix).build,
         input_columns = lambda wildcards: getattr(pipeline, wildcards.prefix).input_columns,
         output_columns = lambda wildcards: getattr(pipeline, wildcards.prefix).output_columns,
-        populate_rsid = lambda wildcards: getattr(pipeline, wildcards.prefix).populate_rsid.value
+        populate_rsid = lambda wildcards: getattr(pipeline, wildcards.prefix).populate_rsid.value,
+        ancestry = lambda wildcards: getattr(pipeline, wildcards.prefix).ancestry,
+        populate_eaf_flag = lambda wildcards: "TRUE" if getattr(pipeline, wildcards.prefix).populate_eaf else "FALSE"
     threads: 8
     resources:
         mem = lambda wildcards: f"{getattr(pipeline, wildcards.prefix).standardised_memory}G",
@@ -30,6 +32,8 @@ rule standardise_gwases:
             --output_build {pipeline.output.build} \
             --input_columns {params.input_columns} \
             --output_columns {params.output_columns} \
-            --populate_rsid {params.populate_rsid}
+            --populate_rsid {params.populate_rsid} \
+            --populate_eaf {params.populate_eaf_flag} \
+            --ancestry '{params.ancestry}'
         """
 

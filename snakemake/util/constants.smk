@@ -14,7 +14,19 @@ docker_repo = "docker://mrcieu/genehackman"
 user = os.getenv('USER')
 input_file = os.getenv('INPUT_FILE') or "input.json"
 start_time = datetime.now()
-slurm_log_directory = f"/user/work/{user}/slurm_logs/"
+
+# Slurm writes batch stdout to this directory on HPC; local/Docker runs use ./pipeline_logs instead.
+_pipeline_log_override = os.getenv("PIPELINE_LOG_DIR")
+_local_flag = os.getenv("GENEHACKMAN_LOCAL", "").strip().lower() in ("1", "true", "yes")
+_hpc_work_base = f"/user/work/{user}" if user else None
+if _pipeline_log_override:
+    pipeline_log_directory = format_dir_string(_pipeline_log_override)
+elif _local_flag or not (_hpc_work_base and os.path.isdir(_hpc_work_base)):
+    pipeline_log_directory = format_dir_string(os.path.join(os.getcwd(), "pipeline_logs"))
+else:
+    pipeline_log_directory = format_dir_string(f"{_hpc_work_base}/slurm_logs")
+
+slurm_log_directory = pipeline_log_directory
 
 default_clump_headers = "CHR F SNP BP P TOTAL NSIG S05 S01 S001 S0001 SP2"
 #TODO: this should be read from predefined_column_map.csv
@@ -52,9 +64,13 @@ DOCKER_VERSION = os.getenv('DOCKER_VERSION')
 DATA_DIR = format_dir_string(os.getenv('DATA_DIR'))
 RESULTS_DIR = format_dir_string(os.getenv('RESULTS_DIR'))
 RDFS_DIR = format_dir_string(os.getenv('RDFS_DIR'))
-LDSC_DIR = format_dir_string(os.getenv('LDSC_DIR'))
-GENOMIC_DATA_DIR = format_dir_string(os.getenv('GENOMIC_DATA_DIR'))
-THOUSAND_GENOMES_DIR = format_dir_string(os.getenv('THOUSAND_GENOMES_DIR'))
+
+PIPELINE_DATA_DIR = format_dir_string(os.getenv('PIPELINE_DATA_DIR'))
+
+LDSC_DIR = format_dir_string(PIPELINE_DATA_DIR + "/LDSCORE")
+GENOMIC_DATA_DIR = format_dir_string(PIPELINE_DATA_DIR + "/genomic_data")
+THOUSAND_GENOMES_DIR = format_dir_string(PIPELINE_DATA_DIR + "/1000genomes")
+QTL_DIRECTORY = format_dir_string(PIPELINE_DATA_DIR + "/qtl_datasets")
 PIPELINE_DATA_DIR = GENOMIC_DATA_DIR + "/pipeline"
 
 if RDFS_DIR and not RDFS_DIR.endswith("working/"):

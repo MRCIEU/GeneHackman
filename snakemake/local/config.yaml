@@ -1,0 +1,24 @@
+# Local profile: Snakemake 7 expects a `singularity` executable; Apptainer provides `apptainer`.
+# run_pipeline.sh prepends a tiny shim when only apptainer exists.
+use-singularity: True
+singularity-args: >-
+  -B $(pwd)/R:/home/R
+  -B $(pwd)/scripts:/home/scripts
+  -B $(pwd)/inst:/home/inst
+  -B ${DATA_DIR}:${DATA_DIR}
+  -B ${RESULTS_DIR}:${RESULTS_DIR}
+  -B ${PIPELINE_DATA_DIR}:${PIPELINE_DATA_DIR}
+  -B /tmp:/tmp
+  --env-file .env
+  --pwd /home/scripts/
+
+jobs: 4
+default-resources:
+  - mem_mb=4000
+  - threads=1
+local-cores: 1
+latency-wait: 10
+keep-going: True
+rerun-incomplete: True
+printshellcmds: True
+scheduler: greedy

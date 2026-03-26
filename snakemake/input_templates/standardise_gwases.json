@@ -1,18 +1,15 @@
 {
   "gwases": [
     {
-      "file": "",
-      "columns": {"CHR":"", "BP":"", "EA":"", "OA":"", "EAF":"", "P":"", "BETA":"", "SE":""},
-      "build": "GRCh37"
-    },
-    {
-      "file": "",
-      "columns": {}
+      "file": "/Users/wt23152/Downloads/gwas_with_lbfs.tsv.gz",
+      "columns": {"CHR":"CHR", "BP":"BP", "EA":"EA", "OA":"OA", "EAF":"EAF", "P":"P", "BETA":"BETA", "SE":"SE"},
+      "build": "GRCh38",
+      "ancestry": "EUR",
+      "populate_eaf": false
     }
   ],
   "output": {
-    "build": "GRCh37",
-    "columns": {}
+    "build": "GRCh37"
   },
   "populate_rsid": false
 }

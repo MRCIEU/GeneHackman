@@ -1,5 +1,7 @@
 .Rproj.user
 .snakemake/
+.genehackman/
+pipeline_logs/
 .cache/
 .ipynb_checkpoints/
 *input.json
@@ -7,3 +9,6 @@
 .bashrc
 .DS_Store
 ieugwasr_oauth
+
+/.quarto/
+**/*.quarto_ipynb

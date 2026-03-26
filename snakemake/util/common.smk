@@ -4,6 +4,7 @@ import gzip
 import json
 import os
 import re
+import subprocess
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from pathlib import Path
@@ -21,7 +22,8 @@ def get_docker_container():
                 version = match.group(1)
                 break
 
-    sif_file = f"{PIPELINE_DATA_DIR}/genehackman_{version}.sif"
+    singularity_dir = os.getenv("SINGULARITY_DIR", ".snakemake/singularity")
+    sif_file = f"{singularity_dir}/genehackman:{version}.sif"
     if os.path.isfile(sif_file):
         return sif_file
     elif version:
@@ -52,6 +54,7 @@ def parse_pipeline_input(pipeline_includes_clumping=False):
 
         if not hasattr(pipeline.output, "columns"): pipeline.output.columns = default_output_options.columns
     if not hasattr(pipeline, "populate_rsid"): pipeline.populate_rsid = False
+    if not hasattr(pipeline, "populate_eaf"): pipeline.populate_eaf = False
 
     for g in pipeline.gwases:
         if not hasattr(g, "N"): g.N = 0
@@ -59,8 +62,19 @@ def parse_pipeline_input(pipeline_includes_clumping=False):
         if not hasattr(g, "remove_extra_columns"): g.remove_extra_columns = False
         if not hasattr(g, "build"): g.build = "GRCh37"
         if not hasattr(g, "populate_rsid"): g.populate_rsid = False
+        if not hasattr(g, "populate_eaf"): g.populate_eaf = False
         g.file = os.path.abspath(g.file)
         g.populate_rsid = resolve_rsid_population(pipeline_includes_clumping, g.populate_rsid or pipeline.populate_rsid)
+        g.populate_eaf = bool(g.populate_eaf or pipeline.populate_eaf)
+        if hasattr(g, "ancestry") and g.ancestry is not None and str(g.ancestry).strip():
+            g.ancestry = str(g.ancestry).strip()
+        else:
+            g.ancestry = ""
+        if g.populate_eaf and not g.ancestry:
+            raise ValueError(
+                'When populate_eaf is true, each GWAS must include "ancestry" in the input JSON '
+                '(same as compare_gwases: AFR, AMR, EAS, EUR, or SAS), e.g. "ancestry": "EUR".'
+            )
         g.standardised_memory = estimate_memory_needed_for_standardisation(g.file, g.populate_rsid)
         g.prefix = file_prefix(g.file)
         g.vcf_columns = get_columns_for_vcf_parsing(g.columns)
@@ -68,6 +82,9 @@ def parse_pipeline_input(pipeline_includes_clumping=False):
         g.output_columns = resolve_gwas_columns(g.file, pipeline.output.columns, check_input_columns=False)
         g.standardised_gwas = standardised_gwas_name(g.file)
         setattr(pipeline,g.prefix,g)
+    eaf_ancestries = [g.ancestry for g in pipeline.gwases if g.populate_eaf]
+    if eaf_ancestries:
+        validate_ancestries(eaf_ancestries)
     return pipeline
 
 def resolve_rsid_population(pipeline_includes_clumping, populate_rsid):
@@ -198,14 +215,14 @@ def standardised_gwas_name(gwas_name):
         return DATA_DIR + "gwas/" + file_prefix(gwas_name) + "_std.tsv.gz"
 
 def cleanup_old_slurm_logs():
-    if not os.path.isdir(slurm_log_directory): return
+    if not os.path.isdir(pipeline_log_directory): return
 
     one_month_ago = datetime.now() - relativedelta(months=1)
-    files = [f for f in os.listdir(slurm_log_directory) if os.path.isfile(f)]
+    files = [f for f in os.listdir(pipeline_log_directory) if os.path.isfile(os.path.join(pipeline_log_directory, f))]
     print("deleting old logs")
 
     for filename in files: 
-        file = os.path.join(slurm_log_directory, filename)
+        file = os.path.join(pipeline_log_directory, filename)
         file_timestamp = datetime.utcfromtimestamp(os.stat(file).st_mtime)
         if file_timestamp < one_month_ago: os.remove(file)
 
@@ -253,12 +270,26 @@ def onsuccess(pipeline_name, files_created=list(), results_file=None, is_test=Fa
 
 
 def onerror_message(pipeline_name, is_test=False):
-    last_log = subprocess.check_output(f"ls -t {slurm_log_directory} | head -n1", shell=True, universal_newlines=True)
-    log_full_path = slurm_log_directory + last_log
     print("\n---------------------")
     print("There are some documented common errors here: https://github.com/MRCIEU/GeneHackman/wiki")
-    print("There was an error in the pipeline, please check the last written slurm log to see the error:")
-    print(log_full_path)
+    log_full_path = None
+    if os.path.isdir(pipeline_log_directory):
+        try:
+            entries = [
+                os.path.join(pipeline_log_directory, f)
+                for f in os.listdir(pipeline_log_directory)
+                if os.path.isfile(os.path.join(pipeline_log_directory, f))
+            ]
+            if entries:
+                log_full_path = max(entries, key=lambda p: os.stat(p).st_mtime)
+        except OSError:
+            pass
+    if log_full_path:
+        print("There was an error in the pipeline. If the job ran under Slurm, check the batch log:")
+        print(log_full_path)
+    else:
+        print("There was an error in the pipeline. Check the Snakemake output above,")
+        print(f"and logs under: {os.path.join(os.getcwd(), '.snakemake', 'log')}")
 
     update_google_sheet(pipeline_name, succeeded=False, error_file=log_full_path, is_test=is_test)
 

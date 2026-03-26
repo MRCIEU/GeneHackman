@@ -1,5 +1,5 @@
 include: "util/common.smk"
-singularity: get_docker_container()
+container: get_docker_container()
 
 pipeline_name = "disease_progression"
 pipeline = parse_pipeline_input(pipeline_includes_clumping=True)
@@ -161,7 +161,7 @@ rule create_results_file:
     shell:
         """
         Rscript create_results_file.R \
-            --rmd_file /home/R/markdown/disease_progression.Rmd \
+            --rmd_file {config.get("rmd_base", "/home/R")}/markdown/disease_progression.Rmd \
             --params {results_string} \
             --output_file {output}
         """

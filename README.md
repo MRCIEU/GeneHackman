@@ -29,17 +29,20 @@ Here is a list of available pipelines, and the steps they run
 
 ### 2. Ensure you [have conda installed and initialised before activating](https://www.acrc.bris.ac.uk/protected/hpc-docs/software/python_conda.html)
 
-`conda activate /mnt/storage/private/mrcieu/data/genomic_data/pipeline/genehackman`
+```conda env create --file environment.yml```
 
-(you can alternatively create your own conda environment if you like: `conda env create --file environment.yml`)
+or if you have already created the environment
+
+```conda activate genehackman```
 
 ### 3. Populate .env and input.json files
 
-### `cp .env_example .env`
+`cp .env_example .env`
 * populate the DATA_DIR, RESULTS_DIR and RDFS_DIR environment variables in .env file
-These should probably be in your *work* or *scratch* space (`/user/work/userid/...`)
+These should probably be in your *work* or *scratch* space (`/user/work/{userid}/...`)
 * RDFS_DIR is optional.  All generated files can be copied automatically.  Please ensure the path
 ends in `working/`
+* **Container cache:** If there is no pre-built `genehackman_<version>.sif` under `PIPELINE_DATA_DIR`, Snakemake pulls the `docker://` image and caches the SIF under `.snakemake/singularity` by default. Set **`GENEHACKMAN_SINGULARITY_PREFIX`** in `.env` to use another directory (e.g. scratch). Running `snakemake` without `./run_pipeline.sh`? Pass `--singularity-prefix /path` or add `singularity-prefix:` to your profile `config.yaml`.
 
 ### Fill out input.json file
 * Ex: `cp snakemake/input_templates/compare_gwases.json input.json`
@@ -48,10 +51,15 @@ ends in `working/`
   * [Documentation per pipeline](snakemake/PIPELINES.md)
 * You can either copy into input.json, or supply the file into the script from another location
 
+### 5. Create the container (if needed)
+
+
+
 ### 4. Run the pipeline
 
 `./run_pipeline.sh snakemake/<specific_pipeline>.smk <optional_input_file.json>`
 
+* By default `run_pipeline.sh` uses **local Docker** (`snakemake/local/`). On HPC, set e.g. `GENEHACKMAN_PROFILE=snakemake/bp1/` (or `bc4/`, `slurm_singularity/`).
 * `run_pipeline.sh` is just a convience wrapper around the `snakemake` command, if you want to do anything out of the ordinary, [please read up on snakemake](https://snakemake.readthedocs.io/en/v7.26.0/)
 * If there are errors while running the pipeline, you can find error messages either directly on the screen, or in slurm log file that is outputted on error
 * It is recommended that you run the your pipeline [inside a tmux session](https://github.com/MRCIEU/GeneHackman/wiki/Common-Errors#ssh-disconnection-while-pipeline-is-running).

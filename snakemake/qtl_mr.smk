@@ -1,5 +1,5 @@
 include: "util/common.smk"
-singularity: get_docker_container()
+container: get_docker_container()
 
 pipeline_name = "qtl_mr"
 pipeline = parse_pipeline_input()
@@ -97,7 +97,7 @@ rule create_results_file:
     shell:
         """
         Rscript create_results_file.R \
-            --rmd_file /home/R/markdown/mr_for_qtls.Rmd \
+            --rmd_file {config.get("rmd_base", "/home/R")}/markdown/mr_for_qtls.Rmd \
             --params {results_string} \
             --output_file {output}
         """

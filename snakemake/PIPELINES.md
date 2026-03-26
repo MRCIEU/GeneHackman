@@ -8,6 +8,9 @@ All piplines will require a GWAS object or list of objects, they have the follow
 * `build`: one of `GRCh36, GRCh37, GRCh38`.  Default: `GRCh37`
 * `columns`: object of column name maps (or string of predefined map).  Explained below
 * `populate_rsid`: boolean value.  Populates RSID column if it doesn't exist. Default `false`
+* `populate_eaf`: boolean value.  When `true`, missing `EAF` is filled from the 1000 Genomes LD reference panel (`<THOUSAND_GENOMES_DIR>/<ancestry>.bim` + `.frq`; generate `.frq` with `plink --bfile <prefix> --freq --out <prefix>`). Only variants with `is.na(EAF)` are updated. Default `false`. **Requires `ancestry` on that GWAS** (same field as `compare_gwases`: `AFR`, `AMR`, `EAS`, `EUR`, `SAS`); there is no default ancestry.
+
+Pipeline-level `populate_eaf` (under the root JSON object, next to `populate_rsid`) applies to every GWAS unless a GWAS sets its own `populate_eaf`. Each GWAS that ends up with `populate_eaf` enabled must still include its own `"ancestry"` in the JSON.
 
 **GWAS Columns:**
 
@@ -26,7 +29,7 @@ Alternatively, `columns` accepts a string of some of the more common output form
 
 ### standardise_gwas 
 
-All pipelines will standardise each GWAS before running the subsequent steps.  The `SNP` field will be recalculated as `CHR:POS_EA_OA`, where EA and OA are ordered alphabetically, and the subsequent BETA and EAF will be adjusted accordingly
+All pipelines will standardise each GWAS before running the subsequent steps.  The `SNP` field will be recalculated as `CHR:POS_EA_OA`, where EA and OA are ordered alphabetically, and the subsequent BETA and EAF will be adjusted accordingly. Optional `populate_eaf` (per GWAS or pipeline) runs **after** this harmonisation and joins on `CHR`/`BP` to the reference panel.
 
 * `n GWAS objects`: See above for GWAS Object explanation
 * `output`:
