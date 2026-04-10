@@ -85,8 +85,10 @@ create_bed_file_from_gwas <- function(gwas, output_file) {
 
 #' Thin wrapper so tests can mock via testthat::local_mocked_bindings().
 #' @keywords internal
-run_system <- function(command, wait = TRUE, intern = FALSE) {
-  base::system(command, wait = wait, intern = intern)
+run_system <- function(command, wait = TRUE, intern = FALSE,
+                         ignore.stdout = FALSE, ignore.stderr = FALSE) {
+  base::system(command, wait = wait, intern = intern,
+               ignore.stdout = ignore.stdout, ignore.stderr = ignore.stderr)
 }
 
 run_liftover <- function(bed_file_input, bed_file_output, input_build, output_build, unmapped) {

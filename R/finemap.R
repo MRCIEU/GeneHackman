@@ -142,8 +142,8 @@ finemap_gwas <- function(gwas,
 compute_ld_matrix <- function(rsids, chr, ancestry) {
   bfile <- file.path(thousand_genomes_dir, ancestry)
   tmpdir <- tempdir()
-  snp_file <- tempfile(dir = tmpdir, fileext = ".snps")
-  out_prefix <- tempfile(dir = tmpdir, pattern = "ld_")
+  snp_file <- tempfile(tmpdir = tmpdir, fileext = ".snps")
+  out_prefix <- tempfile(tmpdir = tmpdir, pattern = "ld_")
 
   writeLines(rsids, snp_file)
 
@@ -155,7 +155,7 @@ compute_ld_matrix <- function(rsids, chr, ancestry) {
     "--r square",
     "--out", out_prefix
   )
-  exit_code <- system(cmd, wait = TRUE, ignore.stdout = TRUE, ignore.stderr = TRUE)
+  exit_code <- run_system(cmd, wait = TRUE, ignore.stdout = TRUE, ignore.stderr = TRUE)
 
   ld_file <- paste0(out_prefix, ".ld")
   snp_order_file <- paste0(out_prefix, ".nosex")
@@ -199,6 +199,20 @@ compute_ld_matrix <- function(rsids, chr, ancestry) {
 }
 
 
+#' Wrapper for susieR::susie_rss (mockable in tests).
+#' @keywords internal
+run_susie_rss_impl <- function(z, R, n, L, coverage, min_abs_corr, verbose = FALSE) {
+  susieR::susie_rss(
+    z = z,
+    R = R,
+    n = n,
+    L = L,
+    coverage = coverage,
+    min_abs_corr = min_abs_corr,
+    verbose = verbose
+  )
+}
+
 #' Run SuSiE on a single locus
 #' @param z_scores numeric vector of z-scores
 #' @param ld_matrix square LD correlation matrix
@@ -214,7 +228,7 @@ run_susie_for_locus <- function(z_scores, ld_matrix, snp_info, n, lead_snp,
                                 min_abs_corr = 0.5) {
 
   fitted <- tryCatch(
-    susieR::susie_rss(
+    run_susie_rss_impl(
       z = z_scores,
       R = ld_matrix,
       n = n,
