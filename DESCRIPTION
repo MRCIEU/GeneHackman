@@ -30,6 +30,7 @@ Imports:
     shiny,
     SlopeHunter,
     stringr,
+    susieR,
     tibble,
     tidyr,
     TwoSampleMR,

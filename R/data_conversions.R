@@ -9,13 +9,13 @@ populate_gene_names <- function(gwas) {
 }
 
 ensembl_id_to_gene_name <- function(gwas) {
-  gene_map <- vroom::vroom(paste0(genomic_data_dir, "gene_name_map.tsv"))
+  gene_map <- vroom::vroom(file.path(genomic_data_dir, "gene_name_map.tsv"))
   gwas$GENE_NAME <- gene_map$GENE_NAME[match(gwas$ENSEMBL_ID, gene_map$ENSEMBL_ID)]
   return(gwas)
 }
 
 gene_name_to_ensembl_id <- function(gwas) {
-  gene_map <- vroom::vroom(paste0(genomic_data_dir, "gene_name_map.tsv"))
+  gene_map <- vroom::vroom(file.path(genomic_data_dir, "gene_name_map.tsv"))
   gwas$ENSEMBL_ID <- gene_map$ENSEMBL_ID[match(gwas$GENE_NAME, gene_map$GENE_NAME)]
   return(gwas)
 }
@@ -161,7 +161,7 @@ populate_partial_rsids <- function(gwas) {
 #' @import genepi.utils
 #' @import future
 populate_full_rsids <- function(gwas, build = rsid_builds$GRCh37) {
-  dbsnp_dir <- paste0(genomic_data_dir, "dbsnp")
+  dbsnp_dir <- file.path(genomic_data_dir, "dbsnp")
   if (!build %in% rsid_builds) stop(paste("Error: invalid rsid build option:", build))
 
   gwas <- data.table::as.data.table(gwas)

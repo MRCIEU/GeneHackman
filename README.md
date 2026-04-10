@@ -24,6 +24,8 @@ Here is a list of available pipelines, and the steps they run
 
 ## Onboarding
 
+**Running on macOS, Linux, Slurm, or PBS?** See **[PLATFORM_SETUP.md](PLATFORM_SETUP.md)** for platform-specific setup (Apptainer/Lima, SIF cache, HPC profiles, `qsub` template).
+
 ### 1. Clone the repository into your personal space on BlueCrystal 4
 `git clone git@github.com:MRCIEU/GeneHackman.git && cd GeneHackman`
 
@@ -50,10 +52,6 @@ ends in `working/`
   * [Here are example pipelines here, copy to input.json](snakemake/input_templates/)
   * [Documentation per pipeline](snakemake/PIPELINES.md)
 * You can either copy into input.json, or supply the file into the script from another location
-
-### 5. Create the container (if needed)
-
-
 
 ### 4. Run the pipeline
 

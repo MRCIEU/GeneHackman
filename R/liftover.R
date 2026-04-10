@@ -26,7 +26,7 @@ convert_reference_build_via_liftover <- function(gwas,
 
   liftover_conversion <- available_liftover_conversions[[paste0(input_reference_build, output_reference_build)]]
   if (is.null(liftover_conversion)) {
-    stop(paste(c("Error: liftOver combination of", input_build, output_build, "not recocognised.",
+    stop(paste(c("Error: liftOver combination of", input_reference_build, output_reference_build, "not recocognised.",
                   "Reference builds must be one of:", reference_builds), collapse = " "))
   }
 
@@ -84,11 +84,11 @@ create_bed_file_from_gwas <- function(gwas, output_file) {
 
 
 run_liftover <- function(bed_file_input, bed_file_output, input_build, output_build, unmapped) {
-  lifover_binary <- paste0(liftover_dir, "liftOver")
+  liftover_binary <- file.path(liftover_dir, "liftOver")
   liftover_conversion <- available_liftover_conversions[[paste0(input_build, output_build)]]
 
-  chain_file <- paste0(liftover_dir, liftover_conversion)
-  liftover_command <- paste(lifover_binary, bed_file_input, chain_file, bed_file_output, unmapped)
+  chain_file <- file.path(liftover_dir, liftover_conversion)
+  liftover_command <- paste(liftover_binary, bed_file_input, chain_file, bed_file_output, unmapped)
   system(liftover_command, wait=T)
 }
 

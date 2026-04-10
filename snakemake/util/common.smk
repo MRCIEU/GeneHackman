@@ -22,8 +22,8 @@ def get_docker_container():
                 version = match.group(1)
                 break
 
-    singularity_dir = os.getenv("SINGULARITY_DIR", ".snakemake/singularity")
-    sif_file = f"{singularity_dir}/genehackman:{version}.sif"
+    singularity_dir = os.getenv("SINGULARITY_DIR", ".snakemake/singularity").rstrip("/\\")
+    sif_file = os.path.join(singularity_dir, f"genehackman_{version}.sif")
     if os.path.isfile(sif_file):
         return sif_file
     elif version:
@@ -55,6 +55,14 @@ def parse_pipeline_input(pipeline_includes_clumping=False):
         if not hasattr(pipeline.output, "columns"): pipeline.output.columns = default_output_options.columns
     if not hasattr(pipeline, "populate_rsid"): pipeline.populate_rsid = False
     if not hasattr(pipeline, "populate_eaf"): pipeline.populate_eaf = False
+
+    if not hasattr(pipeline, "finemap"):
+        pipeline.finemap = SimpleNamespace()
+    fm = pipeline.finemap
+    if not hasattr(fm, "window_kb"): fm.window_kb = 500
+    if not hasattr(fm, "max_causal"): fm.max_causal = 10
+    if not hasattr(fm, "coverage"): fm.coverage = 0.95
+    if not hasattr(fm, "min_abs_corr"): fm.min_abs_corr = 0.5
 
     for g in pipeline.gwases:
         if not hasattr(g, "N"): g.N = 0

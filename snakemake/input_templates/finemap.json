@@ -1,0 +1,18 @@
+{
+  "gwases": [
+    {
+      "file": "",
+      "columns": {},
+      "N": 0,
+      "ancestry": "EUR"
+    }
+  ],
+  "plink_clump_arguments": "--clump-p1 5e-8 --clump-r2 0.01 --clump-kb 1000",
+  "finemap": {
+    "window_kb": 500,
+    "max_causal": 10,
+    "coverage": 0.95,
+    "min_abs_corr": 0.5
+  },
+  "populate_rsid": false
+}

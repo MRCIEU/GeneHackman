@@ -1,4 +1,4 @@
-install.packages(c("devtools", "argparser", "gmp", "corrplot", "broom", "conflicted", "nloptr", "Cairo"),
+install.packages(c("devtools", "argparser", "gmp", "corrplot", "broom", "conflicted", "nloptr", "Cairo", "susieR"),
                  repos = "http://cran.us.r-project.org")
 
 #also needed: forestplot, data.table, devtools
