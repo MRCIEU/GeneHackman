@@ -57,7 +57,6 @@ map_ref_to_eaf <- function(ea, oa, ra1, ra2, a1_freq) {
 #' @export
 populate_eaf_from_reference_panel <- function(gwas, ancestry, enabled = FALSE) {
   if (!enabled) {
-    message("Skipping EAF population from LD reference panel")
     return(gwas)
   }
   allowed <- c("EUR", "EAS", "AFR", "AMR", "SAS")
@@ -131,7 +130,6 @@ populate_rsid <- function(gwas, option = populate_rsid_options$none) {
   gc()
   start_time <- Sys.time()
   if (option == populate_rsid_options$none || "RSID" %in% colnames(gwas)) {
-    message("Skipping RSID population for GWAS")
     return(gwas)
   } else if (option == populate_rsid_options$partial) {
     gwas <- populate_partial_rsids(gwas)
@@ -149,7 +147,7 @@ populate_rsid <- function(gwas, option = populate_rsid_options$none) {
 
 populate_partial_rsids <- function(gwas) {
   message("populating RSIDs based on 1000genomes...")
-  marker_to_rsid_file <- paste0(thousand_genomes_dir, "marker_to_rsid.tsv.gz")
+  marker_to_rsid_file <- file.path(thousand_genomes_dir, "marker_to_rsid.tsv.gz")
   chrpos_to_rsid <- vroom::vroom(marker_to_rsid_file, col_select = c("HG37", "RSID"), show_col_types=F)
   gwas$RSID <- chrpos_to_rsid$RSID[match(gwas$SNP, chrpos_to_rsid$HG37)]
 

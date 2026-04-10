@@ -1,14 +1,19 @@
+#' @keywords internal
+mr_list_files <- function(dir, pattern, full.names = FALSE) {
+  list.files(dir, pattern = pattern, full.names = full.names)
+}
+
 #'
 perform_mr_on_metabrain_datasets <- function(gwas_filename, ancestry="EUR", subcategory=NULL, exposures=c(), results_output) {
   file_pattern <- paste0(tolower(subcategory), "_", tolower(ancestry))
-  metabrain_top_hits <- list.files(metabrain_top_hits_dir, pattern = file_pattern, full.names = T)
+  metabrain_top_hits <- mr_list_files(metabrain_top_hits_dir, pattern = file_pattern, full.names = T)
 
   run_mr_on_qtl_data(gwas_filename, qtl_files = metabrain_top_hits, results_output = results_output, exposures = exposures)
 }
 
 perform_mr_on_eqtlgen_datasets <- function(gwas_filename, subcategory=NULL, exposures=c(), results_output) {
   file_pattern <- tolower(subcategory)
-  eqtlgen_top_hits <- list.files(eqtlgen_top_hits_dir, pattern = file_pattern, full.names = T)
+  eqtlgen_top_hits <- mr_list_files(eqtlgen_top_hits_dir, pattern = file_pattern, full.names = T)
 
   run_mr_on_qtl_data(gwas_filename, results_output = results_output, qtl_files = eqtlgen_top_hits, exposures = exposures)
 }

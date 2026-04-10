@@ -1,0 +1,20 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: mrcieu/genehackman:develop
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run devtools::check()
+        run: Rscript -e "devtools::check()"

@@ -83,13 +83,19 @@ create_bed_file_from_gwas <- function(gwas, output_file) {
 }
 
 
+#' Thin wrapper so tests can mock via testthat::local_mocked_bindings().
+#' @keywords internal
+run_system <- function(command, wait = TRUE, intern = FALSE) {
+  base::system(command, wait = wait, intern = intern)
+}
+
 run_liftover <- function(bed_file_input, bed_file_output, input_build, output_build, unmapped) {
   liftover_binary <- file.path(liftover_dir, "liftOver")
   liftover_conversion <- available_liftover_conversions[[paste0(input_build, output_build)]]
 
   chain_file <- file.path(liftover_dir, liftover_conversion)
   liftover_command <- paste(liftover_binary, bed_file_input, chain_file, bed_file_output, unmapped)
-  system(liftover_command, wait=T)
+  run_system(liftover_command, wait = TRUE)
 }
 
 

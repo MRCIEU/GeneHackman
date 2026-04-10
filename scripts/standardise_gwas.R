@@ -56,6 +56,11 @@ parser <- add_argument(parser, "--remove_extra_columns",
 											 type = "logical",
 											 default = FALSE
 )
+parser <- add_argument(parser, "--flip_alleles",
+											 help = "If TRUE, reorder EA/OA alphabetically and flip BETA/EAF/Z. Set FALSE to keep alleles as-is.",
+											 type = "logical",
+											 default = TRUE
+)
 
 args <- parse_args(parser)
 create_dir_for_files(args$output_gwas)
@@ -70,5 +75,6 @@ standardise_gwas(gwas = args$input_gwas,
                  output_columns = args$output_columns,
 								 remove_extra_columns = args$remove_extra_columns,
                  populate_eaf = args$populate_eaf,
-                 ancestry = args$ancestry
+                 ancestry = args$ancestry,
+                 flip_alleles = args$flip_alleles
 )

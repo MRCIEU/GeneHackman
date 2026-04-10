@@ -1,9 +1,9 @@
 test_that("liftover.convert_reference_build_via_liftover returns updated data frame", {
-  local_mock(
-      system = function(command, wait, intern) {
-        bed_output_file <- unlist(strsplit(command, " "))[4]
-        file.copy("data/test_data_small_hg38.bed.gz", bed_output_file)
-      }
+  local_mocked_bindings(
+    run_system = function(command, wait = TRUE, intern = FALSE) {
+      bed_output_file <- unlist(strsplit(command, " "))[4]
+      file.copy("data/test_data_small_hg38.bed.gz", bed_output_file)
+    }
   )
   result <- convert_reference_build_via_liftover("data/test_data_small.tsv.gz",
                                        reference_builds$GRCh37,
@@ -17,8 +17,8 @@ test_that("liftover.convert_reference_build_via_liftover returns updated data fr
 })
 
 test_that("liftover.convert_reference_build_via_liftover saved output and unmapped", {
-  local_mock(
-    system = function(command, wait) {
+  local_mocked_bindings(
+    run_system = function(command, wait = TRUE, intern = FALSE) {
       bed_output_file <- unlist(strsplit(command, " "))[4]
       unmapped_file <- unlist(strsplit(command, " "))[5]
       file.copy("data/test_data_small_hg38.bed.gz", bed_output_file)

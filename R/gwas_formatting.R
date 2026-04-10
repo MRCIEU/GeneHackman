@@ -11,7 +11,8 @@
 #'   can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values
 #' @param populate_eaf If TRUE, fill missing \code{EAF} from the 1000 Genomes LD panel (\code{ANCESTRY.bim} + \code{ANCESTRY.frq} under \code{THOUSAND_GENOMES_DIR}).
 #' @param ancestry Ancestry code (EUR, EAS, AFR, AMR, SAS) matching the reference panel prefix; required when \code{populate_eaf} is TRUE.
-#' @param r: reference build of CHR and BP of data.  Defaults to GRCh37
+#' @param flip_alleles If TRUE (default), reorder EA/OA alphabetically and flip BETA, EAF, Z accordingly.
+#'   Set to FALSE to keep alleles as-is (useful when you only need to populate RSIDs, EAF, or change build).
 #' @return modified gwas: saves new gwas in {output_file} if present
 #' @import vroom
 #' @import shiny
@@ -26,22 +27,25 @@ standardise_gwas <- function(gwas,
                              output_columns="default",
                              remove_extra_columns=F,
                              populate_eaf=FALSE,
-                             ancestry=NULL) {
+                             ancestry=NULL,
+                             flip_alleles=TRUE) {
   input_gwas_columns <- resolve_column_map(input_columns)
   output_gwas_columns <- resolve_column_map(output_columns)
 
   if (populate_eaf && (is.null(ancestry) || length(ancestry) == 0 || !nzchar(as.character(ancestry)[1]))) {
     stop("populate_eaf is TRUE but ancestry is missing; set ancestry to EUR, EAS, AFR, AMR, or SAS to match your LD reference panel.")
   }
-
-  #TODO: if we need to add bespoke input format wrangling here, we can
+  if (!flip_alleles && identical(populate_rsid_option, populate_rsid_options$partial)) {
+    stop("Partial RSID population requires alphabetically ordered alleles (the lookup table stores CHR:BP_EA_OA with EA < OA). ",
+         "Either set flip_alleles=TRUE, or use populate_rsid='full' which matches on CHR+BP+alleles directly.")
+  }
 
   gwas <- get_file_or_dataframe(gwas) |>
     change_column_names(input_gwas_columns, remove_extra_columns) |>
     standardise_columns(N) |>
     filter_incomplete_rows() |>
     convert_reference_build_via_liftover(input_reference_build, output_reference_build) |>
-    standardise_alleles() |>
+    standardise_alleles(flip = flip_alleles) |>
     health_check() |>
     populate_eaf_from_reference_panel(ancestry, populate_eaf) |>
     populate_rsid(populate_rsid_option) |>
@@ -226,22 +230,27 @@ change_column_names <- function(gwas, columns = list(), remove_extra_columns = F
   return(gwas)
 }
 
+#' @param flip If TRUE (default), reorder EA/OA into alphabetical order and flip
+#'   BETA, EAF, and Z to match.  When FALSE, alleles are uppercased and the SNP
+#'   column is rebuilt, but allele order (and effect direction) is left as-is.
 #' @import dplyr
-standardise_alleles <- function(gwas) {
+standardise_alleles <- function(gwas, flip = TRUE) {
   gwas$EA <- toupper(gwas$EA)
   gwas$OA <- toupper(gwas$OA)
 
-  to_flip <- (gwas$EA > gwas$OA) & (!gwas$EA %in% c("D", "I"))
-  if (any(to_flip)) {
-    gwas$EAF[to_flip] <- 1 - gwas$EAF[to_flip]
-    gwas$BETA[to_flip] <- -1 * gwas$BETA[to_flip]
-    if ('Z' %in% names(gwas)) {
-      gwas$Z[to_flip] <- -1 * gwas$Z[to_flip]
-    }
+  if (flip) {
+    to_flip <- (gwas$EA > gwas$OA) & (!gwas$EA %in% c("D", "I"))
+    if (any(to_flip)) {
+      gwas$EAF[to_flip] <- 1 - gwas$EAF[to_flip]
+      gwas$BETA[to_flip] <- -1 * gwas$BETA[to_flip]
+      if ('Z' %in% names(gwas)) {
+        gwas$Z[to_flip] <- -1 * gwas$Z[to_flip]
+      }
 
-    temp <- gwas$OA[to_flip]
-    gwas$OA[to_flip] <- gwas$EA[to_flip]
-    gwas$EA[to_flip] <- temp
+      temp <- gwas$OA[to_flip]
+      gwas$OA[to_flip] <- gwas$EA[to_flip]
+      gwas$EA[to_flip] <- temp
+    }
   }
 
   gwas$SNP <- toupper(paste0(gwas$CHR, ":", format(gwas$BP, scientific = F, trim = T), "_", gwas$EA, "_", gwas$OA))
