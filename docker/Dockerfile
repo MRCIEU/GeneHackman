@@ -22,7 +22,10 @@ RUN apt update && \
     wget http://snapshot.debian.org/archive/debian/20160413T160058Z/pool/main/libp/libpng/libpng12-0_1.2.54-6_amd64.deb && \
     dpkg -i libpng12-0_1.2.54-6_amd64.deb
 
-RUN cd /home && \
+# Miniconda 25+ requires explicit acceptance of Anaconda repo channel ToS before installs.
+RUN /bin/condabin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main && \
+    /bin/condabin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r && \
+    cd /home && \
     git clone https://github.com/MRCIEU/PHESANT.git && \
     git clone --recurse-submodules https://github.com/samtools/htslib.git && \
     git clone https://github.com/samtools/bcftools.git && \
