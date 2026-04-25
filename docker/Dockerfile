@@ -1,12 +1,19 @@
-FROM python:3.11-slim
+FROM python:3.11-bullseye
 
 RUN apt update && \
-    apt install -y --no-install-recommends r-base=4.2.2.20221110-2 r-base-dev=4.2.2.20221110-2 \
+    apt install -y --no-install-recommends \
     build-essential software-properties-common dirmngr gnupg pandoc lmodern texlive-latex-base \
     libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev libfreetype6-dev libharfbuzz-dev libfribidi-dev \ 
     libxml2-dev libcurl4-gnutls-dev libssl-dev libgmp-dev libnlopt-dev cmake libcairo2-dev libxt-dev \
     texlive-latex-recommended r-cran-sass r-cran-mime libudunits2-dev libgdal-dev \
     plink1.9 plink2 sqlite3 wget vim ripgrep git && \
+    wget https://cdn.posit.co/r/debian-11/pkgs/r-4.4.2_1_amd64.deb && \
+    apt-get update && \
+    apt-get install -y ./r-4.4.2_1_amd64.deb && \
+    rm r-4.4.2_1_amd64.deb && \
+    ln -s /opt/R/4.4.2/bin/R /usr/local/bin/R && \
+    ln -s /opt/R/4.4.2/bin/Rscript /usr/local/bin/Rscript && \
+    mkdir -p /usr/lib/R/site-library && chmod 777 /usr/lib/R/site-library && \
     mkdir -p /home/scripts && \
     rm -rf /var/lib/apt/lists/* && \
     wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh && \

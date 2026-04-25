@@ -84,6 +84,32 @@ There are 3 main components to the pipeline
 * `docker` directory holds the information for creating the docker image that the pipeline runs
 * `tests` directory holds all R tests, and a end to end pipeline test script 
 
+### Docker image
+
+Pipelines use the image **`mrcieu/genehackman`** (tag usually matches the **`Version:`** field in [`DESCRIPTION`](DESCRIPTION) and **`DOCKER_VERSION`** in `.env`; see [`snakemake/util/common.smk`](snakemake/util/common.smk)).
+
+**Build** (run from the **repository root** so paths in the Dockerfile resolve correctly):
+
+```bash
+docker build -f docker/Dockerfile -t mrcieu/genehackman:$(grep '^Version:' DESCRIPTION | awk '{print $2}') .
+```
+
+To tag a specific version explicitly (for example `1.0.0`):
+
+```bash
+docker build -f docker/Dockerfile -t mrcieu/genehackman:1.0.0 .
+```
+
+The image installs OS packages and tools in [`docker/Dockerfile`](docker/Dockerfile), R packages via [`docker/requirements.R`](docker/requirements.R), and Python packages via [`docker/requirements.txt`](docker/requirements.txt). After changing those files, rebuild the image before running pipelines that depend on the new dependencies.
+
+**Publish** (maintainers with access to the `mrcieu` organisation on Docker Hub):
+
+```bash
+docker push mrcieu/genehackman:<tag>
+```
+
+Use the same `<tag>` you built locally. HPC users without Docker can still obtain the image via Apptainer/Singularity (for example `singularity build genehackman_<tag>.sif docker://mrcieu/genehackman:<tag>`), as in [`run_pipeline.sh`](run_pipeline.sh).
+
 ### Making changes
 
 If you want to make any additions / changes please contact andrew.elmore@bristol.ac.uk, or open an issue in this repo.

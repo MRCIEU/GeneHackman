@@ -161,7 +161,7 @@ rule create_results_file:
     shell:
         """
         Rscript create_results_file.R \
-            --rmd_file {config.get("rmd_base", "/home/R")}/markdown/disease_progression.Rmd \
+            --rmd_file /home/R/markdown/disease_progression.Rmd \
             --params {results_string} \
             --output_file {output}
         """

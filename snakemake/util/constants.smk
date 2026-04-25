@@ -67,9 +67,9 @@ RDFS_DIR = format_dir_string(os.getenv('RDFS_DIR'))
 
 PIPELINE_DATA_DIR = format_dir_string(os.getenv('PIPELINE_DATA_DIR'))
 
-LDSC_DIR = format_dir_string(PIPELINE_DATA_DIR + "/LDSCORE")
+LDSC_DIR = format_dir_string(PIPELINE_DATA_DIR + "/LDSCORE/b37_dbsnp156")
 GENOMIC_DATA_DIR = format_dir_string(PIPELINE_DATA_DIR + "/genomic_data")
-THOUSAND_GENOMES_DIR = format_dir_string(PIPELINE_DATA_DIR + "/1000genomes")
+THOUSAND_GENOMES_DIR = format_dir_string(PIPELINE_DATA_DIR + "/1000genomes/b37_dbsnp156")
 QTL_DIRECTORY = format_dir_string(PIPELINE_DATA_DIR + "/qtl_datasets")
 PIPELINE_DATA_DIR = GENOMIC_DATA_DIR + "/pipeline"
 

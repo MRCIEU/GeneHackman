@@ -68,6 +68,8 @@ if [[ ! -f "${SIF_PATH}" ]]; then
     rm -f "${SIF_BUILD_TMP}"
     exit 1
   fi
+else
+  echo "Using pre-built SIF file: ${SIF_PATH}"
 fi
 
 
