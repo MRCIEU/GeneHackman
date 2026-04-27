@@ -67,8 +67,6 @@ standardise_gwas <- function(gwas,
 #' @param output_reference_build reference build of CHR and BP of data.  Defaults to GRCh37
 #' @param input_columns column header map used for renaming GWAS:
 #'   can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values
-#' @param output_columns column header map used for renaming GWAS:
-#'   can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values
 #' @return modified gwas: saves new gwas in output_file if present
 #' @import vroom
 #' @export
@@ -236,6 +234,7 @@ change_column_names <- function(gwas, columns = list(), remove_extra_columns = F
 #'   BETA, EAF, and Z to match.  When FALSE, alleles are uppercased and the SNP
 #'   column is rebuilt, but allele order (and effect direction) is left as-is.
 #' @import dplyr
+#' @keywords internal
 standardise_alleles <- function(gwas, flip = TRUE) {
   gwas$EA <- toupper(gwas$EA)
   gwas$OA <- toupper(gwas$OA)

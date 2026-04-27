@@ -26,9 +26,6 @@ change_snp_identifiers(
 
 \item{input_columns}{column header map used for renaming GWAS:
 can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values}
-
-\item{output_columns}{column header map used for renaming GWAS:
-can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values}
 }
 \value{
 modified gwas: saves new gwas in output_file if present
