@@ -96,8 +96,9 @@ grouped_bar_chart <- function(data, title, x_column, y_column, group_column, out
 #' manhattan_and_qq: produce manhattan and qq plot from a GWAS file
 #'
 #' @param gwas_filename file of a gwas that includes CHR, CP, P, and SNP
-#' @param name name of plots to be saved (and named as a header in graph)
-#' @param save_dir defaults to 'scratch/results'
+#' @param manhattan_filename file to save the manhattan plot
+#' @param qq_filename file to save the qq plot
+#' @param include_qq logical flag on if to include the qq plot
 #' @return 2 plots: one manhattan plot and one QQ plot (with lambda included)
 #' @import grDevices
 #' @import qqman
@@ -126,9 +127,13 @@ manhattan_and_qq <- function(gwas_filename, manhattan_filename, qq_filename, inc
 
 #' miami_plot: produce miami plot of GWAS data from two gwases
 #'
-#' @param gwas_dataframe a dataframe that includes CHR, CP, P, and SNP
-#' @param name name of plots to be saved (and named as a header in graph)
-#' @param save_dir defaults to 'scratch/results'
+#' @param first_gwas_filename filename of first GWAS
+#' @param second_gwas_filename filename of second GWAS
+#' @param miami_plot_file file to save the miami plot
+#' @param title title of the plot
+#' @param chr chromosome to perform miami plot on
+#' @param bp base pair position to perform miami plot on
+#' @param range range to filter in base pairs
 #' @import grDevices
 #' @import qqman
 #' @import graphics

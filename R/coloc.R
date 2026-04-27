@@ -353,7 +353,12 @@ parse_bf_bf_result <- function(result, exposure_name, locus_name, n_snps) {
 #' run_coloc_analysis takes two already harmonised gwases, and runs coloc on the results
 #' @param first_gwas first gwas to be run through coloc.  This is the gwas that results will be based off
 #' @param second_gwas second gwas to be run through coloc
-#' @returns tibble of coloc results (h0 - h4)
+#' @param exposure_name name of exposure to perform coloc on
+#' @param chr chromosome to perform coloc on
+#' @param bp base pair position to perform coloc on
+#' @param range range to filter in base pairs
+#' @param default_n default sample size
+#' @return tibble of coloc results (h0 - h4)
 #' @import coloc
 #' @import tibble
 #' @export

@@ -38,6 +38,8 @@ can be list() of key/value pairs, string of row in predefined_column_maps, or co
 \item{output_columns}{column header map used for renaming GWAS:
 can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values}
 
+\item{remove_extra_columns}{logical flag on if to remove extra columns}
+
 \item{populate_eaf}{If TRUE, fill missing \code{EAF} from the 1000 Genomes LD panel (\code{ANCESTRY.bim} + \code{ANCESTRY.frq} under \code{THOUSAND_GENOMES_DIR}).}
 
 \item{ancestry}{Ancestry code (EUR, EAS, AFR, AMR, SAS) matching the reference panel prefix; required when \code{populate_eaf} is TRUE.}
@@ -46,7 +48,7 @@ can be list() of key/value pairs, string of row in predefined_column_maps, or co
 Set to FALSE to keep alleles as-is (useful when you only need to populate RSIDs, EAF, or change build).}
 }
 \value{
-modified gwas: saves new gwas in {output_file} if present
+modified gwas: saves new gwas in output_file if present
 }
 \description{
 standardise_gwas: takes an input gwas, changes headers, standardises allelic input, adds RSID, makes life easier

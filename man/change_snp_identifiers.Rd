@@ -31,7 +31,7 @@ can be list() of key/value pairs, string of row in predefined_column_maps, or co
 can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values}
 }
 \value{
-modified gwas: saves new gwas in {output_file} if present
+modified gwas: saves new gwas in output_file if present
 }
 \description{
 change_snp_identifiers: changes the SNP identifiers of a GWAS to the output reference build

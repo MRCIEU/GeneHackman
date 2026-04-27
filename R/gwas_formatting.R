@@ -9,11 +9,12 @@
 #'   can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values
 #' @param output_columns column header map used for renaming GWAS:
 #'   can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values
+#' @param remove_extra_columns logical flag on if to remove extra columns
 #' @param populate_eaf If TRUE, fill missing \code{EAF} from the 1000 Genomes LD panel (\code{ANCESTRY.bim} + \code{ANCESTRY.frq} under \code{THOUSAND_GENOMES_DIR}).
 #' @param ancestry Ancestry code (EUR, EAS, AFR, AMR, SAS) matching the reference panel prefix; required when \code{populate_eaf} is TRUE.
 #' @param flip_alleles If TRUE (default), reorder EA/OA alphabetically and flip BETA, EAF, Z accordingly.
 #'   Set to FALSE to keep alleles as-is (useful when you only need to populate RSIDs, EAF, or change build).
-#' @return modified gwas: saves new gwas in {output_file} if present
+#' @return modified gwas: saves new gwas in output_file if present
 #' @import vroom
 #' @import shiny
 #' @export
@@ -68,7 +69,7 @@ standardise_gwas <- function(gwas,
 #'   can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values
 #' @param output_columns column header map used for renaming GWAS:
 #'   can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values
-#' @return modified gwas: saves new gwas in {output_file} if present
+#' @return modified gwas: saves new gwas in output_file if present
 #' @import vroom
 #' @export
 change_snp_identifiers <- function(gwas,
