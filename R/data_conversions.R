@@ -156,7 +156,6 @@ populate_partial_rsids <- function(gwas) {
 
 #' @import data.table
 #' @import tibble
-#' @import genepi.utils
 #' @import future
 populate_full_rsids <- function(gwas) {
   build <- rsid_builds$GRCh37
@@ -164,7 +163,7 @@ populate_full_rsids <- function(gwas) {
   if (!build %in% rsid_builds) stop(paste("Error: invalid rsid build option:", build))
 
   gwas <- data.table::as.data.table(gwas)
-  gwas <- genepi.utils::chrpos_to_rsid(
+  gwas <- chrpos_to_rsid(
     gwas,
     "CHR",
     "BP", 

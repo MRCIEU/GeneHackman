@@ -51,7 +51,6 @@ RUN /bin/condabin/conda tos accept --override-channels --channel https://repo.an
 #    mv finemap_v1.4.2_x86_64 /usr/local/bin/finemap
 
 COPY docker/requirements.* docker/
-# requirements.R installs to /usr/lib/R/site-library; Posit R in /opt/R does not add that path by default
 RUN Rscript docker/requirements.R
 ENV R_LIBS_SITE=/usr/lib/R/site-library
 RUN pip install -r docker/requirements.txt

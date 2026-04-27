@@ -8,7 +8,7 @@ Description: What the package does (one paragraph).
 License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.2
 Suggests: 
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
@@ -16,13 +16,15 @@ Imports:
     coloc,
     data.table,
     dplyr,
+    fst,
     future,
-    genepi.utils,
+    furrr,
     ggplot2,
     ggrepel,
     httr,
     MendelianRandomization,
     prettydoc,
+    progressr,
     qqman,
     rlang,
     R.utils,
@@ -39,5 +41,4 @@ Remotes:
     github::MRCIEU/TwoSampleMR,
     github::MRCIEU/ieugwasr,
     github::Osmahmoud/SlopeHunter,
-    github::nicksunderland/genepi.utils@v0.0.5,
     github::yixuan/prettydoc

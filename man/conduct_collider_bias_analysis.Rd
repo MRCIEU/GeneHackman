@@ -13,10 +13,12 @@ conduct_collider_bias_analysis(
   incidence_gwas,
   subsequent_gwas,
   clumped_snps_file,
+  adjustment_type,
+  adjustment_pval,
   collider_bias_results_file,
   harmonised_effects_result_file,
-  slopehunter_adjusted_file,
-  p_value_thresholds = c(0.1, 0.01, 0.001, 1e-05)
+  adjusted_output_file,
+  p_value_thresholds = thresholds
 )
 }
 \value{

@@ -12,11 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: mrcieu/genehackman:develop
-      # R packages from docker/requirements.R live in /usr/lib/R/site-library; without this,
-      # R only sees /opt/R/.../library and library(devtools) / devtools::check() fail.
       env:
         R_LIBS_SITE: /usr/lib/R/site-library
-
     steps:
       - uses: actions/checkout@v4
 
