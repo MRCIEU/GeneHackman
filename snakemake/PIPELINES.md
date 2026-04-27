@@ -50,6 +50,8 @@ All pipelines will standardise each GWAS before running the subsequent steps.  T
 
 ## qtl_mr
 
+QTL summary statistics are read from **`QTL_DATA_DIR`** (see `.env` / `.env_example`): same tree as under `PIPELINE_DATA_DIR/qtl_datasets` when **`QTL_DATA_DIR`** is unset (`pqtl`, `metabrain`, `eqtlgen`, …). Point **`QTL_DATA_DIR`** at a separate mount or bucket path to download only the QTL data you need.
+
 * `1 GWAS object`: See above for GWAS Object explanation
 * `qtl`:
   * `dataset`: see below for options

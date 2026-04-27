@@ -66,12 +66,12 @@ RESULTS_DIR = format_dir_string(os.getenv('RESULTS_DIR'))
 RDFS_DIR = format_dir_string(os.getenv('RDFS_DIR'))
 
 PIPELINE_DATA_DIR = format_dir_string(os.getenv('PIPELINE_DATA_DIR'))
+QTL_DATA_DIR = os.getenv("QTL_DATA_DIR", "").strip()
 
 LDSC_DIR = format_dir_string(PIPELINE_DATA_DIR + "/LDSCORE/b37_dbsnp156")
 GENOMIC_DATA_DIR = format_dir_string(PIPELINE_DATA_DIR + "/genomic_data")
 THOUSAND_GENOMES_DIR = format_dir_string(PIPELINE_DATA_DIR + "/1000genomes/b37_dbsnp156")
-QTL_DIRECTORY = format_dir_string(PIPELINE_DATA_DIR + "/qtl_datasets")
-PIPELINE_DATA_DIR = GENOMIC_DATA_DIR + "/pipeline"
+QTL_DIRECTORY = format_dir_string(QTL_DATA_DIR)
 
 if RDFS_DIR and not RDFS_DIR.endswith("working/"):
     raise ValueError("Please ensure RDFS_DIR ends with working/ to ensure the data gets copied to the correct place")

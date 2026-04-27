@@ -5,7 +5,7 @@ Snakemake orchestrates steps; each step usually runs inside an **Apptainer/Singu
 General prerequisites:
 
 1. **Conda env:** `conda env create -f environment.yml` then `conda activate genehackman`
-2. **`.env`:** copy from `.env_example` and set at least `DATA_DIR`, `RESULTS_DIR`, `PIPELINE_DATA_DIR` (and paths your pipeline needs for genomic / 1000G data).
+2. **`.env`:** copy from `.env_example` and set at least `DATA_DIR`, `RESULTS_DIR`, `PIPELINE_DATA_DIR` (and paths your pipeline needs for genomic / 1000G data). Optionally set **`QTL_DATA_DIR`** when large QTL mirrors live on another volume or object-store mount; if omitted, `run_pipeline.sh` defaults it to `PIPELINE_DATA_DIR/qtl_datasets`.
 3. **Input JSON:** see `snakemake/input_templates/` and `snakemake/PIPELINES.md`.
 
 **`./run_pipeline.sh`** loads `.env`, picks a **profile** (`GENEHACKMAN_PROFILE`, default `snakemake/local/`), then runs Snakemake. Pass the **`.smk` workflow first**, then optional input JSON, for example:
@@ -63,7 +63,7 @@ The published image may be **linux/amd64**. Use Lima with **Rosetta / x86 Linux*
    ./run_pipeline.sh snakemake/compare_gwases.smk
    ```
 
-4. Adjust **`snakemake/local/config.yaml`** `singularity-args` if your data live outside `DATA_DIR` / `RESULTS_DIR` / `PIPELINE_DATA_DIR` (add matching `-B host:host` pairs).
+4. Adjust **`snakemake/local/config.yaml`** `singularity-args` if your data live outside `DATA_DIR` / `RESULTS_DIR` / `PIPELINE_DATA_DIR` / `QTL_DATA_DIR` (profiles bind these four; add more `-B host:host` pairs if needed).
 5. Large pulls: set **`GENEHACKMAN_SINGULARITY_PREFIX`** to fast scratch (e.g. `/scratch/$USER/snakemake_singularity`).
 
 ---
@@ -90,7 +90,7 @@ export GENEHACKMAN_PROFILE=snakemake/bp1/
 **You must customize** each profile’s `config.yaml`:
 
 - **`cluster:`** block: `sbatch` options (`partition`, `account`, walltime, memory, `--output` log directory).
-- **`singularity-args`:** `-B` mounts for your home, scratch, and shared reference data (replacing Bristol-specific paths).
+- **`singularity-args`:** `-B` mounts for your home, scratch, and shared reference data (replacing Bristol-specific paths). Profiles include **`${QTL_DATA_DIR}`**; use **`./run_pipeline.sh`** (or export **`QTL_DATA_DIR`** yourself, defaulting to **`PIPELINE_DATA_DIR/qtl_datasets`**) so the bind is never empty.
 
 Log files: profiles often write Slurm stdout under **`/user/work/$USER/slurm_logs/`**; create that tree or change `--output` to your scratch.
 

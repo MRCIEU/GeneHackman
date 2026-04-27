@@ -126,17 +126,11 @@ create_html_from_rmd <- function(rmd_file, params = list(), output_file) {
 }
 
 get_docker_image_tag <- function() {
-  return("1.0.0")
+  docker_version <- get_env_var("DOCKER_VERSION")
+  if (is.null(docker_version)) {
+    return("latest")
+  } else {
+    return(docker_version)
+  }
   #return(packageVersion("GeneHackman"))
-}
-
-#' @import vroom
-run_sqlite_command <- function(db_name, query, col_names = c()) {
-  query <- paste0('"', query, '"')
-  sqlite_command <- paste("sqlite3", db_name, query)
-  output <- system(sqlite_command, intern = T, wait = T)
-  result <- vroom::vroom(output, col_names = F, col_type = vroom::cols(vroom::col_character()), show_col_types=F)
-
-  if (is.vector(col_names)) colnames(result) <- col_names
-  return(result)
 }

@@ -42,6 +42,8 @@ or if you have already created the environment
 `cp .env_example .env`
 * populate the DATA_DIR, RESULTS_DIR and RDFS_DIR environment variables in .env file
 These should probably be in your *work* or *scratch* space (`/user/work/{userid}/...`)
+* PIPELINE_DATA_DIR: data that can be found here
+* QTL_DATA_DIR (optional): if you want to run the QTL MR pipieline
 * RDFS_DIR is optional.  All generated files can be copied automatically.  Please ensure the path
 ends in `working/`
 * **Container cache:** If there is no pre-built `genehackman_<version>.sif` under `PIPELINE_DATA_DIR`, Snakemake pulls the `docker://` image and caches the SIF under `.snakemake/singularity` by default. Set **`GENEHACKMAN_SINGULARITY_PREFIX`** in `.env` to use another directory (e.g. scratch). Running `snakemake` without `./run_pipeline.sh`? Pass `--singularity-prefix /path` or add `singularity-prefix:` to your profile `config.yaml`.
@@ -91,14 +93,16 @@ Pipelines use the image **`mrcieu/genehackman`** (tag usually matches the **`Ver
 **Build** (run from the **repository root** so paths in the Dockerfile resolve correctly):
 
 ```bash
-docker build -f docker/Dockerfile -t mrcieu/genehackman:$(grep '^Version:' DESCRIPTION | awk '{print $2}') .
+docker build --platform linux/amd64 -f docker/Dockerfile -t mrcieu/genehackman:$(grep '^Version:' DESCRIPTION | awk '{print $2}') .
 ```
 
 To tag a specific version explicitly (for example `1.0.0`):
 
 ```bash
-docker build -f docker/Dockerfile -t mrcieu/genehackman:1.0.0 .
+docker build --platform linux/amd64 -f docker/Dockerfile -t mrcieu/genehackman:1.0.0 .
 ```
+
+The image is **x86_64/amd64-only** (Posit R `.deb`, PLINK, Miniconda, etc.). Use **`--platform linux/amd64`** when building so it works on **ARM** laptops (e.g. Apple Silicon) as well as on amd64 Linux; on native amd64 machines the flag is optional but harmless.
 
 The image installs OS packages and tools in [`docker/Dockerfile`](docker/Dockerfile), R packages via [`docker/requirements.R`](docker/requirements.R), and Python packages via [`docker/requirements.txt`](docker/requirements.txt). After changing those files, rebuild the image before running pipelines that depend on the new dependencies.
 

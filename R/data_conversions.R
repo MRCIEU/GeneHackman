@@ -158,8 +158,9 @@ populate_partial_rsids <- function(gwas) {
 #' @import tibble
 #' @import genepi.utils
 #' @import future
-populate_full_rsids <- function(gwas, build = rsid_builds$GRCh37) {
-  dbsnp_dir <- file.path(genomic_data_dir, "dbsnp/b37_dbsnp156")
+populate_full_rsids <- function(gwas) {
+  build <- rsid_builds$GRCh37
+  dbsnp_dir <- file.path(genomic_data_dir, "dbsnp")
   if (!build %in% rsid_builds) stop(paste("Error: invalid rsid build option:", build))
 
   gwas <- data.table::as.data.table(gwas)
@@ -170,11 +171,12 @@ populate_full_rsids <- function(gwas, build = rsid_builds$GRCh37) {
     "EA", 
     "OA",
     flip = "allow",
-    dbsnp_dir=dbsnp_dir,
-    build=build,
-    alt_rsids = F,
+    dbsnp_dir = dbsnp_dir,
+    build = build,
+    alt_rsids = FALSE,
     parallel_cores=number_of_cpus_available
   )
+  print('finished chrpos_to_rsid')
   gwas <- tibble::as_tibble(gwas)
   return(gwas)
 }

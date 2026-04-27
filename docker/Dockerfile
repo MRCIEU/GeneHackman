@@ -1,12 +1,15 @@
+# This recipe uses amd64-only assets (Posit R .deb, PLINK, Miniconda, libpng12 .deb). On ARM hosts,
+# build with: docker build --platform linux/amd64 ...
 FROM python:3.11-bullseye
 
 RUN apt update && \
     apt install -y --no-install-recommends \
-    build-essential software-properties-common dirmngr gnupg pandoc lmodern texlive-latex-base \
-    libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev libfreetype6-dev libharfbuzz-dev libfribidi-dev \ 
-    libxml2-dev libcurl4-gnutls-dev libssl-dev libgmp-dev libnlopt-dev cmake libcairo2-dev libxt-dev \
+    build-essential software-properties-common dirmngr gnupg pandoc lmodern texlive-latex-base unzip \
+    libpng-dev libtiff5-dev libjpeg-dev libfreetype6-dev libharfbuzz-dev libfribidi-dev \ 
+    libxml2-dev libcurl4-openssl-dev libssl-dev libgmp-dev libnlopt-dev cmake libcairo2-dev libxt-dev \
     texlive-latex-recommended r-cran-sass r-cran-mime libudunits2-dev libgdal-dev \
-    plink1.9 plink2 sqlite3 wget vim ripgrep git && \
+    libfontconfig1-dev libuv1-dev libicu-dev libbz2-dev liblzma-dev libglib2.0-dev \
+    sqlite3 wget vim ripgrep git && \
     wget https://cdn.posit.co/r/debian-11/pkgs/r-4.4.2_1_amd64.deb && \
     apt-get update && \
     apt-get install -y ./r-4.4.2_1_amd64.deb && \
@@ -16,6 +19,10 @@ RUN apt update && \
     mkdir -p /usr/lib/R/site-library && chmod 777 /usr/lib/R/site-library && \
     mkdir -p /home/scripts && \
     rm -rf /var/lib/apt/lists/* && \
+    wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20231211.zip -O /tmp/plink.zip && \
+    unzip /tmp/plink.zip -d /usr/local/bin/ && \
+    rm /tmp/plink.zip && \
+    ln -s /usr/local/bin/plink /usr/local/bin/plink1.9 && \
     wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh && \
     chmod +x miniconda.sh && \
    ./miniconda.sh -b -f -p /bin && \
