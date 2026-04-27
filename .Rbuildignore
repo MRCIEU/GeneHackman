@@ -10,3 +10,9 @@ tests
 venv
 .idea
 .env_example
+.env
+.cache
+^\.github$
+^\.lintr$
+^\.git$
+^\.gitignore$
