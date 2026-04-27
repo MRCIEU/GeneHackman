@@ -64,6 +64,14 @@ def parse_pipeline_input(pipeline_includes_clumping=False):
     if not hasattr(fm, "coverage"): fm.coverage = 0.95
     if not hasattr(fm, "min_abs_corr"): fm.min_abs_corr = 0.5
 
+    if not hasattr(pipeline, "coloc"):
+        pipeline.coloc = SimpleNamespace()
+    cl = pipeline.coloc
+    if not hasattr(cl, "overlap_kb"): cl.overlap_kb = 1000
+    if not hasattr(cl, "p1"): cl.p1 = 1e-4
+    if not hasattr(cl, "p2"): cl.p2 = 1e-4
+    if not hasattr(cl, "p12"): cl.p12 = 5e-6
+
     for g in pipeline.gwases:
         if not hasattr(g, "N"): g.N = 0
         if not hasattr(g, "columns"): g.columns = SimpleNamespace()

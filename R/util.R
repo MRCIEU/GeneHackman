@@ -134,3 +134,32 @@ get_docker_image_tag <- function() {
   }
   #return(packageVersion("GeneHackman"))
 }
+
+#' Generate log Bayes Factor from Z-score
+#'
+#' @param z Z-score
+#' @param se Standard error
+#' @param eaf Allele frequency
+#' @param sample_size Sample size
+#' @param study_type Study type
+#' @param effect_priors Effect priors
+#'
+#' @return Log Bayes Factor
+convert_z_to_lbf <- function(
+  z,
+  se,
+  eaf,
+  sample_size,
+  study_type,
+  effect_priors = c(continuous = 0.15, categorical = 0.2)
+) {
+  estimated_sd <- estimate_variance(se, eaf, sample_size)
+  if (study_type == study_categories$continuous) {
+    sd_prior <- effect_priors[study_categories$continuous] * estimated_sd
+  } else {
+    sd_prior <- effect_priors[study_categories$categorical]
+  }
+  r <- sd_prior^2 / (sd_prior^2 + se^2)
+  lbf <- (log(1 - r) + (r * z^2)) / 2
+  return(lbf)
+}

@@ -48,17 +48,45 @@ All pipelines will standardise each GWAS before running the subsequent steps.  T
   * Please also explicitly include `N` in the GWAS object, for use in the LDSC tool
 * `plink_clump_arguments`: arguments that are fed into the `plink --clump` call.  [Options here](https://zzz.bwh.harvard.edu/plink/clump.shtml)
 
+## finemap
+
+* `n GWAS objects`: See above for GWAS Object explanation. Each GWAS requires `ancestry`.
+* `plink_clump_arguments`: arguments that are fed into the `plink --clump` call. [Options here](https://zzz.bwh.harvard.edu/plink/clump.shtml)
+* `finemap` (optional):
+  * `window_kb`: half-width of fine-mapping window in kb (default 1000 = ±1 Mb)
+  * `max_causal`: maximum number of causal signals per locus (SuSiE L, default 10)
+  * `coverage`: credible set coverage (default 0.95)
+  * `min_abs_corr`: minimum absolute correlation for credible set purity (default 0.5)
+
+## coloc
+
+Runs standardisation, clumping, and fine-mapping on all input GWASes, then performs BF-BF colocalization (`coloc::coloc.bf_bf`) on any overlapping finemapped signals (within ±`overlap_kb` kb) across all trait pairs.
+
+* `n GWAS objects` (at least 2): See above for GWAS Object explanation. Each GWAS requires `ancestry`.
+* `plink_clump_arguments`: arguments that are fed into the `plink --clump` call
+* `finemap` (optional): same options as the finemap pipeline above
+* `coloc` (optional):
+  * `overlap_kb`: distance in kb to define overlapping signals (default 1000 = ±1 Mb)
+  * `p1`: prior probability a SNP is associated with trait 1 (default 1e-4)
+  * `p2`: prior probability a SNP is associated with trait 2 (default 1e-4)
+  * `p12`: prior probability a SNP is associated with both traits (default 5e-6)
+
 ## qtl_mr
 
 QTL summary statistics are read from **`QTL_DATA_DIR`** (see `.env` / `.env_example`): same tree as under `PIPELINE_DATA_DIR/qtl_datasets` when **`QTL_DATA_DIR`** is unset (`pqtl`, `metabrain`, `eqtlgen`, …). Point **`QTL_DATA_DIR`** at a separate mount or bucket path to download only the QTL data you need.
 
-* `1 GWAS object`: See above for GWAS Object explanation
+This pipeline now includes clumping and fine-mapping of the GWAS before MR. Colocalization uses finemapped LBF values from the GWAS and converts QTL Z-scores to LBF via `convert_z_to_lbf`, then runs `coloc::coloc.bf_bf`.
+
+* `1 GWAS object`: See above for GWAS Object explanation. Requires `ancestry`.
+* `plink_clump_arguments`: arguments that are fed into the `plink --clump` call
+* `finemap` (optional): same options as the finemap pipeline above
 * `qtl`:
   * `dataset`: see below for options
   * `subcategories`: list of subcategories to run, see below for options
     * If left empty, all subcategories will be run
   * `exposures`: list of specific exposures to be run. If left empty all exposures will be run in the dataset
     * example: `["IL6", "CCL2"]`
+  * `study_type`: study type for LBF conversion, either `continuous` (default) or `categorical`
 
 Available Datasets and Subcategories:
 * dataset: `metabrain`

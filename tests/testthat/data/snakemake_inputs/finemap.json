@@ -4,14 +4,15 @@
       "file": "tests/testthat/data/test_data_small.tsv.gz",
       "columns": {},
       "ancestry": "EUR"
+    },
+    {
+      "file": "tests/testthat/data/test_data_small_hg38.tsv.gz",
+      "columns": {},
+      "build": "GRCh38",
+      "ancestry": "EUR"
     }
   ],
   "plink_clump_arguments": "--clump-p1 0.00000005",
-  "qtl": {
-    "dataset": "metabrain",
-    "subcategory": "cortex",
-    "exposures": []
-  },
   "populate_rsid": false,
   "is_test": true
 }

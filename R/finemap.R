@@ -2,20 +2,21 @@
 #'
 #' For each lead SNP from plink --clump output, extracts a window, computes an
 #' LD matrix from the 1000 Genomes reference panel via plink, and runs
-#' susieR::susie_rss.  Produces per-SNP log Bayes factors and a filtered GWAS
-#' containing only credible-set SNPs.
+#' susieR::susie_rss.  Writes one TSV per locus: all GWAS variants within the
+#' genomic window around the lead SNP, with SuSiE Z-scores, credible-set
+#' membership, and per-credible-set (independent signal) columns \code{LBF_1}, \code{LBF_2}, ...
 #'
 #' @param gwas filename or dataframe of a standardised GWAS
 #' @param clumped_file plink --clump output file
 #' @param ancestry ancestry code matching 1000 Genomes panel prefix (EUR, EAS, AFR, AMR, SAS)
-#' @param n GWAS sample size
-#' @param output_lbf_file path to write combined per-locus LBF table
-#' @param output_credible_set_file path to write credible-set-filtered GWAS
-#' @param window_kb fine-mapping window half-width in kb (default 500)
+#' @param default_n GWAS sample size when not inferrable from \code{gwas}; see
+#' @param output_finemap_dir directory to write one
+#'   \verb{<CHR>_<BP>_finemap.tsv.gz} per clumped locus
+#' @param window_kb half-width of the fine-mapping window in kb (default 1000 = ±1 Mb)
 #' @param max_causal maximum number of causal signals per locus (SuSiE L, default 10)
 #' @param coverage credible set coverage (default 0.95)
 #' @param min_abs_corr minimum absolute correlation for credible sets (default 0.5)
-#' @return invisibly, the combined LBF tibble
+#' @return invisibly, the combined per-SNP finemap tibble (LD-matched SNPs only)
 #' @import data.table
 #' @import dplyr
 #' @import vroom
@@ -24,30 +25,31 @@
 finemap_gwas <- function(gwas,
                          clumped_file,
                          ancestry,
-                         n,
-                         output_lbf_file,
-                         output_credible_set_file,
-                         window_kb = 500,
+                         default_n,
+                         output_finemap_dir,
+                         window_kb = 1000,
                          max_causal = 10,
                          coverage = 0.95,
                          min_abs_corr = 0.5) {
 
   gwas <- get_file_or_dataframe(gwas)
-  numeric_cols <- c("CHR", "BP", "BETA", "SE", "P", "EAF")
+  numeric_cols <- c("CHR", "BP", "BETA", "SE", "P", "EAF", "N", "N_CASE", "N_CONTROL")
   for (col in intersect(numeric_cols, colnames(gwas))) {
     gwas[[col]] <- as.numeric(gwas[[col]])
   }
 
+  if (!dir.exists(output_finemap_dir)) {
+    dir.create(output_finemap_dir, recursive = TRUE)
+  }
+
   lead_snps <- data.table::fread(clumped_file, select = c("SNP", "CHR", "BP"))
   if (nrow(lead_snps) == 0) {
-    message("No clumped SNPs found; writing empty output files.")
-    empty_lbf <- tibble::tibble(
+    message("No clumped SNPs found; no per-locus finemap files written.")
+    empty <- tibble::tibble(
       SNP = character(), CHR = numeric(), BP = numeric(), RSID = character(),
-      Z = numeric(), LBF = numeric(), CS = integer(), LEAD_SNP = character()
+      Z = numeric(), CS = integer()
     )
-    vroom::vroom_write(empty_lbf, output_lbf_file)
-    vroom::vroom_write(gwas[0, ], output_credible_set_file)
-    return(invisible(empty_lbf))
+    return(invisible(empty))
   }
 
   window_bp <- window_kb * 1000
@@ -94,6 +96,7 @@ finemap_gwas <- function(gwas,
     R <- ld_result$matrix[ld_idx, ld_idx]
 
     z_scores <- locus_gwas$BETA / locus_gwas$SE
+    n <- `if`("N" %in% colnames(locus_gwas) && !is.na(as.numeric(locus_gwas$N[1])), as.numeric(locus_gwas$N[1]), default_n)
 
     locus_lbf <- run_susie_for_locus(
       z_scores = z_scores,
@@ -105,29 +108,41 @@ finemap_gwas <- function(gwas,
       coverage = coverage,
       min_abs_corr = min_abs_corr
     )
-    all_lbf[[i]] <- locus_lbf
+
+    if (nrow(locus_lbf) == 0) {
+      next
+    }
+
+    all_lbf <- c(all_lbf, list(locus_lbf))
+
+    lbf_nm <- grep("^LBF_[0-9]+$", names(locus_lbf), value = TRUE)
+    finemap_join <- dplyr::select(locus_lbf, dplyr::any_of(c(
+      "RSID", "Z", "CS", lbf_nm
+    )))
+
+    out_gwas <- dplyr::filter(gwas,
+      CHR == lead_chr,
+      BP >= (lead_bp - window_bp),
+      BP <= (lead_bp + window_bp)
+    )
+    out_gwas <- dplyr::left_join(out_gwas, finemap_join, by = "RSID")
+
+    lead_chr_bp <- paste0(lead_chr, "_", lead_bp)
+    safe_locus <- gsub("[^A-Za-z0-9._-]+", "_", lead_chr_bp)
+    out_file <- file.path(output_finemap_dir, paste0(safe_locus, "_finemap.tsv.gz"))
+    vroom::vroom_write(out_gwas, out_file)
   }
 
   combined_lbf <- dplyr::bind_rows(all_lbf)
 
   if (nrow(combined_lbf) == 0) {
     message("No loci produced SuSiE results.")
-    combined_lbf <- tibble::tibble(
-      SNP = character(), CHR = numeric(), BP = numeric(), RSID = character(),
-      Z = numeric(), LBF = numeric(), CS = integer(), LEAD_SNP = character()
-    )
   }
 
-  vroom::vroom_write(combined_lbf, output_lbf_file)
-
-  cs_snps <- dplyr::filter(combined_lbf, !is.na(CS))
-  credible_set_gwas <- dplyr::filter(gwas, SNP %in% cs_snps$SNP)
-  vroom::vroom_write(credible_set_gwas, output_credible_set_file)
-
   message(paste("Fine-mapping complete:",
-    nrow(lead_snps), "loci,",
-    nrow(combined_lbf), "SNPs with LBFs,",
-    nrow(credible_set_gwas), "SNPs in credible sets"))
+    nrow(lead_snps), "clumped loci,",
+    nrow(combined_lbf), "LD-matched SNPs with finemap stats,",
+    "outputs in", output_finemap_dir))
 
   return(invisible(combined_lbf))
 }
@@ -164,16 +179,10 @@ compute_ld_matrix <- function(rsids, chr, ancestry) {
     return(NULL)
   }
 
-  # plink --r square writes the SNP order into .ld in the same order as the
-  # extracted variants. Read the .bim-like info from the log or use the
-  # nosex/fam to get the order. Safer: read the pruned bim.
   bim_file <- paste0(out_prefix, ".bim")
   if (file.exists(bim_file)) {
     snp_order <- data.table::fread(bim_file, header = FALSE, select = 2)$V2
   } else {
-    # Fallback: the SNPs in .ld follow input extraction order; plink sorts by
-    # genomic position so we cannot assume our input order.  Read the log
-    # to find the count and use the filtered set.
     bim_ref <- paste0(bfile, ".bim")
     all_bim <- data.table::fread(bim_ref, header = FALSE, select = c(1, 2, 4))
     colnames(all_bim) <- c("CHR", "SNP", "BP")
@@ -199,19 +208,39 @@ compute_ld_matrix <- function(rsids, chr, ancestry) {
 }
 
 
-#' Wrapper for susieR::susie_rss (mockable in tests).
+#' Build per-credible-set LBF columns (\code{LBF_1}, \code{LBF_2}, ...) from a SuSiE fit.
 #' @keywords internal
-run_susie_rss_impl <- function(z, R, n, L, coverage, min_abs_corr, verbose = FALSE) {
-  susieR::susie_rss(
-    z = z,
-    R = R,
-    n = n,
-    L = L,
-    coverage = coverage,
-    min_abs_corr = min_abs_corr,
-    verbose = verbose
-  )
+susie_lbf_columns <- function(fitted, p) {
+  lv <- fitted$lbf_variable
+  if (is.null(lv) || !is.matrix(lv) || nrow(lv) < 1L || ncol(lv) != p) {
+    return(tibble::tibble())
+  }
+
+  n_row <- nrow(lv)
+  cs_list <- fitted$sets$cs
+  cs_idx <- fitted$sets$cs_index
+  col_vecs <- list()
+
+  if (!is.null(cs_list) && length(cs_list) > 0L) {
+    n_cs <- length(cs_list)
+    use_idx <- !is.null(cs_idx) && length(cs_idx) == n_cs
+    for (j in seq_len(n_cs)) {
+      row_i <- if (use_idx) cs_idx[j] else j
+      if (is.finite(row_i) && row_i >= 1L && row_i <= n_row) {
+        col_vecs[[paste0("LBF_", j)]] <- lv[row_i, ]
+      } else {
+        col_vecs[[paste0("LBF_", j)]] <- rep(NA_real_, p)
+      }
+    }
+  } else {
+    for (j in seq_len(n_row)) {
+      col_vecs[[paste0("LBF_", j)]] <- lv[j, ]
+    }
+  }
+
+  tibble::as_tibble(col_vecs)
 }
+
 
 #' Run SuSiE on a single locus
 #' @param z_scores numeric vector of z-scores
@@ -222,13 +251,14 @@ run_susie_rss_impl <- function(z, R, n, L, coverage, min_abs_corr, verbose = FAL
 #' @param max_causal max causal signals (L)
 #' @param coverage credible set coverage
 #' @param min_abs_corr minimum absolute correlation for CS purity
-#' @return tibble with SNP, CHR, BP, RSID, Z, LBF, CS, LEAD_SNP
+#' @return tibble with SNP, CHR, BP, RSID, Z, CS, and \code{LBF_1}, \code{LBF_2}, ... per signal
 run_susie_for_locus <- function(z_scores, ld_matrix, snp_info, n, lead_snp,
                                 max_causal = 10, coverage = 0.95,
                                 min_abs_corr = 0.5) {
 
+  p <- length(z_scores)
   fitted <- tryCatch(
-    run_susie_rss_impl(
+    susieR::susie_rss(
       z = z_scores,
       R = ld_matrix,
       n = n,
@@ -246,19 +276,13 @@ run_susie_for_locus <- function(z_scores, ld_matrix, snp_info, n, lead_snp,
   if (is.null(fitted)) {
     return(tibble::tibble(
       SNP = character(), CHR = numeric(), BP = numeric(), RSID = character(),
-      Z = numeric(), LBF = numeric(), CS = integer(), LEAD_SNP = character()
+      Z = numeric(), CS = integer()
     ))
   }
 
-  # Per-SNP log Bayes factor: sum across all L effects
-  if (!is.null(fitted$lbf_variable)) {
-    per_snp_lbf <- colSums(fitted$lbf_variable)
-  } else {
-    per_snp_lbf <- rep(NA_real_, length(z_scores))
-  }
+  lbf_wide <- susie_lbf_columns(fitted, p)
 
-  # Map each SNP to its credible set (if any)
-  cs_membership <- rep(NA_integer_, length(z_scores))
+  cs_membership <- rep(NA_integer_, p)
   if (!is.null(fitted$sets) && !is.null(fitted$sets$cs)) {
     for (cs_idx in seq_along(fitted$sets$cs)) {
       snp_indices <- fitted$sets$cs[[cs_idx]]
@@ -272,10 +296,7 @@ run_susie_for_locus <- function(z_scores, ld_matrix, snp_info, n, lead_snp,
     BP = snp_info$BP,
     RSID = snp_info$RSID,
     Z = z_scores,
-    LBF = per_snp_lbf,
-    CS = cs_membership,
-    LEAD_SNP = lead_snp
+    CS = cs_membership
   )
-
-  return(result)
+  dplyr::bind_cols(result, lbf_wide)
 }

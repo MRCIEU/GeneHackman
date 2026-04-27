@@ -1,4 +1,54 @@
-test_that("finemap.finemap_gwas writes empty outputs when clump has no rows", {
+test_that("finemap.resolve_finemap_sample_size prefers pipeline N when valid", {
+  g <- tibble::tibble(SNP = "x", N = 9999)
+  expect_equal(GeneHackman:::resolve_finemap_sample_size(50000, g), 50000)
+})
+
+test_that("finemap.resolve_finemap_sample_size falls back to GWAS N column", {
+  g <- tibble::tibble(SNP = "x", N = c(40000, 40000, 41000))
+  expect_equal(GeneHackman:::resolve_finemap_sample_size(0, g), 40000)
+  expect_equal(GeneHackman:::resolve_finemap_sample_size(NA_real_, g), 40000)
+})
+
+test_that("finemap.resolve_finemap_sample_size uses N_CASE + N_CONTROL", {
+  g <- tibble::tibble(
+    SNP = "x",
+    N_CASE = 30000,
+    N_CONTROL = 70000
+  )
+  expect_equal(GeneHackman:::resolve_finemap_sample_size(0, g), 100000)
+})
+
+test_that("finemap.finemap_gwas stops when sample size cannot be resolved", {
+  gwas <- tibble::tibble(
+    SNP = c("1:100000_A_G", "1:100150_T_C"),
+    CHR = c(1, 1),
+    BP = c(100000, 100150),
+    RSID = c("rs1", "rs2"),
+    BETA = c(0.1, 0.05),
+    SE = c(0.02, 0.02),
+    P = c(0.01, 0.05),
+    EA = c("A", "T"),
+    OA = c("G", "C"),
+    EAF = c(0.3, 0.4)
+  )
+  gwas_file <- tempfile(fileext = ".tsv.gz")
+  vroom::vroom_write(gwas, gwas_file)
+  clump_file <- tempfile(fileext = ".clumped")
+  writeLines(c("SNP\tCHR\tBP", "rs1\t1\t100000"), clump_file)
+  out_dir <- tempfile("finemap_")
+  expect_error(
+    finemap_gwas(
+      gwas_file,
+      clump_file,
+      ancestry = "EUR",
+      default_n = NA,
+      output_finemap_dir = out_dir
+    ),
+    "Fine-mapping requires GWAS sample size"
+  )
+})
+
+test_that("finemap.finemap_gwas writes no locus files when clump has no rows", {
   gwas <- tibble::tibble(
     SNP = c("1:100000_A_G", "1:100150_T_C"),
     CHR = c(1, 1),
@@ -17,23 +67,19 @@ test_that("finemap.finemap_gwas writes empty outputs when clump has no rows", {
   clump_file <- tempfile(fileext = ".clumped")
   writeLines("SNP\tCHR\tBP", clump_file)
 
-  out_lbf <- tempfile(fileext = ".tsv.gz")
-  out_cs <- tempfile(fileext = ".tsv.gz")
+  out_dir <- tempfile("finemap_")
+  dir.create(out_dir)
 
   res <- finemap_gwas(
     gwas_file,
     clump_file,
     ancestry = "EUR",
-    n = 10000L,
-    output_lbf_file = out_lbf,
-    output_credible_set_file = out_cs
+    default_n = 10000L,
+    output_finemap_dir = out_dir
   )
 
   expect_equal(nrow(res), 0)
-  lbf_read <- vroom::vroom(out_lbf, show_col_types = FALSE)
-  expect_equal(nrow(lbf_read), 0)
-  cs_read <- vroom::vroom(out_cs, show_col_types = FALSE)
-  expect_equal(nrow(cs_read), 0)
+  expect_equal(length(list.files(out_dir, pattern = "_finemap\\.tsv\\.gz$")), 0)
 })
 
 test_that("finemap.compute_ld_matrix returns NULL when plink fails", {
@@ -46,7 +92,7 @@ test_that("finemap.compute_ld_matrix returns NULL when plink fails", {
   expect_null(compute_ld_matrix(c("rs1", "rs2"), 1L, "EUR"))
 })
 
-test_that("finemap.run_susie_for_locus maps LBF and credible sets from fitted object", {
+test_that("finemap.run_susie_for_locus maps per-CS LBF_k and credible sets", {
   local_mocked_bindings(
     run_susie_rss_impl = function(z, R, n, L, coverage, min_abs_corr, verbose = FALSE) {
       p <- length(z)
@@ -75,9 +121,8 @@ test_that("finemap.run_susie_for_locus maps LBF and credible sets from fitted ob
   )
 
   expect_equal(nrow(out), 2)
-  expect_equal(out$LBF, c(0.75, 1.25))
+  expect_equal(out$LBF_1, c(0.5, 0.5))
   expect_equal(out$CS, c(1L, 1L))
-  expect_true(all(out$LEAD_SNP == "rs1"))
 })
 
 test_that("finemap.finemap_gwas runs end-to-end with mocked LD and SuSiE", {
@@ -113,28 +158,29 @@ test_that("finemap.finemap_gwas runs end-to-end with mocked LD and SuSiE", {
   clump_file <- tempfile(fileext = ".clumped")
   writeLines(c("SNP\tCHR\tBP", "rs1\t1\t100000"), clump_file)
 
-  out_lbf <- tempfile(fileext = ".tsv.gz")
-  out_cs <- tempfile(fileext = ".tsv.gz")
+  out_dir <- tempfile("finemap_")
+  dir.create(out_dir)
 
   res <- finemap_gwas(
     gwas_file,
     clump_file,
     ancestry = "EUR",
-    n = 10000L,
-    output_lbf_file = out_lbf,
-    output_credible_set_file = out_cs
+    default_n = 10000L,
+    output_finemap_dir = out_dir,
+    window_kb = 500
   )
 
   expect_equal(nrow(res), 2)
   expect_setequal(res$RSID, c("rs1", "rs2"))
   expect_true(all(res$CS == 1L))
 
-  lbf_read <- vroom::vroom(out_lbf, show_col_types = FALSE)
-  expect_equal(nrow(lbf_read), 2)
-
-  cs_read <- vroom::vroom(out_cs, show_col_types = FALSE)
-  expect_equal(nrow(cs_read), 2)
-  expect_setequal(cs_read$SNP, gwas$SNP)
+  locus_file <- file.path(out_dir, "1_100000_finemap.tsv.gz")
+  expect_true(file.exists(locus_file))
+  locus_read <- vroom::vroom(locus_file, show_col_types = FALSE)
+  expect_equal(nrow(locus_read), 2)
+  expect_true("LBF_1" %in% names(locus_read))
+  expect_setequal(locus_read$SNP, gwas$SNP)
+  expect_false(any(grepl("^LEAD_", names(locus_read))))
 })
 
 test_that("finemap.run_susie_for_locus returns empty tibble when SuSiE errors", {

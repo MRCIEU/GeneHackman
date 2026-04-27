@@ -19,18 +19,14 @@ parser <- add_argument(parser, "--N",
                        help = "GWAS sample size",
                        type = "numeric"
 )
-parser <- add_argument(parser, "--output_lbf_file",
-                       help = "Output file for per-SNP log Bayes factors across all loci",
-                       type = "character"
-)
-parser <- add_argument(parser, "--output_credible_set_file",
-                       help = "Output file for credible-set-filtered GWAS",
+parser <- add_argument(parser, "--output_finemap_dir",
+                       help = "Directory for one <CHR>_<BP>_finemap.tsv.gz per clumped locus",
                        type = "character"
 )
 parser <- add_argument(parser, "--window_kb",
-                       help = "Fine-mapping window half-width in kb",
+                       help = "Fine-mapping window half-width in kb (1000 = ±1 Mb)",
                        type = "numeric",
-                       default = 500
+                       default = 1000
 )
 parser <- add_argument(parser, "--max_causal",
                        help = "Maximum number of causal signals per locus (SuSiE L)",
@@ -49,14 +45,15 @@ parser <- add_argument(parser, "--min_abs_corr",
 )
 
 args <- parse_args(parser)
-create_dir_for_files(args$output_lbf_file, args$output_credible_set_file)
+if (!dir.exists(args$output_finemap_dir)) {
+  dir.create(args$output_finemap_dir, recursive = TRUE)
+}
 
 finemap_gwas(gwas = args$gwas_filename,
              clumped_file = args$clumped_filename,
              ancestry = args$ancestry,
-             n = args$N,
-             output_lbf_file = args$output_lbf_file,
-             output_credible_set_file = args$output_credible_set_file,
+             default_n = args$N,
+             output_finemap_dir = args$output_finemap_dir,
              window_kb = args$window_kb,
              max_causal = args$max_causal,
              coverage = args$coverage,
