@@ -1,13 +1,13 @@
 #' standardise_gwas: takes an input gwas, changes headers, standardises allelic input, adds RSID, makes life easier
-#' @param gwas: filename of gwas to standardise or dataframe of gwas
-#' @param output_file: file to save standardised gwas
-#' @param N: sample size of GWAS (if GWAS has defined N column, defaults to that value)
-#' @param populate_rsid_option: if you want RSID populated or not
-#' @param input_reference_build: reference build of CHR and BP of data.  Defaults to GRCh37
-#' @param output_reference_build: reference build of CHR and BP of data.  Defaults to GRCh37
-#' @param input_columns: column header map used for renaming GWAS:
+#' @param gwas filename of gwas to standardise or dataframe of gwas
+#' @param output_file file to save standardised gwas
+#' @param N sample size of GWAS (if GWAS has defined N column, defaults to that value)
+#' @param populate_rsid_option if you want RSID populated or not
+#' @param input_reference_build reference build of CHR and BP of data.  Defaults to GRCh37
+#' @param output_reference_build reference build of CHR and BP of data.  Defaults to GRCh37
+#' @param input_columns column header map used for renaming GWAS:
 #'   can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values
-#' @param output_columns: column header map used for renaming GWAS:
+#' @param output_columns column header map used for renaming GWAS:
 #'   can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values
 #' @param populate_eaf If TRUE, fill missing \code{EAF} from the 1000 Genomes LD panel (\code{ANCESTRY.bim} + \code{ANCESTRY.frq} under \code{THOUSAND_GENOMES_DIR}).
 #' @param ancestry Ancestry code (EUR, EAS, AFR, AMR, SAS) matching the reference panel prefix; required when \code{populate_eaf} is TRUE.
@@ -59,14 +59,14 @@ standardise_gwas <- function(gwas,
 }
 
 #' change_snp_identifiers: changes the SNP identifiers of a GWAS to the output reference build
-#' @param gwas: filename of gwas to standardise or dataframe of gwas
-#' @param output_file: file to save standardised gwas
-#' @param populate_rsid_option: if you want RSID populated or not
-#' @param input_reference_build: reference build of CHR and BP of data.  Defaults to GRCh37
-#' @param output_reference_build: reference build of CHR and BP of data.  Defaults to GRCh37
-#' @param input_columns: column header map used for renaming GWAS:
+#' @param gwas filename of gwas to standardise or dataframe of gwas
+#' @param output_file file to save standardised gwas
+#' @param populate_rsid_option if you want RSID populated or not
+#' @param input_reference_build reference build of CHR and BP of data.  Defaults to GRCh37
+#' @param output_reference_build reference build of CHR and BP of data.  Defaults to GRCh37
+#' @param input_columns column header map used for renaming GWAS:
 #'   can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values
-#' @param output_columns: column header map used for renaming GWAS:
+#' @param output_columns column header map used for renaming GWAS:
 #'   can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values
 #' @return modified gwas: saves new gwas in {output_file} if present
 #' @import vroom
@@ -117,8 +117,8 @@ change_snp_identifiers <- function(gwas,
 #' harmonise_gwases: takes a list of gwases, get the SNPs in common
 #' across all datasets arranged to be in the same order
 #'
-#' @param: elipses of gwases
-#' @return: list of harmonised gwases
+#' @param ... elipses of gwases
+#' @return list of harmonised gwases
 #' @import dplyr
 #' @export
 harmonise_gwases <- function(...) {
@@ -208,9 +208,10 @@ health_check <- function(gwas) {
 #' change_column_names: private function that takes a named list of column names
 #'  and changes the supplied data frame's column names accordingly
 #'
-#' @param: gwas dataframe of gwas to standardise column names
-#' @param: columns named list for
-#' @param: opposite_mapping logical flag on if we are mapping from key to value or vice verca
+#' @param gwas dataframe of gwas to standardise column names
+#' @param columns named list for
+#' @param remove_extra_columns logical flag on if we are removing extra columns
+#' @return gwas with new column names
 change_column_names <- function(gwas, columns = list(), remove_extra_columns = F) {
   for (name in names(columns)) {
     #this deletes an existing column that we're about to rename, so we don't have 2 columns
@@ -263,7 +264,7 @@ standardise_alleles <- function(gwas, flip = TRUE) {
 #'   calculates the BETA, and SE.
 #'   based on this answer: https://stats.stackexchange.com/a/327684
 #'
-#' @param gwas: dataframe with the following columns: OR, LB (lower bound), UB (upper bound)
+#' @param gwas dataframe with the following columns: OR, LB (lower bound), UB (upper bound)
 #' @return gwas with new columns BETA and SE
 #' @import stats
 #' @export
@@ -280,6 +281,9 @@ convert_or_to_beta <- function(gwas) {
   return(gwas)
 }
 
+#' convert_beta_to_or: Given a BETA and SE, calculates the OR and lower and upper bounds
+#' @param gwas dataframe with the following columns: BETA, SE
+#' @return gwas with new columns OR, OR_LB, OR_UB
 #' @import stats
 #' @export
 convert_beta_to_or <- function(gwas) {
@@ -337,6 +341,9 @@ convert_p_to_negative_log_p <- function(gwas) {
   return(gwas)
 }
 
+#' calculate_f_statistic: calculates the F-statistic from the P-value
+#' @param gwas dataframe with P column
+#' @return gwas with F_STAT column
 #' @import stats
 #' @export
 calculate_f_statistic <- function(gwas) {

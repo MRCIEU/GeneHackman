@@ -1,3 +1,9 @@
+#' forest_plot: produce a forest plot from a GWAS file
+#' @param table dataframe with the following columns: BETA, SE
+#' @param title title of the plot
+#' @param output_file file to save the plot
+#' @param y_column column to use for the y-axis
+#' @return ggplot2 object
 #' @import ggplot2
 #' @import shiny
 #' @export
@@ -27,6 +33,14 @@ forest_plot <- function(table, title, output_file, y_column=NA) {
   ggplot2::ggsave(output_file, limitsize = F)
 }
 
+#' grouped_forest_plot: produce a grouped forest plot from a GWAS file
+#' @param table dataframe with the following columns: BETA, SE
+#' @param title title of the plot
+#' @param group_column column to use for the group
+#' @param output_file file to save the plot
+#' @param p_value_column column to use for the p-value
+#' @param q_stat_column column to use for the Q-statistic
+#' @return ggplot2 object
 #' @import ggplot2
 #' @export
 grouped_forest_plot <- function(table, title, group_column, output_file, p_value_column = NA, q_stat_column = NA) {
@@ -81,9 +95,9 @@ grouped_bar_chart <- function(data, title, x_column, y_column, group_column, out
 
 #' manhattan_and_qq: produce manhattan and qq plot from a GWAS file
 #'
-#' @param gwas_filename: a file of a gwas that includes CHR, CP, P, and SNP
-#' @param name: name of plots to be saved (and named as a header in graph)
-#' @param save_dir: defaults to 'scratch/results'
+#' @param gwas_filename file of a gwas that includes CHR, CP, P, and SNP
+#' @param name name of plots to be saved (and named as a header in graph)
+#' @param save_dir defaults to 'scratch/results'
 #' @return 2 plots: one manhattan plot and one QQ plot (with lambda included)
 #' @import grDevices
 #' @import qqman
@@ -112,9 +126,9 @@ manhattan_and_qq <- function(gwas_filename, manhattan_filename, qq_filename, inc
 
 #' miami_plot: produce miami plot of GWAS data from two gwases
 #'
-#' @param gwas_dataframe: a dataframe that includes CHR, CP, P, and SNP
-#' @param name: name of plots to be saved (and named as a header in graph)
-#' @param save_dir: defaults to 'scratch/results'
+#' @param gwas_dataframe a dataframe that includes CHR, CP, P, and SNP
+#' @param name name of plots to be saved (and named as a header in graph)
+#' @param save_dir defaults to 'scratch/results'
 #' @import grDevices
 #' @import qqman
 #' @import graphics
@@ -180,6 +194,14 @@ miami_plot <- function(first_gwas_filename,
   grDevices::dev.off()
 }
 
+#' volcano_plot: produce a volcano plot from a GWAS file
+#' @param results_file file to save the plot
+#' @param title title of the plot
+#' @param label column to use for the label (default "EXPOSURE")
+#' @param num_labels number of labels to include in the plot (default 30)
+#' @param output_file file to save the plot
+#' @param p_val column to use for the p-value (default "p.adjusted")
+#' @return ggplot2 object
 #' @import ggplot2
 #' @import ggrepel
 #' @export

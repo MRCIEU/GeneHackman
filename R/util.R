@@ -1,10 +1,10 @@
 #' get_file_or_dataframe: function that takes either dataframe OR file name, and returns a subset of
 #'   columns, rows, or both.
 #'   accepted input file types: txt, csv, tsv, zip, gz
-#' @param input: either data frame or string input of file
-#' @param columns: vector of strings matching column names to filter columns
-#' @param snps: vector of SNP names matching SNPs to filter rows
-#' @return output: data frame of GWAS
+#' @param input either data frame or string input of file
+#' @param columns vector of strings matching column names to filter columns
+#' @param snps vector of SNP names matching SNPs to filter rows
+#' @return output data frame of GWAS
 #' @import dplyr
 #' @import vroom
 #' @export
@@ -43,6 +43,9 @@ filter_gwas_by_clumped_results <- function(gwas, clumped_results) {
 
 #' vroom_snps: If you only need to get a handful of SNPs out of a whole GWAS, this saves time and memory
 #' NOTE: only works with data that has been standardised, through `standardise_gwas`, or at least a tsv
+#' @param gwas_file file of gwas to get SNPs from
+#' @param snps vector of SNP names to get
+#' @return dataframe of SNPs
 #' @import vroom
 #' @export
 vroom_snps <- function(gwas_file, snps=c()){
@@ -62,6 +65,12 @@ vroom_snps <- function(gwas_file, snps=c()){
   return(snps_in_gwas)
 }
 
+#' gwas_region: filter a GWAS file to a region
+#' @param gwas dataframe with the following columns: CHR, BP
+#' @param chr chromosome
+#' @param bp base pair position
+#' @param range range to filter in base pairs
+#' @return gwas with filtered rows
 #' @import dplyr
 #' @export
 gwas_region <- function(gwas, chr, bp, range = 500000) {

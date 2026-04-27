@@ -21,6 +21,25 @@ conduct_collider_bias_analysis(
   p_value_thresholds = thresholds
 )
 }
+\arguments{
+\item{incidence_gwas}{incidence GWAS}
+
+\item{subsequent_gwas}{subsequent GWAS}
+
+\item{clumped_snps_file}{clumped SNP list to run collider bias corrections against}
+
+\item{adjustment_type}{adjustment type to save the adjusted GWAS}
+
+\item{adjustment_pval}{adjustment pval to save the adjusted GWAS}
+
+\item{collider_bias_results_file}{file to save the collider bias results}
+
+\item{harmonised_effects_result_file}{file to save the harmonised effects}
+
+\item{adjusted_output_file}{file to save the adjusted GWAS}
+
+\item{p_value_thresholds}{p value thresholds to run corrections}
+}
 \value{
 2 plots: one manhattan plot and one QQ plot (with lambda included)
 }

@@ -15,11 +15,11 @@ miami_plot(
 )
 }
 \arguments{
-\item{gwas_dataframe:}{a dataframe that includes CHR, CP, P, and SNP}
+\item{gwas_dataframe}{a dataframe that includes CHR, CP, P, and SNP}
 
-\item{name:}{name of plots to be saved (and named as a header in graph)}
+\item{name}{name of plots to be saved (and named as a header in graph)}
 
-\item{save_dir:}{defaults to 'scratch/results'}
+\item{save_dir}{defaults to 'scratch/results'}
 }
 \description{
 miami_plot: produce miami plot of GWAS data from two gwases

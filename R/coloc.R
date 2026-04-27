@@ -1,4 +1,13 @@
-#'
+#' run_coloc_on_list_of_datasets: run coloc on a list of datasets
+#' @param first_gwas_list list of first GWAS files
+#' @param second_gwas_list list of second GWAS files
+#' @param exposure_name_list list of exposure names
+#' @param chr_list list of chromosomes
+#' @param bp_list list of base pair positions
+#' @param range range to filter in base pairs
+#' @param default_n default sample size
+#' @param output_file file to save the results
+#' @return tibble of coloc results
 #' @import dplyr
 #' @import vroom
 #' @import tibble
@@ -342,8 +351,8 @@ parse_bf_bf_result <- function(result, exposure_name, locus_name, n_snps) {
 }
 
 #' run_coloc_analysis takes two already harmonised gwases, and runs coloc on the results
-#' @param first_gwas: first gwas to be run through coloc.  This is the gwas that results will be based off
-#' @param second_gwas: second gwas to be run through coloc
+#' @param first_gwas first gwas to be run through coloc.  This is the gwas that results will be based off
+#' @param second_gwas second gwas to be run through coloc
 #' @returns tibble of coloc results (h0 - h4)
 #' @import coloc
 #' @import tibble

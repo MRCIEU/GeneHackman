@@ -8,10 +8,10 @@ across all datasets arranged to be in the same order}
 harmonise_gwases(...)
 }
 \arguments{
-\item{:}{elipses of gwases}
+\item{...}{elipses of gwases}
 }
 \value{
-: list of harmonised gwases
+list of harmonised gwases
 }
 \description{
 harmonise_gwases: takes a list of gwases, get the SNPs in common

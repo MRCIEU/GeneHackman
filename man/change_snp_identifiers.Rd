@@ -14,20 +14,20 @@ change_snp_identifiers(
 )
 }
 \arguments{
-\item{gwas:}{filename of gwas to standardise or dataframe of gwas}
+\item{gwas}{filename of gwas to standardise or dataframe of gwas}
 
-\item{output_file:}{file to save standardised gwas}
+\item{output_file}{file to save standardised gwas}
 
-\item{populate_rsid_option:}{if you want RSID populated or not}
+\item{populate_rsid_option}{if you want RSID populated or not}
 
-\item{input_reference_build:}{reference build of CHR and BP of data.  Defaults to GRCh37}
+\item{input_reference_build}{reference build of CHR and BP of data.  Defaults to GRCh37}
 
-\item{output_reference_build:}{reference build of CHR and BP of data.  Defaults to GRCh37}
+\item{output_reference_build}{reference build of CHR and BP of data.  Defaults to GRCh37}
 
-\item{input_columns:}{column header map used for renaming GWAS:
+\item{input_columns}{column header map used for renaming GWAS:
 can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values}
 
-\item{output_columns:}{column header map used for renaming GWAS:
+\item{output_columns}{column header map used for renaming GWAS:
 can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values}
 }
 \value{

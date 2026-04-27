@@ -20,30 +20,30 @@ standardise_gwas(
 )
 }
 \arguments{
+\item{gwas}{filename of gwas to standardise or dataframe of gwas}
+
+\item{output_file}{file to save standardised gwas}
+
+\item{N}{sample size of GWAS (if GWAS has defined N column, defaults to that value)}
+
+\item{populate_rsid_option}{if you want RSID populated or not}
+
+\item{input_reference_build}{reference build of CHR and BP of data.  Defaults to GRCh37}
+
+\item{output_reference_build}{reference build of CHR and BP of data.  Defaults to GRCh37}
+
+\item{input_columns}{column header map used for renaming GWAS:
+can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values}
+
+\item{output_columns}{column header map used for renaming GWAS:
+can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values}
+
 \item{populate_eaf}{If TRUE, fill missing \code{EAF} from the 1000 Genomes LD panel (\code{ANCESTRY.bim} + \code{ANCESTRY.frq} under \code{THOUSAND_GENOMES_DIR}).}
 
 \item{ancestry}{Ancestry code (EUR, EAS, AFR, AMR, SAS) matching the reference panel prefix; required when \code{populate_eaf} is TRUE.}
 
 \item{flip_alleles}{If TRUE (default), reorder EA/OA alphabetically and flip BETA, EAF, Z accordingly.
 Set to FALSE to keep alleles as-is (useful when you only need to populate RSIDs, EAF, or change build).}
-
-\item{gwas:}{filename of gwas to standardise or dataframe of gwas}
-
-\item{output_file:}{file to save standardised gwas}
-
-\item{N:}{sample size of GWAS (if GWAS has defined N column, defaults to that value)}
-
-\item{populate_rsid_option:}{if you want RSID populated or not}
-
-\item{input_reference_build:}{reference build of CHR and BP of data.  Defaults to GRCh37}
-
-\item{output_reference_build:}{reference build of CHR and BP of data.  Defaults to GRCh37}
-
-\item{input_columns:}{column header map used for renaming GWAS:
-can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values}
-
-\item{output_columns:}{column header map used for renaming GWAS:
-can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values}
 }
 \value{
 modified gwas: saves new gwas in {output_file} if present

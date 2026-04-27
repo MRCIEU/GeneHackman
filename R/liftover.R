@@ -7,10 +7,10 @@ available_liftover_conversions[[paste0(reference_builds$GRCh37, reference_builds
 
 #' convert_reference_build_via_liftover: Change reference build of BP marker from allow list of liftOver conversions
 #'
-#' @param gwas: GWAS (file or dataframe) of standardised GWAS
-#' @param input_reference_build: string reference build, found in reference_builds list
-#' @param output_reference_build: string reference build that GWAS is to change to, found in reference_builds list
-#' @param output_file: optional output file name to save to
+#' @param gwas GWAS (file or dataframe) of standardised GWAS
+#' @param input_reference_build string reference build, found in reference_builds list
+#' @param output_reference_build string reference build that GWAS is to change to, found in reference_builds list
+#' @param output_file optional output file name to save to
 #' @return gwas input is altered and returned
 #' @export
 convert_reference_build_via_liftover <- function(gwas,

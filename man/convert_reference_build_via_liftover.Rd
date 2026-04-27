@@ -12,13 +12,13 @@ convert_reference_build_via_liftover(
 )
 }
 \arguments{
-\item{gwas:}{GWAS (file or dataframe) of standardised GWAS}
+\item{gwas}{GWAS (file or dataframe) of standardised GWAS}
 
-\item{input_reference_build:}{string reference build, found in reference_builds list}
+\item{input_reference_build}{string reference build, found in reference_builds list}
 
-\item{output_reference_build:}{string reference build that GWAS is to change to, found in reference_builds list}
+\item{output_reference_build}{string reference build that GWAS is to change to, found in reference_builds list}
 
-\item{output_file:}{optional output file name to save to}
+\item{output_file}{optional output file name to save to}
 }
 \value{
 gwas input is altered and returned

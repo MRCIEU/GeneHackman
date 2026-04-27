@@ -1,10 +1,10 @@
 #' compare_replication_across_all_gwas_permutations
 #' @description takes a vector of gwasse and associated clumps, then runs the expected vs. observed algorithm
 #'
-#' @param gwas_filenames: list of filenames of gwases
-#' @param clumped_filenames: list of clumped list filesnames genetred from gwas, in same order as gwases
-#' @param result_output_file: data frame of all results of gwas comparisons concatenated
-#' @param variants_output_file: data frame of every SNP comparison from clumped list concatenated
+#' @param gwas_filenames list of filenames of gwases
+#' @param clumped_filenames list of clumped list filesnames genetred from gwas, in same order as gwases
+#' @param result_output_file data frame of all results of gwas comparisons concatenated
+#' @param variants_output_file data frame of every SNP comparison from clumped list concatenated
 #' @import vroom
 compare_replication_across_all_gwas_permutations <- function(gwas_filenames = c(),
                                                              clumped_filenames = c(),
@@ -186,6 +186,7 @@ plot_snps_with_heterogeneity <- function(gwases_by_ancestry, heterogeneity_resut
 #'  this can be interpreted as asking for each SNP is a particular giving an outlier estimate.
 #'
 #' @param gwases_by_ancestry Named list of data frames, one for each population, with at least bhat, se and snp columns
+#' @param heterogeneity_score_file file to save the heterogeneity scores
 #'
 #' @return List
 #' - Q = vector of p-values for Cochrane's Q statistic for each SNP

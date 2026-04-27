@@ -9,7 +9,7 @@ based on this answer: https://stats.stackexchange.com/a/327684}
 convert_or_to_beta(gwas)
 }
 \arguments{
-\item{gwas:}{dataframe with the following columns: OR, LB (lower bound), UB (upper bound)}
+\item{gwas}{dataframe with the following columns: OR, LB (lower bound), UB (upper bound)}
 }
 \value{
 gwas with new columns BETA and SE

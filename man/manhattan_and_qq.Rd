@@ -12,11 +12,11 @@ manhattan_and_qq(
 )
 }
 \arguments{
-\item{gwas_filename:}{a file of a gwas that includes CHR, CP, P, and SNP}
+\item{gwas_filename}{file of a gwas that includes CHR, CP, P, and SNP}
 
-\item{name:}{name of plots to be saved (and named as a header in graph)}
+\item{name}{name of plots to be saved (and named as a header in graph)}
 
-\item{save_dir:}{defaults to 'scratch/results'}
+\item{save_dir}{defaults to 'scratch/results'}
 }
 \value{
 2 plots: one manhattan plot and one QQ plot (with lambda included)

@@ -8,6 +8,8 @@ calculate_heterogeneity_scores(gwases_by_ancestry, heterogeneity_score_file)
 }
 \arguments{
 \item{gwases_by_ancestry}{Named list of data frames, one for each population, with at least bhat, se and snp columns}
+
+\item{heterogeneity_score_file}{file to save the heterogeneity scores}
 }
 \value{
 List
