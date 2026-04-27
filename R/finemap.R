@@ -97,6 +97,9 @@ finemap_gwas <- function(gwas,
 
     z_scores <- locus_gwas$BETA / locus_gwas$SE
     n <- `if`("N" %in% colnames(locus_gwas) && !is.na(as.numeric(locus_gwas$N[1])), as.numeric(locus_gwas$N[1]), default_n)
+    if (is.na(n)) {
+      stop("Fine-mapping requires GWAS sample size")
+    }
 
     locus_lbf <- run_susie_for_locus(
       z_scores = z_scores,
@@ -127,7 +130,10 @@ finemap_gwas <- function(gwas,
     )
     out_gwas <- dplyr::left_join(out_gwas, finemap_join, by = "RSID")
 
-    lead_chr_bp <- paste0(lead_chr, "_", lead_bp)
+    lead_chr_bp <- paste0(
+      lead_chr, "_",
+      format(as.numeric(lead_bp), scientific = FALSE, trim = TRUE, digits = 20)
+    )
     safe_locus <- gsub("[^A-Za-z0-9._-]+", "_", lead_chr_bp)
     out_file <- file.path(output_finemap_dir, paste0(safe_locus, "_finemap.tsv.gz"))
     vroom::vroom_write(out_gwas, out_file)
@@ -208,6 +214,15 @@ compute_ld_matrix <- function(rsids, chr, ancestry) {
 }
 
 
+#' Wrapper so tests can mock SuSiE with \code{testthat::local_mocked_bindings()}.
+#' @keywords internal
+run_susie_rss_impl <- function(z, R, n, L, coverage, min_abs_corr, verbose = FALSE) {
+  susieR::susie_rss(
+    z = z, R = R, n = n, L = L, coverage = coverage, min_abs_corr = min_abs_corr, verbose = verbose
+  )
+}
+
+
 #' Build per-credible-set LBF columns (\code{LBF_1}, \code{LBF_2}, ...) from a SuSiE fit.
 #' @keywords internal
 susie_lbf_columns <- function(fitted, p) {
@@ -258,7 +273,7 @@ run_susie_for_locus <- function(z_scores, ld_matrix, snp_info, n, lead_snp,
 
   p <- length(z_scores)
   fitted <- tryCatch(
-    susieR::susie_rss(
+    run_susie_rss_impl(
       z = z_scores,
       R = ld_matrix,
       n = n,

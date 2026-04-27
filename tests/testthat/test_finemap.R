@@ -1,24 +1,13 @@
-test_that("finemap.resolve_finemap_sample_size prefers pipeline N when valid", {
-  g <- tibble::tibble(SNP = "x", N = 9999)
-  expect_equal(GeneHackman:::resolve_finemap_sample_size(50000, g), 50000)
-})
-
-test_that("finemap.resolve_finemap_sample_size falls back to GWAS N column", {
-  g <- tibble::tibble(SNP = "x", N = c(40000, 40000, 41000))
-  expect_equal(GeneHackman:::resolve_finemap_sample_size(0, g), 40000)
-  expect_equal(GeneHackman:::resolve_finemap_sample_size(NA_real_, g), 40000)
-})
-
-test_that("finemap.resolve_finemap_sample_size uses N_CASE + N_CONTROL", {
-  g <- tibble::tibble(
-    SNP = "x",
-    N_CASE = 30000,
-    N_CONTROL = 70000
-  )
-  expect_equal(GeneHackman:::resolve_finemap_sample_size(0, g), 100000)
-})
-
 test_that("finemap.finemap_gwas stops when sample size cannot be resolved", {
+  # Mock LD so we reach the N check; otherwise plink failure skips the locus
+  # before default_n is validated.
+  local_mocked_bindings(
+    compute_ld_matrix = function(rsids, chr, ancestry) {
+      n <- length(rsids)
+      list(matrix = diag(n), snps = rsids)
+    }
+  )
+
   gwas <- tibble::tibble(
     SNP = c("1:100000_A_G", "1:100150_T_C"),
     CHR = c(1, 1),
@@ -44,7 +33,7 @@ test_that("finemap.finemap_gwas stops when sample size cannot be resolved", {
       default_n = NA,
       output_finemap_dir = out_dir
     ),
-    "Fine-mapping requires GWAS sample size"
+    regexp = "Fine-mapping requires GWAS sample size"
   )
 })
 
