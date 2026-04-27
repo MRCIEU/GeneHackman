@@ -66,8 +66,8 @@ convert_reference_build_via_liftover <- function(gwas,
   return(gwas)
 }
 
-#' @import tibble
-#' @import vroom
+
+
 create_bed_file_from_gwas <- function(gwas, output_file) {
   gwas <- get_file_or_dataframe(gwas)
 

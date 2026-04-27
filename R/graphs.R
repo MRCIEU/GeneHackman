@@ -4,8 +4,8 @@
 #' @param output_file file to save the plot
 #' @param y_column column to use for the y-axis
 #' @return ggplot2 object
-#' @import ggplot2
-#' @import shiny
+
+
 #' @export
 forest_plot <- function(table, title, output_file, y_column=NA) {
   if (!all(c("BETA", "SE") %in% names(table))) {
@@ -41,7 +41,7 @@ forest_plot <- function(table, title, output_file, y_column=NA) {
 #' @param p_value_column column to use for the p-value
 #' @param q_stat_column column to use for the Q-statistic
 #' @return ggplot2 object
-#' @import ggplot2
+
 #' @export
 grouped_forest_plot <- function(table, title, group_column, output_file, p_value_column = NA, q_stat_column = NA) {
   if (!("BETA" %in% names(table)) || !("SE" %in% names(table))) {
@@ -80,7 +80,7 @@ grouped_forest_plot <- function(table, title, group_column, output_file, p_value
   ggplot2::ggsave(output_file, width = 2000, units = "px", height = forest_plot_height)
 }
 
-#' @import ggplot2
+
 grouped_bar_chart <- function(data, title, x_column, y_column, group_column, output_file) {
   ggplot2::ggplot(data, ggplot2::aes(x = .data[[x_column]], y = .data[[y_column]], fill = .data[[group_column]])) +
     ggplot2::ggtitle(title) +
@@ -100,9 +100,9 @@ grouped_bar_chart <- function(data, title, x_column, y_column, group_column, out
 #' @param qq_filename file to save the qq plot
 #' @param include_qq logical flag on if to include the qq plot
 #' @return 2 plots: one manhattan plot and one QQ plot (with lambda included)
-#' @import grDevices
-#' @import qqman
-#' @import graphics
+
+
+
 #' @export
 manhattan_and_qq <- function(gwas_filename, manhattan_filename, qq_filename, include_qq = T) {
   manhattan_columns <- c("SNP", "CHR", "BP", "P")
@@ -134,9 +134,9 @@ manhattan_and_qq <- function(gwas_filename, manhattan_filename, qq_filename, inc
 #' @param chr chromosome to perform miami plot on
 #' @param bp base pair position to perform miami plot on
 #' @param range range to filter in base pairs
-#' @import grDevices
-#' @import qqman
-#' @import graphics
+
+
+
 #' @export
 miami_plot <- function(first_gwas_filename,
                        second_gwas_filename,
@@ -207,8 +207,8 @@ miami_plot <- function(first_gwas_filename,
 #' @param output_file file to save the plot
 #' @param p_val column to use for the p-value (default "p.adjusted")
 #' @return ggplot2 object
-#' @import ggplot2
-#' @import ggrepel
+
+
 #' @export
 volcano_plot <- function(results_file, title="Volcano Plot of Results", label="EXPOSURE", num_labels=30, output_file, p_val="p.adjusted")  {
   table <- get_file_or_dataframe(results_file)
@@ -243,7 +243,7 @@ volcano_plot <- function(results_file, title="Volcano Plot of Results", label="E
   ggplot2::ggsave(output_file)
 }
 
-#' @import ggplot2
+
 plot_heritability_contribution_per_ancestry <- function(heterogeneity_results_qj, output_file) {
   graph_width <- max(1000, nrow(heterogeneity_results_qj) * 100)
   plot <- tidyr::gather(as.data.frame(heterogeneity_results_qj), "key", "value", -SNP)

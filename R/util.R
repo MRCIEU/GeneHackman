@@ -5,8 +5,8 @@
 #' @param columns vector of strings matching column names to filter columns
 #' @param snps vector of SNP names matching SNPs to filter rows
 #' @return output data frame of GWAS
-#' @import dplyr
-#' @import vroom
+
+
 #' @export
 get_file_or_dataframe <- function(input, columns=NULL, snps=NULL) {
   if (is.data.frame(input)) {
@@ -31,8 +31,8 @@ get_file_or_dataframe <- function(input, columns=NULL, snps=NULL) {
   }
   return(output)
 }
-#' @import data.table
-#' @import dplyr
+
+
 filter_gwas_by_clumped_results <- function(gwas, clumped_results) {
   #vroom has trouble reading plink --clump output, so using fread
   rsids <- data.table::fread(clumped_results, select = "SNP")$SNP
@@ -46,7 +46,7 @@ filter_gwas_by_clumped_results <- function(gwas, clumped_results) {
 #' @param gwas_file file of gwas to get SNPs from
 #' @param snps vector of SNP names to get
 #' @return dataframe of SNPs
-#' @import vroom
+
 #' @export
 vroom_snps <- function(gwas_file, snps=c()){
   snps <- paste(snps, collapse="\t|")
@@ -71,7 +71,7 @@ vroom_snps <- function(gwas_file, snps=c()){
 #' @param bp base pair position
 #' @param range range to filter in base pairs
 #' @return gwas with filtered rows
-#' @import dplyr
+
 #' @export
 gwas_region <- function(gwas, chr, bp, range = 500000) {
   return(dplyr::filter(gwas, CHR == chr &BP > (bp - floor(range/2)) & BP < (bp + floor(range/2))))
@@ -105,7 +105,7 @@ file_prefix <- function(file_path) {
   return(file_prefix)
 }
 
-#' @import stringr
+
 create_dir_for_files <- function(...) {
   filenames <- list(...)
 
@@ -120,9 +120,9 @@ map_rsid_list_to_snps <- function(gwas, rsids=c()) {
   return(gwas$SNP)
 }
 
-#' @import rmarkdown
-#' @import httr
-#' @import prettydoc
+
+
+
 create_html_from_rmd <- function(rmd_file, params = list(), output_file) {
   temp_file <- tempfile(fileext = ".Rmd", tmpdir = "/tmp")
   file.copy(rmd_file, temp_file, overwrite = TRUE)

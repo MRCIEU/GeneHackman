@@ -1,8 +1,8 @@
 #' populate_gene_names: populate the gene names from the ENSEMBL_ID column
 #' @param gwas dataframe with the following columns: ENSEMBL_ID
 #' @return gwas with new column GENE_NAME
-#' @import vroom
-#' @import dplyr
+
+
 #' @export
 populate_gene_names <- function(gwas) {
   if ("ENSEMBL_ID" %in% colnames(gwas) && !"GENE_NAME" %in% colnames(gwas)) {
@@ -134,8 +134,8 @@ populate_eaf_from_reference_panel <- function(gwas, ancestry, enabled = FALSE) {
 #' @param gwas dataframe with the following columns: SNP
 #' @param option option to populate the RSID column
 #' @return gwas with new column RSID
-#' @import vroom
-#' @import dplyr
+
+
 #' @export
 populate_rsid <- function(gwas, option = populate_rsid_options$none) {
   gc()
@@ -165,9 +165,9 @@ populate_partial_rsids <- function(gwas) {
   return(gwas)
 }
 
-#' @import data.table
-#' @import tibble
-#' @import future
+
+
+
 populate_full_rsids <- function(gwas) {
   build <- rsid_builds$GRCh37
   dbsnp_dir <- file.path(genomic_data_dir, "dbsnp")

@@ -15,8 +15,8 @@
 #' @param flip_alleles If TRUE (default), reorder EA/OA alphabetically and flip BETA, EAF, Z accordingly.
 #'   Set to FALSE to keep alleles as-is (useful when you only need to populate RSIDs, EAF, or change build).
 #' @return modified gwas: saves new gwas in output_file if present
-#' @import vroom
-#' @import shiny
+
+
 #' @export
 standardise_gwas <- function(gwas,
                              output_file,
@@ -68,7 +68,7 @@ standardise_gwas <- function(gwas,
 #' @param input_columns column header map used for renaming GWAS:
 #'   can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values
 #' @return modified gwas: saves new gwas in output_file if present
-#' @import vroom
+
 #' @export
 change_snp_identifiers <- function(gwas,
                                    output_file,
@@ -118,7 +118,7 @@ change_snp_identifiers <- function(gwas,
 #'
 #' @param ... elipses of gwases
 #' @return list of harmonised gwases
-#' @import dplyr
+
 #' @export
 harmonise_gwases <- function(...) {
   gwases <- list(...)
@@ -150,7 +150,7 @@ filter_incomplete_rows <- function(gwas) {
   return(filtered_gwas)
 }
 
-#' @import tidyr
+
 standardise_columns <- function(gwas, N) {
   gwas_columns <- colnames(gwas)
 
@@ -233,7 +233,7 @@ change_column_names <- function(gwas, columns = list(), remove_extra_columns = F
 #' @param flip If TRUE (default), reorder EA/OA into alphabetical order and flip
 #'   BETA, EAF, and Z to match.  When FALSE, alleles are uppercased and the SNP
 #'   column is rebuilt, but allele order (and effect direction) is left as-is.
-#' @import dplyr
+
 #' @keywords internal
 standardise_alleles <- function(gwas, flip = TRUE) {
   gwas$EA <- toupper(gwas$EA)
@@ -266,7 +266,7 @@ standardise_alleles <- function(gwas, flip = TRUE) {
 #'
 #' @param gwas dataframe with the following columns: OR, LB (lower bound), UB (upper bound)
 #' @return gwas with new columns BETA and SE
-#' @import stats
+
 #' @export
 convert_or_to_beta <- function(gwas) {
   gwas <- get_file_or_dataframe(gwas)
@@ -284,7 +284,7 @@ convert_or_to_beta <- function(gwas) {
 #' convert_beta_to_or: Given a BETA and SE, calculates the OR and lower and upper bounds
 #' @param gwas dataframe with the following columns: BETA, SE
 #' @return gwas with new columns OR, OR_LB, OR_UB
-#' @import stats
+
 #' @export
 convert_beta_to_or <- function(gwas) {
   gwas <- get_file_or_dataframe(gwas)
@@ -319,7 +319,7 @@ convert_z_score_to_beta <- function(gwas, sample_size) {
 
 
 
-#' @import stats
+
 convert_z_to_p <- function(gwas) {
   gwas$P <- 2 * pnorm(-abs(gwas$Z))
   return(gwas)
@@ -344,14 +344,14 @@ convert_p_to_negative_log_p <- function(gwas) {
 #' calculate_f_statistic: calculates the F-statistic from the P-value
 #' @param gwas dataframe with P column
 #' @return gwas with F_STAT column
-#' @import stats
+
 #' @export
 calculate_f_statistic <- function(gwas) {
   gwas$F_STAT <- stats::qchisq(gwas$P, 1, low=F)
   return(gwas)
 }
 
-#' @import stats
+
 calculate_lambda_statistic <- function(gwas) {
   lambda <- median(stats::qchisq(1 - gwas$P, 1)) / stats::qchisq(0.5, 1)
   return(lambda)

@@ -13,9 +13,9 @@
 #' @param p12 prior probability a SNP is associated with both traits
 #' @param output_file path to write the combined coloc results TSV
 #' @return tibble of coloc results for every overlapping signal pair
-#' @import dplyr
-#' @import vroom
-#' @import tibble
+
+
+
 #' @export
 run_bf_bf_coloc <- function(finemap_dirs,
                             overlap_kb = 1000,

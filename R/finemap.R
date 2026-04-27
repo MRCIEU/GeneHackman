@@ -17,10 +17,10 @@
 #' @param coverage credible set coverage (default 0.95)
 #' @param min_abs_corr minimum absolute correlation for credible sets (default 0.5)
 #' @return invisibly, the combined per-SNP finemap tibble (LD-matched SNPs only)
-#' @import data.table
-#' @import dplyr
-#' @import vroom
-#' @import tibble
+
+
+
+
 #' @export
 finemap_gwas <- function(gwas,
                          clumped_file,

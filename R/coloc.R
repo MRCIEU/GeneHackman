@@ -8,9 +8,9 @@
 #' @param default_n default sample size
 #' @param output_file file to save the results
 #' @return tibble of coloc results
-#' @import dplyr
-#' @import vroom
-#' @import tibble
+
+
+
 #' @export
 run_coloc_on_list_of_datasets <- function(first_gwas_list=list(),
                                           second_gwas_list=list(),
@@ -60,10 +60,10 @@ run_coloc_on_list_of_datasets <- function(first_gwas_list=list(),
 #' @param exposures optional character vector of exposures to filter
 #' @param default_n default sample size for QTL data
 #' @param output_file output file path
-#' @import dplyr
-#' @import tidyr
-#' @import vroom
-#' @import utils
+
+
+
+
 #' @export
 run_coloc_on_qtl_mr_results <- function(mr_results_file,
                                         finemap_dir,
@@ -163,9 +163,9 @@ load_qtl_gwas_for_mr_result <- function(mr_result, qtl_dataset) {
 #' @param default_n default sample size
 #' @param range_bp overlap window in bp (default 1e6 = ±1Mb)
 #' @return tibble with coloc results or NULL
-#' @import coloc
-#' @import dplyr
-#' @import tibble
+
+
+
 #' @export
 coloc_bf_bf_qtl_analysis <- function(finemap_dir,
                                      qtl_gwas,
@@ -359,8 +359,8 @@ parse_bf_bf_result <- function(result, exposure_name, locus_name, n_snps) {
 #' @param range range to filter in base pairs
 #' @param default_n default sample size
 #' @return tibble of coloc results (h0 - h4)
-#' @import coloc
-#' @import tibble
+
+
 #' @export
 coloc_analysis <- function(first_gwas, second_gwas, exposure_name, chr=NA, bp=NA, range=NA, default_n=NA) {
   numeric_columns <- c("P", "SE", "EAF")

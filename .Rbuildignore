@@ -14,5 +14,6 @@ venv
 .cache
 ^\.github$
 ^\.lintr$
+^PLATFORM_SETUP\.md$
 ^\.git$
 ^\.gitignore$

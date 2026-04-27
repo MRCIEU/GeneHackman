@@ -30,12 +30,12 @@ collider_bias_results <- data.frame(
 #' @param adjusted_output_file file to save the adjusted GWAS
 #' @param p_value_thresholds p value thresholds to run corrections
 #' @return 2 plots: one manhattan plot and one QQ plot (with lambda included)
-#' @import dplyr
-#' @import SlopeHunter
-#' @import TwoSampleMR
-#' @import MendelianRandomization
-#' @import data.table
-#' @import vroom
+
+
+
+
+
+
 #' @export
 conduct_collider_bias_analysis <- function(incidence_gwas,
                                            subsequent_gwas,
@@ -254,10 +254,10 @@ conduct_collider_bias_analysis <- function(incidence_gwas,
 #' @param beta number, slope of the correction
 #' @param se number, SE of the corrected slope
 #' @param output_file name of file that the corrected GWAS will be saved to
-#' @import dplyr
-#' @import vroom
-#' @import stats
-#' @import R.utils
+
+
+
+
 #'
 adjust_gwas_data_from_weights_and_save <- function(gwas,
                                                    harmonised_effects,
