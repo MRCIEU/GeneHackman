@@ -1,5 +1,7 @@
 # GeneHackman 
 
+![CI Tests](https://github.com/MRCIEU/GeneHackman/actions/workflows/main.yml/badge.svg)
+
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10624713.svg)](https://doi.org/10.5281/zenodo.10624713)
 
 A pipeline for performing common genetic epidemiology tasks at the University of Bristol.
@@ -11,16 +13,27 @@ Goals:
 
 ## Available Pipelines
 
-Here is a list of available pipelines, and the steps they run
+There are **six** Snakemake pipelines (grouped as two tables of three). Each pipeline is a `.smk` file under `snakemake/`; see [PIPELINES.md](snakemake/PIPELINES.md) for JSON inputs and parameters.
 
-| standardise_gwas.smk                                    | compare_gwases.smk                     | disease_progression.smk                               | qtl_mr.smk                                      |
-|---------------------------------------------------------|----------------------------------------|-------------------------------------------------------|-------------------------------------------------|
-| Takes in any of: vcf, csv, tsv, txt (and zip, gz)       | All steps in 'standardise_gwas.smk'    | All steps in 'standardise_gwas.smk'                   | All steps in 'standardise_gwas.smk'             |
-| Convert Reference Build<br/>(GRCh38 -> GRCh37)          | PLINK clumping                         | Runs some collider bias corrections, compares results | Run MR against top hits of specific QTL dataset |
-| Populate RSID from CHR, BP, EA, and OA                  | Calculate heterogeneity between GWASes | Miami Plot of Collider Bias Results                   | Volcano Plot of Results                         |
-| Converts z-scores and OR to BETA                        | LDSC h2 and rg                         | Expected vs. Observed Comparison                      | Run coloc of significant top hit MR results     |
-| Auto-populate GENE ID <-> ENSEMBL ID                    | Expected vs. Observed Comparison       |                                                       |                                                 |
-| Unique SNP = CHR:BP_EA_OA<br/> (EA < OA alphabetically) |                                        |                                                       |                                                 |
+### Pipelines — table 1
+
+| standardise_gwas.smk                                  | compare_gwases.smk                                                        | disease_progression.smk                                               |
+|-------------------------------------------------------|---------------------------------------------------------------------------|----------------------------------------------------------------------|
+| Takes in any of: VCF, CSV, TSV, TXT (also zip/gz)     | Runs **standardise_gwas** for each GWAS, then pairwise comparison tooling | Runs **standardise_gwas** for incident and subsequent GWASes        |
+| Optional liftover (e.g. GRCh38 → GRCh37)              | PLINK clumping                                                           | Runs collider-bias-aware analyses (e.g. SlopeHunter, MR-IVW) and compares results |
+| Optional RSID and EAF fill from reference panels      | Heterogeneity across GWASes; LDSC *h*² and *r*<sub>g</sub>                | Miami plots of unadjusted vs adjusted GWAS                          |
+| Converts z-scores and odds ratios to BETA/SE          | Expected vs observed replication metrics                                 | Expected vs observed (before and after collider adjustment)          |
+| Harmonised SNP ID = `CHR:BP_EA_OA` (EA/OA sorted)     | HTML report of LDSC, plots, and tables                                    | HTML report; optional instructions to refit subsequent GWAS from collider output    |
+| Optional gene ↔ Ensembl mapping                       |                                                                           |                                                                      |
+
+### Pipelines — table 2
+
+| qtl_mr.smk                                                                 | finemap.smk                                                                 | coloc.smk                                                                 |
+|----------------------------------------------------------------------------|----------------------------------------------------------------------------|---------------------------------------------------------------------------|
+| Runs **standardise_gwas**, clumping, and **SuSiE** fine-mapping on one outcome GWAS | Same **standardise** + **clump** + **SuSiE** path for **each** input GWAS (one or more) | Same **standardise** + **clump** + **SuSiE** for **≥2** GWASes (required for colocalization) |
+| Runs Mendelian randomization vs a chosen QTL panel (e.g. eQTLGen, MetaBrain) | Per-locus fine-mapping using summary stats and **ancestry-matched LD** (PLINK reference); outputs credible sets and LBF columns per locus | **Pairwise** `coloc::coloc.bf_bf` on overlapping finemapped signals (same chr, leads within ±`overlap_kb` kb) across all trait pairs |
+| Volcano plot of MR results; **BF–BF coloc** for exposures that pass MR FDR | Finemap-only: no MR or coloc between traits (use when you only need SuSiE outputs) | Full coloc table + **HTML report** (`result_coloc.html`), including a disclaimer when ancestries differ between GWASes |
+| Requires **QTL_DATA_DIR** (see `.env_example`) for QTL files              | Each GWAS must declare **ancestry** (for LD)                                | Configurable `finemap` and `coloc` priors/overlap; see [PIPELINES.md](snakemake/PIPELINES.md) |
 
 ## Onboarding
 

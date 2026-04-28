@@ -33,12 +33,17 @@ finemap_dirs_str = " ".join([g.finemap_dir for g in pipeline.gwases])
 trait_names_str = " ".join(trait_names)
 
 coloc_results = RESULTS_DIR + "coloc/coloc_results.tsv"
+results_file = RESULTS_DIR + "coloc/result_coloc.html"
+
+trait_bar = "|".join(trait_names)
+ancestry_bar = "|".join([g.ancestry for g in pipeline.gwases])
 
 rule all:
     input:
         expand(std_file_pattern, prefix=trait_names),
         expand(finemap_dir_pattern, prefix=trait_names),
-        coloc_results
+        coloc_results,
+        results_file
 
 include: "rules/standardise_rule.smk"
 include: "rules/clumping_rule.smk"
@@ -100,9 +105,35 @@ rule run_coloc:
             --output_file {output.coloc_results}
         """
 
+rmd_report_params = {
+    "coloc_results": coloc_results,
+    "traits_ordered": trait_bar,
+    "ancestries_ordered": ancestry_bar,
+    "overlap_kb": str(coloc_overlap_kb),
+    "p1": str(coloc_p1),
+    "p2": str(coloc_p2),
+    "p12": str(coloc_p12),
+}
+rmd_report_param_string = turn_dict_into_cli_string(rmd_report_params)
+
+rule create_results_file:
+    threads: 4
+    resources:
+        mem = "8G",
+    input:
+        coloc_results
+    output: results_file
+    shell:
+        """
+        Rscript create_results_file.R \
+            --rmd_file /home/R/markdown/coloc.Rmd \
+            --params '{rmd_report_param_string}' \
+            --output_file "{output}"
+        """
+
 onsuccess:
-    files = [g.finemap_dir for g in pipeline.gwases] + [coloc_results]
-    onsuccess(pipeline_name, files, is_test=pipeline.is_test)
+    files = [g.finemap_dir for g in pipeline.gwases] + [coloc_results, results_file]
+    onsuccess(pipeline_name, files, results_file, is_test=pipeline.is_test)
 
 onerror:
     onerror_message(pipeline_name, is_test=pipeline.is_test)

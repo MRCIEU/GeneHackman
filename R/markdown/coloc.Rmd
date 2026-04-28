@@ -1,0 +1,106 @@
+---
+title: "GWAS pairwise colocalization"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+---
+```{r include = FALSE}
+library(vroom)
+
+traits_v <- if (!is.null(params$traits_ordered) && nzchar(as.character(params$traits_ordered))) {
+  unlist(strsplit(as.character(params$traits_ordered), "|", fixed = TRUE))
+} else {
+  character()
+}
+ancestries_v <- if (!is.null(params$ancestries_ordered) && nzchar(as.character(params$ancestries_ordered))) {
+  unlist(strsplit(as.character(params$ancestries_ordered), "|", fixed = TRUE))
+} else {
+  character()
+}
+
+if (length(traits_v) != length(ancestries_v)) {
+  traits_v <- character()
+  ancestries_v <- character()
+}
+
+anc_trim <- ancestries_v[nchar(trimws(ancestries_v)) > 0L]
+uniq_anc <- sort(unique(trimws(anc_trim)))
+cross_ancestry <- length(uniq_anc) > 1L
+
+coloc_exist <- nzchar(as.character(params$coloc_results)) && file.exists(as.character(params$coloc_results))
+coloc_tbl <- if (coloc_exist) {
+  suppressWarnings(vroom::vroom(as.character(params$coloc_results), show_col_types = FALSE))
+} else {
+  NULL
+}
+```
+
+```{r echo = FALSE}
+if (length(traits_v) > 0L && identical(length(traits_v), length(ancestries_v))) {
+  kv <- data.frame(trait_prefix = traits_v, ancestry = ancestries_v, stringsAsFactors = FALSE)
+  knitr::kable(kv, caption = "Input GWAS (standardised → clumped → finemapped)")
+}
+```
+
+### Colocalization priors & overlap
+
+Overlapping finemapped signals were defined within ± **`r params$overlap_kb`** kb (pairs of credible-set leads on the same chromosome with lead positions within this window).
+
+| Setting | Value |
+|---------|-------|
+| `overlap_kb` | `r params$overlap_kb` |
+| `p1` | `r params$p1` |
+| `p2` | `r params$p2` |
+| `p12` | `r params$p12` |
+
+```{r echo = FALSE, results = 'asis'}
+if (cross_ancestry) {
+  ld_phrase <- if (length(uniq_anc) == 2L) {
+    paste0("between ", uniq_anc[1], " and ", uniq_anc[2])
+  } else {
+    paste0("among the populations (", paste(uniq_anc, collapse = ", "), ")")
+  }
+  cat(paste0(
+    "> **Cross-ancestry colocalization detected.**\n>\n>",
+    "> Differences in LD structure ", ld_phrase,
+    " can **result in false-negative colocalization signals** (**H3**; incompatible ",
+    "causal variants in the region — see PP.H3.abf vs PP.H4.abf in the `coloc` output).\n>\n>",
+    "> Fine-mapping / LD reference ancestries used in this run: **",
+    paste(ancestries_v, collapse = "**, **"),
+    "**.\n"
+  ))
+}
+```
+
+```{r echo = FALSE, results = 'asis'}
+if (!cross_ancestry && length(uniq_anc) == 1L) {
+  cat(paste0(
+    '*All GWAS in this pipeline were analysed with ancestry **',
+    uniq_anc[1],
+    '** for LD (clumping / fine-mapping).*\n\n'
+  ))
+}
+```
+
+
+### Colocalization results
+
+Overlapping signals were tested pairwise with `coloc::coloc.bf_bf()` using SuSiE-derived log-Bayes-factor columns from the fine-mapping outputs.
+
+```{r echo = FALSE}
+if (!is.null(coloc_tbl) && nrow(coloc_tbl) > 0L) {
+  knitr::kable(dplyr::arrange(coloc_tbl, dplyr::desc(PP.H4.abf)) |> dplyr::filter(PP.H4.abf > 0.8), caption = "All significant (PP.H4.abf > 0.8) pairwise colocalisation results")
+} else {
+  cat("(No significant pairwise colocalisation rows returned — insufficient overlapping finemap signals across traits.)")
+}
+```
+
+### Additional info
+
+**Please do us a favour and cite this pipeline: https://doi.org/10.5281/zenodo.10624713**
+
+* This pipeline was run using the github repository: https://github.com/MRCIEU/GeneHackman
+* and the docker image: docker://mrcieu/genehackman:`r get_docker_image_tag()`
+* `coloc` R package: https://doi.org/10.1371/journal.pgen.1004383
+* `coloc` guide: https://chr1swallace.github.io/coloc/

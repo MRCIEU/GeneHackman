@@ -278,7 +278,7 @@ def onsuccess(pipeline_name, files_created=list(), results_file=None, is_test=Fa
     if results_file:
         print("\n---------------------")
         print("PLEASE VIEW THIS HTML FILE FOR A SUMMARY OF RESULTS:")
-        print(f"scp {user}@bc4login1.acrc.bris.ac.uk:{results_file} .")
+        print(f"{results_file}.")
         print(f"\n\n\033[1;35;40m Please do us a favour and cite this pipeline: https://doi.org/10.5281/zenodo.10624713 \033[0m\n")
 
     copy_data_to_rdfs(files_created)

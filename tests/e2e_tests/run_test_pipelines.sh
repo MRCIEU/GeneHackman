@@ -7,7 +7,7 @@ set -e
 ./run_pipeline.sh snakemake/finemap.smk tests/testthat/data/snakemake_inputs/finemap.json -F
 ./run_pipeline.sh snakemake/coloc.smk tests/testthat/data/snakemake_inputs/coloc.json -F
 
-if [[ -n "${QTL_DATASETS}" ]]; then
-  ./run_pipeline.sh snakemake/qtl_mr.smk tests/testthat/data/snakemake_inputs/qtl_mr_metabrain.json -F
+if [[ -n "${QTL_DATA_DIR}" ]]; then
+  ./run_pipeline.sh snakemake/qtl_mr.smk tests/testthat/data/snakemake_inputs/qtl_mr_eqtlgen.json -F
 fi
 

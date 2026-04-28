@@ -1,95 +1,169 @@
-# Pipeline Input
+# Pipeline input (`input.json`)
 
-All piplines will require a GWAS object or list of objects, they have the following properties
+All pipelines consume a JSON file (path passed to `./run_pipeline.sh`, or `INPUT_FILE` in `.env`; default `./input.json`). Copy an example from `[input_templates/](input_templates/)`.
 
-### GWAS Object:
-* `file`: Full path to file.  Mandatory
-* `ancestry`: one of `AFR, AMR, EAS, EUR, SAS`.  Mandatory for some pipelines
-* `build`: one of `GRCh36, GRCh37, GRCh38`.  Default: `GRCh37`
-* `columns`: object of column name maps (or string of predefined map).  Explained below
-* `populate_rsid`: boolean value.  Populates RSID column if it doesn't exist. Default `false`
-* `populate_eaf`: boolean value.  When `true`, missing `EAF` is filled from the 1000 Genomes LD reference panel (`<THOUSAND_GENOMES_DIR>/<ancestry>.bim` + `.frq`; generate `.frq` with `plink --bfile <prefix> --freq --out <prefix>`). Only variants with `is.na(EAF)` are updated. Default `false`. **Requires `ancestry` on that GWAS** (same field as `compare_gwases`: `AFR`, `AMR`, `EAS`, `EUR`, `SAS`); there is no default ancestry.
+Paths like `RESULTS_DIR` and `DATA_DIR` resolve from your `.env` file (`DATA_DIR/gwas/`, `RESULTS_DIR/…`).
 
-Pipeline-level `populate_eaf` (under the root JSON object, next to `populate_rsid`) applies to every GWAS unless a GWAS sets its own `populate_eaf`. Each GWAS that ends up with `populate_eaf` enabled must still include its own `"ancestry"` in the JSON.
+See also: [GWAS harmonisation README](../README.md#how-it-works).
 
-**GWAS Columns:**
+---
 
-With each GWAS file, you can specify column names ex. `{"P":"pval", ...}`, if you do not specify header names it will assume your GWAS has default names
+## GWAS objects (`gwases` array)
 
-Default names : `SNP, CHR, BP, EA, OA, EAF, BETA, SE, OR, P, LOG_P, Z, OR_LB, OR_UB, RSID, N, N_CASES, ENSEMBL_ID, GENE_NAME`
+Each element describes one GWAS file.
 
-* Mandatory Columns: `CHR, BP, EA, OA`
-Effect Column Options.  One of these sets are mandatory:
-  * `BETA, SE`
-  * `OR, OR_LB, OR_UB`
-  * `Z`
-* P-value Column: `P or LOG_P`
 
-Alternatively, `columns` accepts a string of some of the more common output formats (ex: `metal`, `gwama`).  There are also a list of [predefined common column maps](../inst/extdata/predefined_column_maps.csv) here.
+| Field                  | Required | Notes                                                                                                                                                                                                                           |
+| ---------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `file`                 | **Yes**  | Absolute path (recommended) or path relative to the working directory from which Snakemake runs.                                                                                                                                |
+| `columns`              | No       | Maps logical names (`CHR`, `BETA`, …) to header names in your file, or a preset string (e.g. `metal`, `gwama`, `opengwas`). Omit to use defaults. See [predefined_column_maps.csv](../inst/extdata/predefined_column_maps.csv). |
+| `N`                    | Varies   | Sample size; **required** for compare_gwases (LDSC). Used where finemapping/coloc need `N`.                                                                                                                                     |
+| `ancestry`             | Varies   | One of `AFR`, `AMR`, `EAS`, `EUR`, `SAS`. **Required** for pipelines that use LD (clumping, finemap, coloc, qtl_mr) and whenever `populate_eaf` is enabled for that GWAS.                                                       |
+| `build`                | No       | `GRCh36`, `GRCh37`, `GRCh38`. Default `GRCh37`.                                                                                                                                                                                 |
+| `populate_rsid`        | No       | Per-GWAS override: `true` / `false`. With clumping and `false` at both levels, RSID population is **partial** (see below).                                                                                                      |
+| `populate_eaf`         | No       | Per-GWAS: if `true`, fills missing `EAF` from the 1000 Genomes reference (`<THOUSAND_GENOMES_DIR>/<ancestry>.bim` + `.frq`). Requires `ancestry`.                                                                               |
+| `flip_alleles`         | No       | If omitted, inherited from root `flip_alleles` (default `true`). If `false`, EA/OA order is preserved (see `standardise_gwas` constraints with partial RSID).                                                                   |
+| `remove_extra_columns` | No       | Default `false`.                                                                                                                                                                                                                |
 
-### standardise_gwas 
 
-All pipelines will standardise each GWAS before running the subsequent steps.  The `SNP` field will be recalculated as `CHR:POS_EA_OA`, where EA and OA are ordered alphabetically, and the subsequent BETA and EAF will be adjusted accordingly. Optional `populate_eaf` (per GWAS or pipeline) runs **after** this harmonisation and joins on `CHR`/`BP` to the reference panel.
+**Effect / P-value columns** (see also top-level `output`):
 
-* `n GWAS objects`: See above for GWAS Object explanation
-* `output`:
-  * `build`: one of the supported reference builds.  Default: `GRCh37`
-  * `columns`: same format as input columns.  Either a object {} or predefined map string
+- Required: `CHR`, `BP`, `EA`, `OA`
+- One of: `BETA`+`SE`, or `OR`+`OR_LB`+`OR_UB`, or `Z`
+- P-value: `P` or `LOG_P`
 
-## disease_progression 
+Default column names: `SNP, CHR, BP, EA, OA, EAF, BETA, SE, OR, P, LOG_P, Z, OR_LB, OR_UB, RSID, N, N_CASES, ENSEMBL_ID, GENE_NAME`.
 
-* `2 GWAS objects`: Incident and Subsequent GWAS.  See above for GWAS Object explanation
-* `plink_clump_arguments`: arguments that are fed into the `plink --clump` call.  [Options here](https://zzz.bwh.harvard.edu/plink/clump.shtml)
-* `output`: 2 fields in `adjusted_gwas`, where `type` can be `slopehunter`, `cwls`, or `mr_ivw`, and `p_val` can be any of `0.1, 0.01, 0.001, 1e-5`
+---
 
-## compare_gwases 
+## Root-level fields (shared)
 
-* `n GWAS objects`: See above for GWAS Object explanation
-  * Please also explicitly include `N` in the GWAS object, for use in the LDSC tool
-* `plink_clump_arguments`: arguments that are fed into the `plink --clump` call.  [Options here](https://zzz.bwh.harvard.edu/plink/clump.shtml)
+These may appear on the **root** JSON object (alongside `gwases`).
 
-## finemap
 
-* `n GWAS objects`: See above for GWAS Object explanation. Each GWAS requires `ancestry`.
-* `plink_clump_arguments`: arguments that are fed into the `plink --clump` call. [Options here](https://zzz.bwh.harvard.edu/plink/clump.shtml)
-* `finemap` (optional):
-  * `window_kb`: half-width of fine-mapping window in kb (default 1000 = ±1 Mb)
-  * `max_causal`: maximum number of causal signals per locus (SuSiE L, default 10)
-  * `coverage`: credible set coverage (default 0.95)
-  * `min_abs_corr`: minimum absolute correlation for credible set purity (default 0.5)
+| Field                          | Default                              | Notes                                                                                                                                                                                        |
+| ------------------------------ | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `is_test`                      | `false`                              | Used by tests / logging.                                                                                                                                                                     |
+| `populate_rsid`                | `false`                              | Pipeline-wide default; each GWAS can override. **Clumping + false** here and on each GWAS ⇒ RSID population is **partial** (chrpos-based) unless you set `populate_rsid: true` where needed. |
+| `populate_eaf`                 | `false`                              | Pipeline-wide default; each GWAS can override. Any GWAS with `populate_eaf: true` must include `ancestry`.                                                                                   |
+| `flip_alleles`                 | `true`                               | Pipeline-wide default for `standardise_gwas`.                                                                                                                                                |
+| `output`                       | `build: GRCh37` + default column map | Only `standardise_gwas` / harmonisation: target `build` and/or output column names.                                                                                                          |
+| `finemap`                      | See below                            | Present in **finemap**, **coloc**, and **qtl_mr** inputs. Omitted keys get defaults from the parser (e.g. `window_kb` defaults to **500** unless you set it under `finemap`).                |
+| `coloc`                        | See below                            | Only **coloc** pipeline.                                                                                                                                                                     |
+| `plink_clump_arguments`        | —                                    | String passed to `plink --clump` for pipelines that clump. [PLINK clump options](https://zzz.bwh.harvard.edu/plink/clump.shtml).                                                             |
+| `qtl`                          | —                                    | Only **qtl_mr** (see below).                                                                                                                                                                 |
+| `output` (disease_progression) | —                                    | `adjusted_gwas`: `type` (`slopehunter`, `cwls`, `mr_ivw`) and `p_val`.                                                                                                                       |
 
-## coloc
 
-Runs standardisation, clumping, and fine-mapping on all input GWASes, then performs BF-BF colocalization (`coloc::coloc.bf_bf`) on any overlapping finemapped signals (within ±`overlap_kb` kb) across all trait pairs.
+### `finemap` block (optional)
 
-* `n GWAS objects` (at least 2): See above for GWAS Object explanation. Each GWAS requires `ancestry`.
-* `plink_clump_arguments`: arguments that are fed into the `plink --clump` call
-* `finemap` (optional): same options as the finemap pipeline above
-* `coloc` (optional):
-  * `overlap_kb`: distance in kb to define overlapping signals (default 1000 = ±1 Mb)
-  * `p1`: prior probability a SNP is associated with trait 1 (default 1e-4)
-  * `p2`: prior probability a SNP is associated with trait 2 (default 1e-4)
-  * `p12`: prior probability a SNP is associated with both traits (default 5e-6)
+Used by **finemap**, **coloc**, and **qtl_mr**. If the block is missing, defaults are filled by `parse_pipeline_input` (e.g. `window_kb` **500** unless set).
 
-## qtl_mr
 
-QTL summary statistics are read from **`QTL_DATA_DIR`** (see `.env` / `.env_example`): same tree as under `PIPELINE_DATA_DIR/qtl_datasets` when **`QTL_DATA_DIR`** is unset (`pqtl`, `metabrain`, `eqtlgen`, …). Point **`QTL_DATA_DIR`** at a separate mount or bucket path to download only the QTL data you need.
+| Key            | Meaning                                                              | Default (if missing) |
+| -------------- | -------------------------------------------------------------------- | -------------------- |
+| `window_kb`    | Half-width of the fine-mapping window around each clumped lead (kb). | `500`                |
+| `max_causal`   | SuSiE `L` (max causal signals per locus).                            | `10`                 |
+| `coverage`     | Credible set coverage.                                               | `0.95`               |
+| `min_abs_corr` | Minimum |r| for credible-set purity.                                 | `0.5`                |
 
-This pipeline now includes clumping and fine-mapping of the GWAS before MR. Colocalization uses finemapped LBF values from the GWAS and converts QTL Z-scores to LBF via `convert_z_to_lbf`, then runs `coloc::coloc.bf_bf`.
 
-* `1 GWAS object`: See above for GWAS Object explanation. Requires `ancestry`.
-* `plink_clump_arguments`: arguments that are fed into the `plink --clump` call
-* `finemap` (optional): same options as the finemap pipeline above
-* `qtl`:
-  * `dataset`: see below for options
-  * `subcategories`: list of subcategories to run, see below for options
-    * If left empty, all subcategories will be run
-  * `exposures`: list of specific exposures to be run. If left empty all exposures will be run in the dataset
-    * example: `["IL6", "CCL2"]`
-  * `study_type`: study type for LBF conversion, either `continuous` (default) or `categorical`
+### `coloc` block (optional, **coloc** pipeline only)
 
-Available Datasets and Subcategories:
-* dataset: `metabrain`
-  * subcategories: `basalganglia, cerebellum, cortex, hippocampus, spinalcord`
-* dataset: `eqtlgen`
-  * subcategories: `cis` (future: `trans`)
+
+| Key          | Meaning                                                                                                          | Default |
+| ------------ | ---------------------------------------------------------------------------------------------------------------- | ------- |
+| `overlap_kb` | Two finemapped signals on the same chromosome are “overlapping” if lead positions are within this distance (kb). | `1000`  |
+| `p1`         | Coloc prior: SNP associated with trait 1.                                                                        | `1e-4`  |
+| `p2`         | Coloc prior: SNP associated with trait 2.                                                                        | `1e-4`  |
+| `p12`        | Coloc prior: SNP associated with both traits.                                                                    | `5e-6`  |
+
+
+---
+
+## Pipeline overview
+
+
+| Snakemake file                                          | Example template                                                                       | One-line role                                                                       |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `[standardise_gwas.smk](../standardise_gwas.smk)`       | `[input_templates/standardise_gwases.json](input_templates/standardise_gwases.json)`   | Harmonise GWAS columns and builds only (no PLINK).                                  |
+| `[compare_gwases.smk](../compare_gwases.smk)`           | `[input_templates/compare_gwases.json](input_templates/compare_gwases.json)`           | Standardise → clump → heterogeneity / LDSC / expected–observed plots.               |
+| `[disease_progression.smk](../disease_progression.smk)` | `[input_templates/disease_progression.json](input_templates/disease_progression.json)` | Incident vs subsequent GWAS: collider bias, plots, comparisons.                     |
+| `[finemap.smk](../finemap.smk)`                         | `[input_templates/finemap.json](input_templates/finemap.json)`                         | Standardise → clump → SuSiE RSS fine-mapping per GWAS (no pairwise coloc).          |
+| `[coloc.smk](../coloc.smk)`                             | `[input_templates/coloc.json](input_templates/coloc.json)`                             | Same as finemap prep for ≥2 GWAS, then pairwise `coloc::coloc.bf_bf` + HTML report. |
+| `[qtl_mr.smk](../qtl_mr.smk)`                           | `[input_templates/qtl_mr.json](input_templates/qtl_mr.json)`                           | One GWAS: MR vs a QTL panel, volcano plot, BF–BF coloc for MR hits.                 |
+
+
+---
+
+## `standardise_gwas`
+
+Harmonisation only (`snakemake/standardise_gwas.smk`).
+
+- **GWAS**: one or more objects (see above).
+- **Root**: optional `populate_rsid`, `populate_eaf`, `flip_alleles`, `output.build` / `output.columns`, `is_test`.
+- **Outputs**: `{DATA_DIR}/gwas/<prefix>_std.tsv.gz` per input file.
+
+---
+
+## `compare_gwases`
+
+- **GWAS**: two or more; include `**N`** on each for LDSC.
+- **Root**: `plink_clump_arguments`, optional `populate_rsid` / `populate_eaf`.
+- **Behaviour**: same harmonisation as other pipelines, then PLINK clumping, heterogeneity, LDSC *h*² / *r*g, expected vs observed, HTML report.
+
+---
+
+## `disease_progression`
+
+- **GWAS**: exactly **two** (incident and subsequent).
+- **Root**: `plink_clump_arguments`, optional `populate_rsid`, and `**output.adjusted_gwas`**: `type` ∈ `slopehunter`, `cwls`, `mr_ivw`; `p_val` ∈ `0.1`, `0.01`, `0.001`, `1e-5`.
+
+---
+
+## `finemap`
+
+SuSiE fine-mapping per GWAS — no MR, no trait–trait coloc.
+
+- **GWAS**: one or more; each needs `**ancestry`** (LD reference for clumping and LD matrix for `susieR::susie_rss`).
+- **Root**: `plink_clump_arguments`, optional `populate_rsid` / `populate_eaf`, optional `**finemap`** block (see above). Example template sets `window_kb` to `1000`.
+- **Outputs** (under `RESULTS_DIR`): `finemap/<prefix>/` per GWAS (per-locus `*_finemap.tsv.gz`, etc.).
+
+---
+
+## `coloc`
+
+Standardise → clump → finemap for **all** input GWAS, then **pairwise** BF–BF colocalisation between overlapping finemapped signals (`coloc::coloc.bf_bf`).
+
+- **GWAS**: **at least two**; each needs `**ancestry`**.
+- **Root**: `plink_clump_arguments`, optional `populate_rsid` / `populate_eaf`, optional `**finemap`** and `**coloc**` blocks (see tables above).
+- **Outputs** (under `RESULTS_DIR`): `coloc/coloc_results.tsv`, `coloc/result_coloc.html` (summary table sorted by **PP.H4.abf**; includes a **cross-ancestry disclaimer** when more than one ancestry code is used across GWAS).
+
+---
+
+## `qtl_mr`
+
+- **GWAS**: exactly **one** outcome GWAS; `**ancestry`** required.
+- **Environment**: QTL summary data from `**QTL_DATA_DIR`** (see `.env` / `.env_example`); if unset, defaults follow `PIPELINE_DATA_DIR/qtl_datasets` layout (`pqtl`, `metabrain`, `eqtlgen`, …).
+- **Root**: `plink_clump_arguments`, optional `**finemap`** (same keys as finemap pipeline), and `**qtl**`:
+  - `dataset` — e.g. `metabrain`, `eqtlgen`
+  - `subcategory` — one sub-run, e.g. `cortex` (MetaBrain) or `cis` (eQTLGen); combined with `dataset` in output names
+  - `exposures` — optional list of exposure names; if empty, all exposures in that dataset run
+  - `study_type` — `continuous` (default) or `categorical` (affects LBF conversion from QTL *Z*-scores)
+
+**Dataset / subcategory examples** (see also repository docs):
+
+- **metabrain**: `basalganglia`, `cerebellum`, `cortex`, `hippocampus`, `spinalcord`
+- **eqtlgen**: `cis` (trans may be added later)
+
+Pipeline flow: standardise → clump → finemap → MR → volcano → BF–BF coloc on significant MR results (GWAS LBF vs QTL LBF from `convert_z_to_lbf`).
+
+---
+
+## References
+
+- Expected vs observed: doi:10.1038/nature17671  
+- LDSC: [github.com/bulik/ldsc](https://github.com/bulik/ldsc)  
+- `coloc`: [chr1swallace.github.io/coloc](https://chr1swallace.github.io/coloc/)  
+- Pipeline DOI: [10.5281/zenodo.10624713](https://doi.org/10.5281/zenodo.10624713)
+
