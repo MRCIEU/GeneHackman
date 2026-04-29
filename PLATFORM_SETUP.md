@@ -88,7 +88,7 @@ export SNAKEMAKE_PROFILE=snakemake/profiles/slurm/
 
 **Customize** each profile under **`snakemake/profiles/`** (each directory has a **`config.yaml`**) as needed:
 
-- **`Slurm account / partition`:** In **`.env`**, optional **`SLURM_ACCOUNT`** sets **`sbatch --account`**; if unset, the generic profile uses the existing **`sacctmgr … | grep … | head -n1`** lookup. Optional **`SLURM_PARTITION`** sets the default Snakemake **`resources.partition`** (via **`GENEHACKMAN_SLURM_PARTITION`** exported by **`run_pipeline.sh`**); if unset, the default is **`compute`** (see **`snakemake/profiles/slurm/config.yaml`**).
+- **`Slurm account / partition`:** In **`.env`**, optional **`SLURM_ACCOUNT`** overrides **`sbatch --account`**; if unset, the profile uses **`sacctmgr … | grep … | head -n1`**. **`SLURM_PARTITION`**, if unset, is inferred by **`run_pipeline.sh`** from **`sinfo -h -o '%P'`** (the partition marked with **`*`**, e.g. **`compute*`** → **`compute`**); if **`sinfo`** is unavailable or returns nothing, the fallback is **`compute`**. Passed to Snakemake as **`--default-resources partition=…`**.
 - **`cluster:`** block: `sbatch` options (`partition`, `account`, walltime, memory, `--output` log directory).
 - **`singularity-args`:** The generic profile binds repo code, **`$HOME`**, **`PIPELINE_DATA_DIR`**, and adds **`QTL_DATA_DIR`** only when non-empty (see **`GENEHACKMAN_EXTRA_SINGULARITY_BINDS`** in `run_pipeline.sh`). Add more `-B host:host` pairs for shared reference data on your site.
 
@@ -122,7 +122,7 @@ Copy `snakemake/slurm_singularity/config.yaml` as a template, replace the **`clu
 |----------|---------|
 | **`SNAKEMAKE_PROFILE`** | Snakemake profile path (default `snakemake/profiles/local/`). Example HPC: `snakemake/profiles/slurm/` |
 | **`SLURM_ACCOUNT`** | Optional (**`profiles/slurm`**). Sets **`sbatch --account`**; omitted ⇒ existing **`sacctmgr`** derivation in `config.yaml` |
-| **`SLURM_PARTITION`** | Optional (**`profiles/slurm`**). Default partition for **`{resources.partition}`**; omitted ⇒ **`compute`** (**`GENEHACKMAN_SLURM_PARTITION`** in `run_pipeline.sh`) |
+| **`SLURM_PARTITION`** | Optional (**`profiles/slurm`**). Overrides **`sinfo`** default-partition detection in **`run_pipeline.sh`** (see **`sinfo`** `*` suffix); ultimate fallback **`compute`** |
 
 The **pipeline YAML path** is not configured via `.env`. Use **`./run_pipeline.sh <workflow>.smk [path/to/input.yaml]`** (defaults to **`input.yaml`**) or run **`snakemake`** with **`--config genehackman_input=path/to/input.yaml`** (see `snakemake/PIPELINES.md`).
 

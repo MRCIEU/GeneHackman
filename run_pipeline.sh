@@ -29,7 +29,14 @@ if [[ -z "${DATA_DIR:-}" || -z "${RESULTS_DIR:-}" || -z "${PIPELINE_DATA_DIR:-}"
   exit 1
 fi
 export PIPELINE_LOG_DIR="${DATA_DIR%/}/snakemake_logs"
-export SLURM_PARTITION="${SLURM_PARTITION:-compute}"
+
+if [[ -z "${SLURM_PARTITION:-}" ]]; then
+  if command -v sinfo >/dev/null 2>&1; then
+    SLURM_PARTITION="$(sinfo -h -o '%P' 2>/dev/null | grep '\*' | head -n1 | tr -d '*[:space:]')"
+  fi
+  SLURM_PARTITION="${SLURM_PARTITION:-compute}"
+fi
+export SLURM_PARTITION
 
 export GENEHACKMAN_EXTRA_SINGULARITY_BINDS=""
 _trim_qtl="$(echo "${QTL_DATA_DIR:-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
@@ -75,10 +82,7 @@ fi
 SIF_NAME="genehackman_${SIF_VERSION}.sif"
 SIF_PATH="${SIF_DIR}/${SIF_NAME}"
 
-# Source for singularity build: default pulls docker://mrcieu/genehackman:<tag> from Hub.
-# Set GENEHACKMAN_SINGULARITY_DOCKER_REFERENCE=docker-daemon://mrcieu/genehackman:develop (or other tag)
-# to build the SIF from your local Docker image (same image ID, no Hub pull / no rebuild of layers).
-SINGULARITY_DOCKER_REFERENCE="${GENEHACKMAN_SINGULARITY_DOCKER_REFERENCE:-docker://mrcieu/genehackman:${GENEHACKMAN_VERSION}}"
+SINGULARITY_DOCKER_REFERENCE="docker://mrcieu/genehackman:${GENEHACKMAN_VERSION}"
 
 # mrcieu/genehackman is linux/amd64 only. On ARM (Apple Silicon), Apptainer defaults to arm64 and
 # fails with: no child with platform linux/arm64 in index. Force amd64 for the OCI/docker pull.
