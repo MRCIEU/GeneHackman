@@ -278,20 +278,6 @@ def turn_dict_into_cli_string(results_dict):
     return ','.join(['%s=%s' % (key, value) for (key, value) in results_dict.items()])
 
 
-def copy_data_to_rdfs(files_created):
-    if RDFS_DIR is not None:
-        for file_created in files_created:
-            rdfs_file = None
-            if file_created.startswith(DATA_DIR):
-                rdfs_file = file_created.replace(DATA_DIR, RDFS_DIR + "/data/")
-            elif file_created.startswith(RESULTS_DIR):
-                rdfs_file = file_created.replace(RESULTS_DIR, RDFS_DIR + "/results/")
-
-            if rdfs_file:
-                os.system(f"install -D {file_created} {rdfs_file}")
-        print(f"Files successfully copied to {RDFS_DIR}")
-
-
 def onsuccess(pipeline_name, files_created=list(), results_file=None, is_test=False):
     print("\nPipeline finished, no errors.  List of created files:")
     print(*files_created, sep='\n')
@@ -301,8 +287,6 @@ def onsuccess(pipeline_name, files_created=list(), results_file=None, is_test=Fa
         print("PLEASE VIEW THIS HTML FILE FOR A SUMMARY OF RESULTS:")
         print(f"{results_file}.")
         print(f"\n\n\033[1;35;40m Please do us a favour and cite this pipeline: https://doi.org/10.5281/zenodo.10624713 \033[0m\n")
-
-    copy_data_to_rdfs(files_created)
 
     update_google_sheet(pipeline_name, succeeded=True, is_test=is_test)
 

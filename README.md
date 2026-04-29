@@ -85,10 +85,9 @@ Alternatives if you don’t set **`QTL_DATA_DIR`** directly: keep the same direc
 ### 4. Populate `.env` and `input.yaml` files
 
 `cp .env_example .env`
-* Populate **`DATA_DIR`**, **`RESULTS_DIR`**, and optional **`RDFS_DIR`** — usually under *work* or *scratch* (e.g. `/user/work/{userid}/...`).
+* Populate **`DATA_DIR`** and **`RESULTS_DIR`** — usually under *work* or *scratch* (e.g. `/user/work/{userid}/...`).
 * Set **`PIPELINE_DATA_DIR`** to the path where you unpacked **`genehackman`** (see §3).
 * Set **`QTL_DATA_DIR`** to the path where you unpacked **`genehackman-qtl`** if you run **`qtl_mr`** (can be left empty otherwise; see [.env_example](.env_example)).
-* **`RDFS_DIR`** is optional for auto-copy of outputs; paths should end with `working/` if you use this feature.
 * **Container cache:** If there is no pre-built `genehackman_<version>.sif` under `PIPELINE_DATA_DIR`, Snakemake pulls the `docker://` image and caches the SIF under `.snakemake/singularity` by default. Set **`GENEHACKMAN_SINGULARITY_PREFIX`** in `.env` to use another directory (e.g. scratch). Running `snakemake` without `./run_pipeline.sh`? Pass `--singularity-prefix /path` or add `singularity-prefix:` to your profile `config.yaml`.
 
 **`input.yaml`**
