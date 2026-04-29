@@ -90,7 +90,7 @@ export SNAKEMAKE_PROFILE=snakemake/profiles/slurm/
 
 - **`Slurm account / partition`:** In **`.env`**, optional **`SLURM_ACCOUNT`** overrides **`sbatch --account`**; if unset, the profile uses **`sacctmgr … | grep … | head -n1`**. **`SLURM_PARTITION`**, if unset, is inferred by **`run_pipeline.sh`** from **`sinfo -h -o '%P'`** (the partition marked with **`*`**, e.g. **`compute*`** → **`compute`**); if **`sinfo`** is unavailable or returns nothing, the fallback is **`compute`**. Passed to Snakemake as **`--default-resources partition=…`**.
 - **`cluster:`** block: `sbatch` options (`partition`, `account`, walltime, memory, `--output` log directory).
-- **`singularity-args`:** The generic profile binds repo code, **`$HOME`**, **`PIPELINE_DATA_DIR`**, and adds **`QTL_DATA_DIR`** only when non-empty (see **`GENEHACKMAN_EXTRA_SINGULARITY_BINDS`** in `run_pipeline.sh`). Add more `-B host:host` pairs for shared reference data on your site.
+- **`singularity-args`:** The generic profile binds repo code, **`$HOME`**, **`DATA_DIR`**, **`RESULTS_DIR`**, **`PIPELINE_DATA_DIR`**, **`/tmp`**, and adds **`QTL_DATA_DIR`** only when non-empty (see **`GENEHACKMAN_EXTRA_SINGULARITY_BINDS`** in `run_pipeline.sh`). Add more `-B host:host` pairs for shared reference data on your site.
 
 **Snakemake version:** `environment.yml` pins **Snakemake 7.x**. Migrating to **Snakemake 8+** changes cluster syntax (`cluster-generic` executor + plugins); this repository’s profiles target the v7 style unless you have already updated them.
 

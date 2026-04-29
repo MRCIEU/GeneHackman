@@ -5,7 +5,7 @@ cluster:
   if [ -n "$SLURM_ACCOUNT" ]; then export ACCOUNT_ID="$SLURM_ACCOUNT"; fi &&
   mkdir -p "$PIPELINE_LOG_DIR" &&
   sbatch
-    --partition={resources.partition}
+    --partition=$PARTITION
     --account=$ACCOUNT_ID
     --nodes={resources.nodes}
     --ntasks-per-node={resources.ntasks_per_node}
@@ -17,7 +17,6 @@ cluster:
     --output="$PIPELINE_LOG_DIR/{rule}_%j.out"
 default-resources:
   - time='01:00:00'
-  - partition='$PARTITION'
   - mem='1G'
   - ntasks_per_node=1
   - nodes=1
@@ -35,8 +34,11 @@ singularity-args: >-
   -B $(pwd)/scripts:/home/scripts
   -B $(pwd)/inst:/home/inst
   -B ${HOME}:${HOME}
+  -B ${DATA_DIR}:${DATA_DIR}
+  -B ${RESULTS_DIR}:${RESULTS_DIR}
   -B ${PIPELINE_DATA_DIR}:${PIPELINE_DATA_DIR}
   ${GENEHACKMAN_EXTRA_SINGULARITY_BINDS}
+  -B /tmp:/tmp
   --env-file .env
   --pwd /home/scripts/
 printshellcmds: True
