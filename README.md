@@ -37,7 +37,7 @@ There are **six** Snakemake pipelines (grouped as two tables of three). Each pip
 
 ## Onboarding
 
-**Running on macOS, Linux, Slurm, or PBS?** See **[PLATFORM_SETUP.md](PLATFORM_SETUP.md)** for platform-specific setup (Apptainer/Lima, SIF cache, HPC profiles, `qsub` template).
+**Running on macOS, Linux, Slurm, or PBS?** See **[PLATFORM_SETUP.md](PLATFORM_SETUP.md)** for platform-specific setup (Apptainer/Lima, SIF cache, Snakemake profiles under **`snakemake/profiles/`**, `qsub` template).
 
 ### 1. Clone the repository into your personal space on BlueCrystal 4
 `git clone git@github.com:MRCIEU/GeneHackman.git && cd GeneHackman`
@@ -85,10 +85,9 @@ Alternatives if you don’t set **`QTL_DATA_DIR`** directly: keep the same direc
 ### 4. Populate `.env` and `input.yaml` files
 
 `cp .env_example .env`
-* Populate **`DATA_DIR`** and **`RESULTS_DIR`** — usually under *work* or *scratch* (e.g. `/user/work/{userid}/...`).
 * Set **`PIPELINE_DATA_DIR`** to the path where you unpacked **`genehackman`** (see §3).
 * Set **`QTL_DATA_DIR`** to the path where you unpacked **`genehackman-qtl`** if you run **`qtl_mr`** (can be left empty otherwise; see [.env_example](.env_example)).
-* **Container cache:** If there is no pre-built `genehackman_<version>.sif` under `PIPELINE_DATA_DIR`, Snakemake pulls the `docker://` image and caches the SIF under `.snakemake/singularity` by default. Set **`GENEHACKMAN_SINGULARITY_PREFIX`** in `.env` to use another directory (e.g. scratch). Running `snakemake` without `./run_pipeline.sh`? Pass `--singularity-prefix /path` or add `singularity-prefix:` to your profile `config.yaml`.
+* **Container cache:** If there is no pre-built `genehackman_<version>.sif` under `PIPELINE_DATA_DIR`, Snakemake pulls the `docker://` image and caches the SIF under `.snakemake/singularity` by default. Set **`GENEHACKMAN_SINGULARITY_PREFIX`** in `.env` to use another directory (e.g. scratch). Running `snakemake` without `./run_pipeline.sh`? Pass `--singularity-prefix /path` or add `singularity-prefix:` under **`snakemake/profiles/`** in **`config.yaml`** for the profile you use (paths are relative to the repo root).
 
 **`input.yaml`**
 
@@ -101,7 +100,9 @@ Alternatives if you don’t set **`QTL_DATA_DIR`** directly: keep the same direc
 
 `./run_pipeline.sh snakemake/<specific_pipeline>.smk <optional_input_file.yaml>`
 
-* By default `run_pipeline.sh` uses **local Docker** (`snakemake/local/`). On HPC, set e.g. `GENEHACKMAN_PROFILE=snakemake/bp1/` (or `bc4/`, `slurm_singularity/`).
+Snakemake execution profiles (**`--profile`**) live under **`snakemake/profiles/`** (see also [PLATFORM_SETUP.md](PLATFORM_SETUP.md)).
+
+* By default `run_pipeline.sh` uses **`SNAKEMAKE_PROFILE=snakemake/profiles/local/`** (local Apptainer). On HPC, set e.g. **`SNAKEMAKE_PROFILE=snakemake/profiles/slurm/`** (generic Slurm) or add a site-specific directory beside **`snakemake/profiles/local/`** and **`snakemake/profiles/slurm/`**.
 * `run_pipeline.sh` is just a convience wrapper around the `snakemake` command, if you want to do anything out of the ordinary, [please read up on snakemake](https://snakemake.readthedocs.io/en/v7.26.0/)
 * If there are errors while running the pipeline, you can find error messages either directly on the screen, or in slurm log file that is outputted on error
 * It is recommended that you run the your pipeline [inside a tmux session](https://github.com/MRCIEU/GeneHackman/wiki/Common-Errors#ssh-disconnection-while-pipeline-is-running).
@@ -125,7 +126,7 @@ The pipeline can be run either on its own, or via your institutions HPC.  Each s
 
 * `R` directory holds R package code that can also be called and reused by any step in the pipeline (accessed by a cli script)
 * `scripts` directory holds the scripts that can be easily called by snakemake (`Rscript example.R --input_ex example_input`)
-* `snakemake` directory, which defines the pipeline steps and configuration, and shared code between pipelines
+* `snakemake` directory: workflow `.smk` files, **`snakemake/profiles/`** (Snakemake `--profile`: local vs Slurm/HPC defaults), **`input_templates/`**, and shared **`util/`** code between pipelines
 * `docker` directory holds the information for creating the docker image that the pipeline runs
 * `tests` directory holds all R tests, and a end to end pipeline test script 
 

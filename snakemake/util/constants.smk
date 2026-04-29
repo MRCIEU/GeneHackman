@@ -15,16 +15,14 @@ user = os.getenv('USER')
 input_file = "input.yaml"
 start_time = datetime.now()
 
-# Slurm writes batch stdout to this directory on HPC; local/Docker runs use ./pipeline_logs instead.
 _pipeline_log_override = os.getenv("PIPELINE_LOG_DIR")
 _local_flag = os.getenv("GENEHACKMAN_LOCAL", "").strip().lower() in ("1", "true", "yes")
-_hpc_work_base = f"/user/work/{user}" if user else None
 if _pipeline_log_override:
     pipeline_log_directory = format_dir_string(_pipeline_log_override)
-elif _local_flag or not (_hpc_work_base and os.path.isdir(_hpc_work_base)):
-    pipeline_log_directory = format_dir_string(os.path.join(os.getcwd(), "pipeline_logs"))
+elif _local_flag or not (DATA_DIR and os.path.isdir(DATA_DIR)):
+    pipeline_log_directory = format_dir_string(os.path.join(os.getcwd(), "snakemake_logs"))
 else:
-    pipeline_log_directory = format_dir_string(f"{_hpc_work_base}/slurm_logs")
+    pipeline_log_directory = format_dir_string(f"{DATA_DIR}/snakemake_logs")
 
 slurm_log_directory = pipeline_log_directory
 

@@ -5,6 +5,7 @@ singularity-args: >-
   -B $(pwd)/R:/home/R
   -B $(pwd)/scripts:/home/scripts
   -B $(pwd)/inst:/home/inst
+  -B ${HOME}:${HOME}
   -B ${DATA_DIR}:${DATA_DIR}
   -B ${RESULTS_DIR}:${RESULTS_DIR}
   -B ${PIPELINE_DATA_DIR}:${PIPELINE_DATA_DIR}

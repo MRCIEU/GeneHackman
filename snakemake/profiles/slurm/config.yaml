@@ -1,10 +1,11 @@
 cluster:
   export USER=$(whoami) &&
   export ACCOUNT_ID=$(sacctmgr show user withassoc format=account where user=$USER | grep '[0-9]' | head -n1) &&
-  mkdir -p /user/work/$USER/slurm_logs &&
+  export ACCOUNT_FOR_JOB="${SLURM_ACCOUNT:-$ACCOUNT_ID}" &&
+  mkdir -p "$PIPELINE_LOG_DIR" &&
   sbatch
     --partition={resources.partition}
-    --account=$ACCOUNT_ID
+    --account="$ACCOUNT_FOR_JOB"
     --nodes={resources.nodes}
     --ntasks-per-node={resources.ntasks_per_node}
     --cpus-per-task={resources.ntasks_per_node}
@@ -12,10 +13,10 @@ cluster:
     --cpus-per-task={threads}
     --mem={resources.mem}
     --job-name={rule}-{wildcards}
-    --output=/user/work/$USER/slurm_logs/{rule}_%j.out
+    --output="$PIPELINE_LOG_DIR/{rule}_%j.out"
 default-resources:
   - time='01:00:00'
-  - partition=compute
+  - partition=${SLURM_PARTITION}
   - mem='1G'
   - ntasks_per_node=1
   - nodes=1
@@ -28,6 +29,14 @@ jobs: 10
 keep-going: True
 rerun-incomplete: True
 use-singularity: True
-singularity-args: '-B $(pwd)/R:/home/R -B $(pwd)/scripts:/home/scripts -B $(pwd)/inst:/home/inst -B /user/work/$(whoami) -B /user/home/$(whoami) -B /bp1/mrcieu1/data/ -B ${QTL_DATA_DIR}:${QTL_DATA_DIR} --env-file .env --pwd /home/scripts/'
+singularity-args: >-
+  -B $(pwd)/R:/home/R
+  -B $(pwd)/scripts:/home/scripts
+  -B $(pwd)/inst:/home/inst
+  -B ${HOME}:${HOME}
+  -B ${PIPELINE_DATA_DIR}:${PIPELINE_DATA_DIR}
+  ${GENEHACKMAN_EXTRA_SINGULARITY_BINDS}
+  --env-file .env
+  --pwd /home/scripts/
 printshellcmds: True
 scheduler: greedy

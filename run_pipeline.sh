@@ -10,8 +10,8 @@ if [[ $# -lt 1 ]] ; then
     PIPELINE_FILE (ex. snakemake/standardise_gwas.smk)
     INPUT_FILE YAML (optional, defaults to input.yaml in the working directory)
 
-  Default profile is local Docker (snakemake/local/). HPC (Slurm/Apptainer): set
-  GENEHACKMAN_PROFILE=snakemake/bp1/ or snakemake/bc4/ (or snakemake/slurm_singularity/).
+  Default profile is local Apptainer (snakemake/profiles/local/). For Slurm, set
+  SNAKEMAKE_PROFILE=snakemake/profiles/slurm/ or create a new profile under snakemake/profiles/
   """
   exit 1
 fi
@@ -24,12 +24,26 @@ else
   exit 1
 fi
 
-# Default: local Docker. HPC: GENEHACKMAN_PROFILE=snakemake/bp1/ (or bc4/, slurm_singularity/).
-PROFILE="${GENEHACKMAN_PROFILE:-snakemake/local/}"
-if [[ -z "${GENEHACKMAN_PROFILE:-}" && ( "${GENEHACKMAN_LOCAL:-}" == "1" || "${GENEHACKMAN_LOCAL:-}" == "true" ) ]]; then
-  PROFILE="snakemake/local/"
+if [[ -z "${DATA_DIR:-}" || -z "${RESULTS_DIR:-}" || -z "${PIPELINE_DATA_DIR:-}" ]]; then
+  echo "Error: DATA_DIR, RESULTS_DIR, and PIPELINE_DATA_DIR must be set in .env"
+  exit 1
 fi
-if [[ "${PROFILE}" == snakemake/local/* ]]; then
+export PIPELINE_LOG_DIR="${DATA_DIR%/}/snakemake_logs"
+export SLURM_PARTITION="${SLURM_PARTITION:-compute}"
+
+export GENEHACKMAN_EXTRA_SINGULARITY_BINDS=""
+_trim_qtl="$(echo "${QTL_DATA_DIR:-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+if [[ -n "${_trim_qtl}" ]]; then
+  export GENEHACKMAN_EXTRA_SINGULARITY_BINDS="-B ${_trim_qtl%/}:${_trim_qtl%/}"
+fi
+unset _trim_qtl
+
+# Default: local Apptainer. HPC e.g.: SNAKEMAKE_PROFILE=snakemake/profiles/slurm/ or snakemake/slurm_singularity/
+PROFILE="${SNAKEMAKE_PROFILE:-snakemake/profiles/local/}"
+if [[ -z "${SNAKEMAKE_PROFILE:-}" && ( "${GENEHACKMAN_LOCAL:-}" == "1" || "${GENEHACKMAN_LOCAL:-}" == "true" ) ]]; then
+  PROFILE="snakemake/profiles/local/"
+fi
+if [[ "${PROFILE}" == snakemake/profiles/local/* ]] || [[ "${PROFILE}" == snakemake/local/* ]]; then
   export GENEHACKMAN_LOCAL=1
 else
   unset GENEHACKMAN_LOCAL
@@ -39,12 +53,18 @@ SMK_FILE=$1
 PIPELINE_INPUT="${2:-input.yaml}"
 ADDITIONAL_ARGS="${@:3}"
 
-if [[ "${PROFILE}" != snakemake/local/* ]]; then
-  module load apptainer/1.3.1-ksax
+if [[ "${PROFILE}" != snakemake/profiles/local/* ]] && [[ "${PROFILE}" != snakemake/local/* ]]; then
+  module load ${APPTAINER_MODULE}
 fi
 
-SIF_DIR="${SINGULARITY_DIR:-.snakemake/singularity}"
+PIPELINE_GENOMIC_DIR="${PIPELINE_DATA_DIR%/}/genomic_data/pipeline/"
+if [[ -w "${PIPELINE_GENOMIC_DIR}" ]]; then
+  SIF_DIR="${PIPELINE_GENOMIC_DIR}"
+else
+  SIF_DIR=".snakemake/singularity"
+fi
 SIF_DIR="${SIF_DIR%/}"
+
 # Image tag: default GENEHACKMAN_VERSION from DOCKER_VERSION so pull and SIF basename stay aligned.
 GENEHACKMAN_VERSION="${GENEHACKMAN_VERSION:-${DOCKER_VERSION:-}}"
 SIF_VERSION="${DOCKER_VERSION:-${GENEHACKMAN_VERSION:-}}"

@@ -1,5 +1,9 @@
 # Pipeline input (`input.yaml`)
 
+**Execution profiles:** Snakemake **`--profile`** directories live under **`snakemake/profiles/`** from the repo root (e.g. **`snakemake/profiles/local/`**, **`snakemake/profiles/slurm/`**), selected via **`SNAKEMAKE_PROFILE`** when using **`./run_pipeline.sh`**. Details: [PLATFORM_SETUP.md](../PLATFORM_SETUP.md), [README.md](../README.md).
+
+---
+
 All pipelines consume a **YAML** file. Use **`./run_pipeline.sh <workflow>.smk [path/to/input.yaml]`** — the second argument is optional and defaults to **`input.yaml`** in the working directory. If you invoke **`snakemake` directly**, pass **`--config genehackman_input=path/to/input.yaml`** (or omit for default **`input.yaml`**). Copy an example from [`input_templates/`](input_templates/).
 
 Indented nesting defines hierarchy (`gwases:` lists `- item` blocks). Use `true` / `false` for booleans. Quote a string if it could be parsed as a YAML 1.1 keyword (e.g. column names `yes`, `no`). Validate syntax with [yamllint](https://www.yamllint.com/) if needed.
