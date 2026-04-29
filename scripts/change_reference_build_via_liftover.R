@@ -23,8 +23,9 @@ parser <- add_argument(parser, "--output_gwas",
 args <- parse_args(parser)
 create_dir_for_files(args$output_gwas)
 
-convert_reference_build_via_liftover(args$input_gwas,
-                                     input_reference_build = args$input_reference_build,
-                                     output_reference_build = args$output_reference_build,
-                                     output_file = args$output_gwas
-)
+invisible(convert_reference_build_via_liftover(
+  args$input_gwas,
+  input_reference_build = args$input_reference_build,
+  output_reference_build = args$output_reference_build,
+  output_file = args$output_gwas
+))

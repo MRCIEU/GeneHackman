@@ -40,11 +40,12 @@ parser <- add_argument(parser, "--populate_rsid",
 args <- parse_args(parser)
 create_dir_for_files(args$output_gwas)
 
-change_snp_identifiers(gwas = args$input_gwas,
+invisible(change_snp_identifiers(
+                 gwas = args$input_gwas,
                  output_file = args$output_gwas,
                  populate_rsid_option = args$populate_rsid,
                  input_reference_build = args$input_build,
                  output_reference_build = args$output_build,
                  input_columns = args$input_columns,
                  output_columns = args$output_columns
-)
+))

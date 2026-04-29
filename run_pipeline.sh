@@ -8,7 +8,7 @@ if [[ $# -lt 1 ]] ; then
   echo """
   Error: You have to provide at least 1 argument:
     PIPELINE_FILE (ex. snakemake/standardise_gwas.smk)
-    INPUT_FILE (optional, defaults to input.json)
+    INPUT_FILE YAML (optional, defaults to input.yaml in the working directory)
 
   Default profile is local Docker (snakemake/local/). HPC (Slurm/Apptainer): set
   GENEHACKMAN_PROFILE=snakemake/bp1/ or snakemake/bc4/ (or snakemake/slurm_singularity/).
@@ -36,7 +36,7 @@ else
 fi
 
 SMK_FILE=$1
-export INPUT_FILE="${2:-input.json}"
+PIPELINE_INPUT="${2:-input.yaml}"
 ADDITIONAL_ARGS="${@:3}"
 
 if [[ "${PROFILE}" != snakemake/local/* ]]; then
@@ -94,4 +94,4 @@ fi
 
 echo "Running pipeline with profile: ${PROFILE}"
 
-snakemake --snakefile "${SMK_FILE}" --profile "${PROFILE}" ${ADDITIONAL_ARGS}
+snakemake --snakefile "${SMK_FILE}" --profile "${PROFILE}" --config "genehackman_input=${PIPELINE_INPUT}" ${ADDITIONAL_ARGS}

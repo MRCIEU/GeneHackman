@@ -1,0 +1,21 @@
+gwases:
+  - file: ""
+    columns: {}
+    N: 0
+    ancestry: EUR
+  - file: ""
+    columns: {}
+    N: 0
+    ancestry: EUR
+plink_clump_arguments: "--clump-p1 5e-8 --clump-r2 0.01 --clump-kb 1000"
+finemap:
+  window_kb: 1000
+  max_causal: 10
+  coverage: 0.95
+  min_abs_corr: 0.5
+coloc:
+  overlap_kb: 1000
+  p1: 1e-4
+  p2: 1e-4
+  p12: 5e-6
+populate_rsid: false

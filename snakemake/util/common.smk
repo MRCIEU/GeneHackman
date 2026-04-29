@@ -1,7 +1,7 @@
 import csv
 import zipfile
 import gzip
-import json
+import yaml
 import os
 import re
 import subprocess
@@ -12,6 +12,16 @@ from types import SimpleNamespace
 
 include: "constants.smk"
 include: "log_results.smk"
+
+
+def dict_to_namespace(obj):
+    """Recursively convert dict/list from YAML to SimpleNamespace (same shapes as former JSON parsing)."""
+    if isinstance(obj, dict):
+        return SimpleNamespace(**{k: dict_to_namespace(v) for k, v in obj.items()})
+    if isinstance(obj, list):
+        return [dict_to_namespace(item) for item in obj]
+    return obj
+
 
 def get_docker_container():
     version = DOCKER_VERSION if DOCKER_VERSION else None
@@ -33,6 +43,12 @@ def get_docker_container():
 
 
 def parse_pipeline_input(pipeline_includes_clumping=False):
+    global input_file
+    try:
+        input_file = config.get("genehackman_input") or "input.yaml"
+    except NameError:
+        input_file = "input.yaml"
+
     if not os.path.isfile(".env"):
         raise ValueError("Error: .env file doesn't exist")
     if not os.path.isfile(input_file):
@@ -40,10 +56,15 @@ def parse_pipeline_input(pipeline_includes_clumping=False):
 
     with open(input_file) as pipeline_input:
         try:
-            pipeline = json.load(pipeline_input,object_hook=lambda data: SimpleNamespace(**data))
+            raw = yaml.safe_load(pipeline_input)
+            if raw is None:
+                raw = {}
+            pipeline = dict_to_namespace(raw)
         except Exception as e:
-            raise Exception('ERROR: There is an error with the JSON file, '
-                        + 'please ensure it is valid JSON: https://jsonlint.com/') from e
+            raise Exception(
+                "ERROR: There is an error with the pipeline YAML file, "
+                "please ensure it is valid YAML: https://www.yamllint.com/"
+            ) from e
 
     if not hasattr(pipeline, "is_test"): pipeline.is_test = False
     if not hasattr(pipeline, "output"): pipeline.output = default_output_options

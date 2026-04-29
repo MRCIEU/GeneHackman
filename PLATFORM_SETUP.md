@@ -6,12 +6,12 @@ General prerequisites:
 
 1. **Conda env:** `conda env create -f environment.yml` then `conda activate genehackman`
 2. **`.env`:** copy from `.env_example` and set at least `DATA_DIR`, `RESULTS_DIR`, `PIPELINE_DATA_DIR` (and paths your pipeline needs for genomic / 1000G data). Optionally set **`QTL_DATA_DIR`** when large QTL mirrors live on another volume or object-store mount; if omitted, `run_pipeline.sh` defaults it to `PIPELINE_DATA_DIR/qtl_datasets`.
-3. **Input JSON:** see `snakemake/input_templates/` and `snakemake/PIPELINES.md`.
+3. **Input YAML:** see `snakemake/input_templates/` and `snakemake/PIPELINES.md`.
 
-**`./run_pipeline.sh`** loads `.env`, picks a **profile** (`GENEHACKMAN_PROFILE`, default `snakemake/local/`), then runs Snakemake. Pass the **`.smk` workflow first**, then optional input JSON, for example:
+**`./run_pipeline.sh`** loads `.env`, picks a **profile** (`GENEHACKMAN_PROFILE`, default `snakemake/local/`), then runs Snakemake. Pass the **`.smk` workflow first**, then optional input YAML, for example:
 
 ```bash
-./run_pipeline.sh snakemake/standardise_gwas.smk path/to/input.json
+./run_pipeline.sh snakemake/standardise_gwas.smk path/to/input.yaml
 ```
 
 ---
@@ -125,10 +125,11 @@ Copy `snakemake/slurm_singularity/config.yaml` (or `bp1`) as a template, replace
 | Variable | Purpose |
 |----------|---------|
 | **`GENEHACKMAN_PROFILE`** | Snakemake profile path (default `snakemake/local/`). Example HPC: `snakemake/bp1/` |
-| **`INPUT_FILE`** | Path to pipeline JSON (also set by `run_pipeline.sh` from the second argument) |
 | **`GENEHACKMAN_SINGULARITY_PREFIX`** | Snakemake `--singularity-prefix`: where pulled `.sif` images are stored |
 | **`GENEHACKMAN_LIMA_INSTANCE`** | Lima VM name when using a `limactl shell <name> -- apptainer` wrapper (default often `apptainer`) |
 | **`PIPELINE_LOG_DIR`** | Optional override for log-directory hints on errors (see `snakemake/util/constants.smk`) |
+
+The **pipeline YAML path** is not configured via `.env`. Use **`./run_pipeline.sh <workflow>.smk [path/to/input.yaml]`** (defaults to **`input.yaml`**) or run **`snakemake`** with **`--config genehackman_input=path/to/input.yaml`** (see `snakemake/PIPELINES.md`).
 
 Use **`.env`** for values you want loaded every time `./run_pipeline.sh` runs (`export $(cat .env | xargs)`).
 

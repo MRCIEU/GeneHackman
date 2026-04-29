@@ -4,6 +4,7 @@
 pipeline_logs/
 .cache/
 .ipynb_checkpoints/
+*input.yaml
 *input.json
 .env
 .bashrc

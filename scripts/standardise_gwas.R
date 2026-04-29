@@ -65,7 +65,8 @@ parser <- add_argument(parser, "--flip_alleles",
 args <- parse_args(parser)
 create_dir_for_files(args$output_gwas)
 
-standardise_gwas(gwas = args$input_gwas,
+invisible(standardise_gwas(
+                 gwas = args$input_gwas,
                  output_file = args$output_gwas,
                  N = args$N,
                  populate_rsid_option = args$populate_rsid,
@@ -77,4 +78,4 @@ standardise_gwas(gwas = args$input_gwas,
                  populate_eaf = args$populate_eaf,
                  ancestry = args$ancestry,
                  flip_alleles = args$flip_alleles
-)
+))

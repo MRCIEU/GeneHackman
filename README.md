@@ -13,7 +13,7 @@ Goals:
 
 ## Available Pipelines
 
-There are **six** Snakemake pipelines (grouped as two tables of three). Each pipeline is a `.smk` file under `snakemake/`; see [PIPELINES.md](snakemake/PIPELINES.md) for JSON inputs and parameters.
+There are **six** Snakemake pipelines (grouped as two tables of three). Each pipeline is a `.smk` file under `snakemake/`; see [PIPELINES.md](snakemake/PIPELINES.md) for YAML inputs and parameters.
 
 ### Pipelines — table 1
 
@@ -82,7 +82,7 @@ QTL_DATA_DIR=/path/to/my_qtl_data/
 
 Alternatives if you don’t set **`QTL_DATA_DIR`** directly: keep the same directory layout under **`PIPELINE_DATA_DIR/qtl_datasets/`**, or follow [PLATFORM_SETUP.md](PLATFORM_SETUP.md) (bind mounts and defaulting **`QTL_DATA_DIR`** to **`PIPELINE_DATA_DIR/qtl_datasets`**).
 
-### 4. Populate `.env` and `input.json` files
+### 4. Populate `.env` and `input.yaml` files
 
 `cp .env_example .env`
 * Populate **`DATA_DIR`**, **`RESULTS_DIR`**, and optional **`RDFS_DIR`** — usually under *work* or *scratch* (e.g. `/user/work/{userid}/...`).
@@ -91,16 +91,16 @@ Alternatives if you don’t set **`QTL_DATA_DIR`** directly: keep the same direc
 * **`RDFS_DIR`** is optional for auto-copy of outputs; paths should end with `working/` if you use this feature.
 * **Container cache:** If there is no pre-built `genehackman_<version>.sif` under `PIPELINE_DATA_DIR`, Snakemake pulls the `docker://` image and caches the SIF under `.snakemake/singularity` by default. Set **`GENEHACKMAN_SINGULARITY_PREFIX`** in `.env` to use another directory (e.g. scratch). Running `snakemake` without `./run_pipeline.sh`? Pass `--singularity-prefix /path` or add `singularity-prefix:` to your profile `config.yaml`.
 
-**`input.json`**
+**`input.yaml`**
 
-* Example: `cp snakemake/input_templates/compare_gwases.json input.json`
+* Example: `cp snakemake/input_templates/compare_gwases.yaml input.yaml`
 * Each pipeline has its own shape; examples live under [`snakemake/input_templates/`](snakemake/input_templates/).
 * See [PIPELINES.md](snakemake/PIPELINES.md) for all fields.
-* You can symlink or pass a different JSON path via `INPUT_FILE` / the second argument to `run_pipeline.sh`.
+* Pass the input YAML as the **second** argument to `run_pipeline.sh`, or rely on **`input.yaml`** in the working directory. To call **`snakemake`** yourself without the wrapper, use **`--config genehackman_input=/path/to/file.yaml`**.
 
 ### 5. Run the pipeline
 
-`./run_pipeline.sh snakemake/<specific_pipeline>.smk <optional_input_file.json>`
+`./run_pipeline.sh snakemake/<specific_pipeline>.smk <optional_input_file.yaml>`
 
 * By default `run_pipeline.sh` uses **local Docker** (`snakemake/local/`). On HPC, set e.g. `GENEHACKMAN_PROFILE=snakemake/bp1/` (or `bc4/`, `slurm_singularity/`).
 * `run_pipeline.sh` is just a convience wrapper around the `snakemake` command, if you want to do anything out of the ordinary, [please read up on snakemake](https://snakemake.readthedocs.io/en/v7.26.0/)

@@ -1,6 +1,8 @@
-# Pipeline input (`input.json`)
+# Pipeline input (`input.yaml`)
 
-All pipelines consume a JSON file (path passed to `./run_pipeline.sh`, or `INPUT_FILE` in `.env`; default `./input.json`). Copy an example from `[input_templates/](input_templates/)`.
+All pipelines consume a **YAML** file. Use **`./run_pipeline.sh <workflow>.smk [path/to/input.yaml]`** — the second argument is optional and defaults to **`input.yaml`** in the working directory. If you invoke **`snakemake` directly**, pass **`--config genehackman_input=path/to/input.yaml`** (or omit for default **`input.yaml`**). Copy an example from [`input_templates/`](input_templates/).
+
+Indented nesting defines hierarchy (`gwases:` lists `- item` blocks). Use `true` / `false` for booleans. Quote a string if it could be parsed as a YAML 1.1 keyword (e.g. column names `yes`, `no`). Validate syntax with [yamllint](https://www.yamllint.com/) if needed.
 
 Paths like `RESULTS_DIR` and `DATA_DIR` resolve from your `.env` file (`DATA_DIR/gwas/`, `RESULTS_DIR/…`).
 
@@ -38,7 +40,7 @@ Default column names: `SNP, CHR, BP, EA, OA, EAF, BETA, SE, OR, P, LOG_P, Z, OR_
 
 ## Root-level fields (shared)
 
-These may appear on the **root** JSON object (alongside `gwases`).
+These may appear at the **root** of the YAML document (alongside `gwases`).
 
 
 | Field                          | Default                              | Notes                                                                                                                                                                                        |
@@ -86,12 +88,12 @@ Used by **finemap**, **coloc**, and **qtl_mr**. If the block is missing, default
 
 | Snakemake file                                          | Example template                                                                       | One-line role                                                                       |
 | ------------------------------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `[standardise_gwas.smk](../standardise_gwas.smk)`       | `[input_templates/standardise_gwases.json](input_templates/standardise_gwases.json)`   | Harmonise GWAS columns and builds only (no PLINK).                                  |
-| `[compare_gwases.smk](../compare_gwases.smk)`           | `[input_templates/compare_gwases.json](input_templates/compare_gwases.json)`           | Standardise → clump → heterogeneity / LDSC / expected–observed plots.               |
-| `[disease_progression.smk](../disease_progression.smk)` | `[input_templates/disease_progression.json](input_templates/disease_progression.json)` | Incident vs subsequent GWAS: collider bias, plots, comparisons.                     |
-| `[finemap.smk](../finemap.smk)`                         | `[input_templates/finemap.json](input_templates/finemap.json)`                         | Standardise → clump → SuSiE RSS fine-mapping per GWAS (no pairwise coloc).          |
-| `[coloc.smk](../coloc.smk)`                             | `[input_templates/coloc.json](input_templates/coloc.json)`                             | Same as finemap prep for ≥2 GWAS, then pairwise `coloc::coloc.bf_bf` + HTML report. |
-| `[qtl_mr.smk](../qtl_mr.smk)`                           | `[input_templates/qtl_mr.json](input_templates/qtl_mr.json)`                           | One GWAS: MR vs a QTL panel, volcano plot, BF–BF coloc for MR hits.                 |
+| [`standardise_gwas.smk`](standardise_gwas.smk) | [`input_templates/standardise_gwases.yaml`](input_templates/standardise_gwases.yaml) | Harmonise GWAS columns and builds only (no PLINK). |
+| [`compare_gwases.smk`](compare_gwases.smk) | [`input_templates/compare_gwases.yaml`](input_templates/compare_gwases.yaml) | Standardise → clump → heterogeneity / LDSC / expected–observed plots. |
+| [`disease_progression.smk`](disease_progression.smk) | [`input_templates/disease_progression.yaml`](input_templates/disease_progression.yaml) | Incident vs subsequent GWAS: collider bias, plots, comparisons. |
+| [`finemap.smk`](finemap.smk) | [`input_templates/finemap.yaml`](input_templates/finemap.yaml) | Standardise → clump → SuSiE RSS fine-mapping per GWAS (no pairwise coloc). |
+| [`coloc.smk`](coloc.smk) | [`input_templates/coloc.yaml`](input_templates/coloc.yaml) | Same as finemap prep for ≥2 GWAS, then pairwise `coloc::coloc.bf_bf` + HTML report. |
+| [`qtl_mr.smk`](qtl_mr.smk) | [`input_templates/qtl_mr.yaml`](input_templates/qtl_mr.yaml) | One GWAS: MR vs a QTL panel, volcano plot, BF–BF coloc for MR hits. |
 
 
 ---

@@ -12,7 +12,7 @@ def format_dir_string(directory):
 load_dotenv()
 docker_repo = "docker://mrcieu/genehackman"
 user = os.getenv('USER')
-input_file = os.getenv('INPUT_FILE') or "input.json"
+input_file = "input.yaml"
 start_time = datetime.now()
 
 # Slurm writes batch stdout to this directory on HPC; local/Docker runs use ./pipeline_logs instead.
