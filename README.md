@@ -50,25 +50,55 @@ or if you have already created the environment
 
 ```conda activate genehackman```
 
-### 3. Populate .env and input.json files
+### 3. Get reference data (Google Cloud Storage)
+
+Much of what the pipelines expect (LD references, LDSC masks, MetaBrain/QTL summaries, …) ships in two buckets. Copy them somewhere on your machine or HPC scratch space (**do not commit data to git**).
+
+| Bucket | Typical use | Env var to set after download |
+|--------|--------------|-------------------------------|
+| Mandatory: `gs://genehackman` | Core pipeline bundle (e.g. 1000 Genomes LD panels, genomic assets, LDSC helpers under the layout expected under `PIPELINE_DATA_DIR`) | **`PIPELINE_DATA_DIR`** → absolute path of the folder that mirrors this bucket root (same internal directory names as on GCS). |
+| Optional: `gs://genehackman-qtl` | QTL summary statistic trees used by **`qtl_mr`** | **`QTL_DATA_DIR`** → absolute path of the folder containing that hierarchy. Needed for **`qtl_mr`**; ignored by other pipelines. |
+
+**Authenticate** (private buckets — use whichever applies): [install Google Cloud SDK](https://cloud.google.com/sdk/docs/install), then `gcloud auth login` so `gsutil` can read the buckets you’ve been granted.
+
+**Download with `gsutil`** (multipart copy; adjust local paths):
+
+```bash
+mkdir -p /path/to/my_pipeline_data /path/to/my_qtl_data
+gsutil -m rsync -r gs://genehackman/ /path/to/my_pipeline_data/
+gsutil -m rsync -r gs://genehackman-qtl/ /path/to/my_qtl_data/
+```
+
+To copy only selected prefixes instead of the QTL bucket, use `gsutil -m cp -r gs://genehackman-qtl/SOME_PREFIX/ ...` as needed.  For example, you may only be interested in cis, not trans data.
+
+**Download via web UI:** Open [Google Cloud Console → Cloud Storage](https://console.cloud.google.com/storage/browser), select the project/storage account you were given access to, open bucket **`genehackman`** or **`genehackman-qtl`**, and download files or folders in the browser (or use **“Activate Cloud Shell”** and run `gsutil` there, then drag files out if convenient).
+
+Then point your **`.env`** at those directories (trailing slashes are fine):
+
+```bash
+PIPELINE_DATA_DIR=/path/to/my_pipeline_data/
+QTL_DATA_DIR=/path/to/my_qtl_data/
+```
+
+Alternatives if you don’t set **`QTL_DATA_DIR`** directly: keep the same directory layout under **`PIPELINE_DATA_DIR/qtl_datasets/`**, or follow [PLATFORM_SETUP.md](PLATFORM_SETUP.md) (bind mounts and defaulting **`QTL_DATA_DIR`** to **`PIPELINE_DATA_DIR/qtl_datasets`**).
+
+### 4. Populate `.env` and `input.json` files
 
 `cp .env_example .env`
-* populate the DATA_DIR, RESULTS_DIR and RDFS_DIR environment variables in .env file
-These should probably be in your *work* or *scratch* space (`/user/work/{userid}/...`)
-* PIPELINE_DATA_DIR: data that can be found here
-* QTL_DATA_DIR (optional): if you want to run the QTL MR pipieline
-* RDFS_DIR is optional.  All generated files can be copied automatically.  Please ensure the path
-ends in `working/`
+* Populate **`DATA_DIR`**, **`RESULTS_DIR`**, and optional **`RDFS_DIR`** — usually under *work* or *scratch* (e.g. `/user/work/{userid}/...`).
+* Set **`PIPELINE_DATA_DIR`** to the path where you unpacked **`genehackman`** (see §3).
+* Set **`QTL_DATA_DIR`** to the path where you unpacked **`genehackman-qtl`** if you run **`qtl_mr`** (can be left empty otherwise; see [.env_example](.env_example)).
+* **`RDFS_DIR`** is optional for auto-copy of outputs; paths should end with `working/` if you use this feature.
 * **Container cache:** If there is no pre-built `genehackman_<version>.sif` under `PIPELINE_DATA_DIR`, Snakemake pulls the `docker://` image and caches the SIF under `.snakemake/singularity` by default. Set **`GENEHACKMAN_SINGULARITY_PREFIX`** in `.env` to use another directory (e.g. scratch). Running `snakemake` without `./run_pipeline.sh`? Pass `--singularity-prefix /path` or add `singularity-prefix:` to your profile `config.yaml`.
 
-### Fill out input.json file
-* Ex: `cp snakemake/input_templates/compare_gwases.json input.json`
-* Each pipeline (as defined in `snakemake` directory) has its own input format.
-  * [Here are example pipelines here, copy to input.json](snakemake/input_templates/)
-  * [Documentation per pipeline](snakemake/PIPELINES.md)
-* You can either copy into input.json, or supply the file into the script from another location
+**`input.json`**
 
-### 4. Run the pipeline
+* Example: `cp snakemake/input_templates/compare_gwases.json input.json`
+* Each pipeline has its own shape; examples live under [`snakemake/input_templates/`](snakemake/input_templates/).
+* See [PIPELINES.md](snakemake/PIPELINES.md) for all fields.
+* You can symlink or pass a different JSON path via `INPUT_FILE` / the second argument to `run_pipeline.sh`.
+
+### 5. Run the pipeline
 
 `./run_pipeline.sh snakemake/<specific_pipeline>.smk <optional_input_file.json>`
 
@@ -86,10 +116,11 @@ The standard column naming for GWASes are:
 
 A full list of names and default values [can be found here](inst/extdata/predefined_column_maps.csv)
 
-There are 3 main components to the pipeline
+There are 2 main components to the pipeline
 1. Snakemake to define the steps to complete for each pipeline.
 2. Docker / Singularity container with installed languages (R and python), packages, os libraries, and code
-3. Slurm: each snakemake step spins up a singularity container inside a slurm job.  Each step can specify different slurm requirements.
+
+The pipeline can be run either on its own, or via your institutions HPC.  Each snakemake step spins up a singularity container inside an HPC job (ex. slurm).  Each step can specify different cpu/memory requirements.
 
 ### Repository Organisation
 
