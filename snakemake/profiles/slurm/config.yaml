@@ -1,11 +1,12 @@
 cluster:
   export USER=$(whoami) &&
   export ACCOUNT_ID=$(sacctmgr show user withassoc format=account where user=$USER | grep '[0-9]' | head -n1) &&
-  export ACCOUNT_FOR_JOB="${SLURM_ACCOUNT:-$ACCOUNT_ID}" &&
+  export PARTITION="$SLURM_PARTITION" &&
+  if [ -n "$SLURM_ACCOUNT" ]; then export ACCOUNT_ID="$SLURM_ACCOUNT"; fi &&
   mkdir -p "$PIPELINE_LOG_DIR" &&
   sbatch
     --partition={resources.partition}
-    --account="$ACCOUNT_FOR_JOB"
+    --account=$ACCOUNT_ID
     --nodes={resources.nodes}
     --ntasks-per-node={resources.ntasks_per_node}
     --cpus-per-task={resources.ntasks_per_node}
@@ -16,7 +17,7 @@ cluster:
     --output="$PIPELINE_LOG_DIR/{rule}_%j.out"
 default-resources:
   - time='01:00:00'
-  - partition=${SLURM_PARTITION}
+  - partition='$PARTITION'
   - mem='1G'
   - ntasks_per_node=1
   - nodes=1
