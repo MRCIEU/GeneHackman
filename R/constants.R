@@ -6,11 +6,28 @@ get_env_var <- function(env_var_name, default_value=NULL) {
   }
 }
 
+# Slurm node CPUs when SLURM_* env is set, else parallel::detectCores().
+available_cpus <- function() {
+  slurm <- Sys.getenv("SLURM_CPUS_ON_NODE", "")
+  if (nzchar(slurm)) {
+    v <- suppressWarnings(as.integer(slurm))
+    if (!is.na(v)) {
+      return(max(1L, v))
+    }
+  }
+  dc <- suppressWarnings(parallel::detectCores(logical = TRUE))
+  if (is.na(dc) || dc < 1L) {
+    1L
+  } else {
+    as.integer(dc)
+  }
+}
+
 user_data_dir <- get_env_var("DATA_DIR", "")
 user_results_dir <- get_env_var("RESULTS_DIR", "")
 pipeline_data_dir <- sub("/+$", "", get_env_var("PIPELINE_DATA_DIR", ""))
 qtl_directory <- sub("/+$", "", get_env_var("QTL_DATA_DIR", ""))
-number_of_cpus_available <- as.numeric(get_env_var("SLURM_CPUS_ON_NODE", 1))
+number_of_cpus_available <- available_cpus()
 
 genomic_data_dir <- file.path(pipeline_data_dir, "genomic_data")
 # Must match snakemake/util/constants.smk THOUSAND_GENOMES_DIR (used by clumping + LD).

@@ -1,8 +1,8 @@
 rule run_finemapping:
-    threads: 4
+    threads: 8
     resources:
-        mem = "32G",
-        time = "04:00:00"
+        mem = "48G",
+        time = "24:00:00"
     input:
         gwas = lambda wildcards: getattr(pipeline, wildcards.prefix).standardised_gwas,
         clumped_file = lambda wildcards: getattr(pipeline, wildcards.prefix).clumped_file

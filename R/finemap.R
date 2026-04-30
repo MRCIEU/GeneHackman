@@ -144,7 +144,7 @@ finemap_gwas <- function(gwas,
   locus_results <- parallel::mclapply(
     seq_len(n_loci),
     process_one_locus,
-    mc.cores = 2L
+    mc.cores = 3L
   )
   all_lbf <- locus_results[!vapply(locus_results, is.null, FUN.VALUE = logical(1))]
   combined_lbf <- dplyr::bind_rows(all_lbf)
@@ -178,6 +178,7 @@ compute_ld_matrix <- function(rsids, chr, ancestry) {
 
   cmd <- paste(
     "plink1.9",
+    "--threads", as.character(number_of_cpus_available),
     "--bfile", bfile,
     "--chr", chr,
     "--extract", snp_file,

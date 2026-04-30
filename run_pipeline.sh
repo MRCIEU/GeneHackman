@@ -85,7 +85,7 @@ if [[ -z "${SIF_VERSION}" ]]; then
 fi
 
 SIF_NAME="genehackman_${SIF_VERSION}.sif"
-PIPELINE_GENOMIC_DIR="${PIPELINE_DATA_DIR%/}/pipeline"
+PIPELINE_GENOMIC_DIR="${PIPELINE_DATA_DIR%/}/genomic_data/pipeline"
 PIPELINE_GENOMIC_DIR="${PIPELINE_GENOMIC_DIR%/}"
 SIF_PATH="${PIPELINE_GENOMIC_DIR}/${SIF_NAME}"
 
@@ -132,4 +132,6 @@ fi
 
 echo "Running pipeline with profile: ${PROFILE}"
 
-snakemake --snakefile "${SMK_FILE}" --profile "${PROFILE}" --config "genehackman_input=${PIPELINE_INPUT}" "$@"
+# Input YAML via env so Snakemake flags (e.g. --unlock) are never parsed as genehackman_input.
+export GENEHACKMAN_INPUT="${PIPELINE_INPUT}"
+snakemake --snakefile "${SMK_FILE}" --profile "${PROFILE}" "$@"
