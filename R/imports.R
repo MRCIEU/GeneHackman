@@ -16,6 +16,7 @@
 #' @rawNamespace import(shiny, except = c(setProgress, validate))
 #' @rawNamespace import(tidyr, except = c(extract))
 #' @rawNamespace import(utils, except = c(timestamp))
+#' @rawNamespace import(Rfast, except = c(transpose, nth, is_integer, as_integer))
 #' @import coloc
 #' @import ggplot2
 #' @import ggrepel

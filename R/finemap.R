@@ -16,6 +16,8 @@
 #' @param max_causal maximum number of causal signals per locus (SuSiE L, default 10)
 #' @param coverage credible set coverage (default 0.95)
 #' @param min_abs_corr minimum absolute correlation for credible sets (default 0.5)
+#' @details Loci are fine-mapped in parallel with [parallel::mclapply()] (`mc.cores = 2`).
+#'   On Windows this runs sequentially. Each job writes its own output file.
 #' @return invisibly, the combined per-SNP finemap tibble (LD-matched SNPs only)
 
 
@@ -53,9 +55,8 @@ finemap_gwas <- function(gwas,
   }
 
   window_bp <- window_kb * 1000
-  all_lbf <- list()
 
-  for (i in seq_len(nrow(lead_snps))) {
+  process_one_locus <- function(i) {
     lead_rsid <- lead_snps$SNP[i]
     lead_chr <- as.numeric(lead_snps$CHR[i])
     lead_bp <- as.numeric(lead_snps$BP[i])
@@ -69,25 +70,25 @@ finemap_gwas <- function(gwas,
 
     if (nrow(locus_gwas) < 2) {
       message(paste("Skipping locus", lead_rsid, "- fewer than 2 SNPs in window"))
-      next
+      return(NULL)
     }
 
     if (!"RSID" %in% colnames(locus_gwas) || all(is.na(locus_gwas$RSID))) {
       message(paste("Skipping locus", lead_rsid, "- no RSIDs available for LD computation"))
-      next
+      return(NULL)
     }
     locus_gwas <- dplyr::filter(locus_gwas, !is.na(RSID) & nchar(RSID) > 0)
 
     ld_result <- compute_ld_matrix(locus_gwas$RSID, lead_chr, ancestry)
     if (is.null(ld_result)) {
       message(paste("Skipping locus", lead_rsid, "- LD matrix computation failed"))
-      next
+      return(NULL)
     }
 
     shared_rsids <- intersect(locus_gwas$RSID, ld_result$snps)
     if (length(shared_rsids) < 2) {
       message(paste("Skipping locus", lead_rsid, "- too few shared SNPs between GWAS and LD panel"))
-      next
+      return(NULL)
     }
 
     locus_gwas <- dplyr::filter(locus_gwas, RSID %in% shared_rsids)
@@ -113,10 +114,8 @@ finemap_gwas <- function(gwas,
     )
 
     if (nrow(locus_lbf) == 0) {
-      next
+      return(NULL)
     }
-
-    all_lbf <- c(all_lbf, list(locus_lbf))
 
     lbf_nm <- grep("^LBF_[0-9]+$", names(locus_lbf), value = TRUE)
     finemap_join <- dplyr::select(locus_lbf, dplyr::any_of(c(
@@ -137,8 +136,17 @@ finemap_gwas <- function(gwas,
     safe_locus <- gsub("[^A-Za-z0-9._-]+", "_", lead_chr_bp)
     out_file <- file.path(output_finemap_dir, paste0(safe_locus, "_finemap.tsv.gz"))
     vroom::vroom_write(out_gwas, out_file)
+
+    locus_lbf
   }
 
+  n_loci <- nrow(lead_snps)
+  locus_results <- parallel::mclapply(
+    seq_len(n_loci),
+    process_one_locus,
+    mc.cores = 2L
+  )
+  all_lbf <- locus_results[!vapply(locus_results, is.null, FUN.VALUE = logical(1))]
   combined_lbf <- dplyr::bind_rows(all_lbf)
 
   if (nrow(combined_lbf) == 0) {

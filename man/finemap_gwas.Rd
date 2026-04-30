@@ -46,3 +46,7 @@ susieR::susie_rss.  Writes one TSV per locus: all GWAS variants within the
 genomic window around the lead SNP, with SuSiE Z-scores, credible-set
 membership, and per-credible-set (independent signal) columns \code{LBF_1}, \code{LBF_2}, ...
 }
+\details{
+Loci are fine-mapped in parallel with \code{\link[parallel:mclapply]{parallel::mclapply()}} (\code{mc.cores = 2}).
+On Windows this runs sequentially. Each job writes its own output file.
+}

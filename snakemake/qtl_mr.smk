@@ -40,36 +40,7 @@ rule all:
 
 include: "rules/standardise_rule.smk"
 include: "rules/clumping_rule.smk"
-
-rule run_finemapping:
-    resources:
-        mem = "16G",
-        time = "04:00:00"
-    input:
-        gwas = lambda wildcards: getattr(pipeline, wildcards.prefix).standardised_gwas,
-        clumped_file = lambda wildcards: getattr(pipeline, wildcards.prefix).clumped_file
-    params:
-        ancestry = lambda wildcards: getattr(pipeline, wildcards.prefix).ancestry,
-        n = lambda wildcards: getattr(pipeline, wildcards.prefix).N,
-        window_kb = finemap_window_kb,
-        max_causal = finemap_max_causal,
-        coverage = finemap_coverage,
-        min_abs_corr = finemap_min_abs_corr
-    output:
-        finemap_dir = directory(finemap_dir_pattern)
-    shell:
-        """
-        Rscript run_finemap.R \
-            --gwas_filename {input.gwas} \
-            --clumped_filename {input.clumped_file} \
-            --ancestry {params.ancestry} \
-            --N {params.n} \
-            --output_finemap_dir {output.finemap_dir} \
-            --window_kb {params.window_kb} \
-            --max_causal {params.max_causal} \
-            --coverage {params.coverage} \
-            --min_abs_corr {params.min_abs_corr}
-        """
+include: "rules/finemap_rule.smk"
 
 rule run_mr_against_qtl_datasets:
     threads: 4

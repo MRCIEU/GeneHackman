@@ -13,7 +13,10 @@
 #' @param populate_eaf If TRUE, fill missing \code{EAF} from the 1000 Genomes LD panel (\code{ANCESTRY.bim} + \code{ANCESTRY.frq} under \code{THOUSAND_GENOMES_DIR}).
 #' @param ancestry Ancestry code (EUR, EAS, AFR, AMR, SAS) matching the reference panel prefix; required when \code{populate_eaf} is TRUE.
 #' @param flip_alleles If TRUE (default), reorder EA/OA alphabetically and flip BETA, EAF, Z accordingly.
-#'   Set to FALSE to keep alleles as-is (useful when you only need to populate RSIDs, EAF, or change build).
+#'   Set to FALSE to keep alleles as-is (useful when you only need harmonisation without allele reordering).
+#'   Only supported when running **standardise_gwas.smk**. When \code{populate_eaf} is TRUE and
+#'   \code{flip_alleles} is FALSE, EAF is merged from the LD panel before rebuilding the SNP id so
+#'   effect alleles align with reference coding.
 #' @return modified gwas: saves new gwas in output_file if present
 
 
@@ -45,10 +48,20 @@ standardise_gwas <- function(gwas,
     change_column_names(input_gwas_columns, remove_extra_columns) |>
     standardise_columns(N) |>
     filter_incomplete_rows() |>
-    convert_reference_build_via_liftover(input_reference_build, output_reference_build) |>
-    standardise_alleles(flip = flip_alleles) |>
+    convert_reference_build_via_liftover(input_reference_build, output_reference_build)
+
+  if (!flip_alleles && isTRUE(populate_eaf)) {
+    gwas <- populate_eaf_from_reference_panel(gwas, ancestry, TRUE)
+  }
+
+  gwas <- standardise_alleles(gwas, flip = flip_alleles)
+
+  if (flip_alleles && isTRUE(populate_eaf)) {
+    gwas <- populate_eaf_from_reference_panel(gwas, ancestry, TRUE)
+  }
+
+  gwas <- gwas |>
     health_check() |>
-    populate_eaf_from_reference_panel(ancestry, populate_eaf) |>
     populate_rsid(populate_rsid_option) |>
     populate_gene_names() |>
     change_column_names(output_gwas_columns)

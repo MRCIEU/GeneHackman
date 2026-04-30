@@ -45,7 +45,10 @@ can be list() of key/value pairs, string of row in predefined_column_maps, or co
 \item{ancestry}{Ancestry code (EUR, EAS, AFR, AMR, SAS) matching the reference panel prefix; required when \code{populate_eaf} is TRUE.}
 
 \item{flip_alleles}{If TRUE (default), reorder EA/OA alphabetically and flip BETA, EAF, Z accordingly.
-Set to FALSE to keep alleles as-is (useful when you only need to populate RSIDs, EAF, or change build).}
+Set to FALSE to keep alleles as-is (useful when you only need harmonisation without allele reordering).
+Only supported when running \strong{standardise_gwas.smk}. When \code{populate_eaf} is TRUE and
+\code{flip_alleles} is FALSE, EAF is merged from the LD panel before rebuilding the SNP id so
+effect alleles align with reference coding.}
 }
 \value{
 modified gwas: saves new gwas in output_file if present

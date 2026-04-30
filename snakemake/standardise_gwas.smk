@@ -2,7 +2,7 @@ include: "util/common.smk"
 singularity: get_docker_container()
 
 pipeline_name = "standardise_gwas"
-pipeline = parse_pipeline_input()
+pipeline = parse_pipeline_input(allow_flip_false=True)
 
 onstart:
     print("##### GWAS Standardisation Pipeline #####")

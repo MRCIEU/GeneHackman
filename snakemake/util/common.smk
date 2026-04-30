@@ -42,7 +42,7 @@ def get_docker_container():
         return f"{docker_repo}:latest"
 
 
-def parse_pipeline_input(pipeline_includes_clumping=False):
+def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=False):
     global input_file
     try:
         input_file = config.get("genehackman_input") or "input.yaml"
@@ -76,6 +76,7 @@ def parse_pipeline_input(pipeline_includes_clumping=False):
         if not hasattr(pipeline.output, "columns"): pipeline.output.columns = default_output_options.columns
     if not hasattr(pipeline, "populate_rsid"): pipeline.populate_rsid = False
     if not hasattr(pipeline, "populate_eaf"): pipeline.populate_eaf = False
+    if not hasattr(pipeline, "flip_alleles"): pipeline.flip_alleles = True
 
     if not hasattr(pipeline, "finemap"):
         pipeline.finemap = SimpleNamespace()
@@ -123,6 +124,10 @@ def parse_pipeline_input(pipeline_includes_clumping=False):
     eaf_ancestries = [g.ancestry for g in pipeline.gwases if g.populate_eaf]
     if eaf_ancestries:
         validate_ancestries(eaf_ancestries)
+    if not allow_flip_false:
+        for g in pipeline.gwases:
+            if getattr(g, "flip_alleles", True) is False:
+                raise ValueError("flip_alleles = FALSE is only available for standardise_gwas.smk")
     return pipeline
 
 def resolve_rsid_population(pipeline_includes_clumping, populate_rsid):

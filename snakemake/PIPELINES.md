@@ -28,7 +28,7 @@ Each element describes one GWAS file.
 | `build`                | No       | `GRCh36`, `GRCh37`, `GRCh38`. Default `GRCh37`.                                                                                                                                                                                 |
 | `populate_rsid`        | No       | Per-GWAS override: `true` / `false`. With clumping and `false` at both levels, RSID population is **partial** (see below).                                                                                                      |
 | `populate_eaf`         | No       | Per-GWAS: if `true`, fills missing `EAF` from the 1000 Genomes reference (`<PIPELINE_DATA_DIR>/genomic_data/1000genomes/b37_dbsnp156/` … `<ancestry>.bim` + `.frq`). Requires `ancestry`.                                                                               |
-| `flip_alleles`         | No       | If omitted, inherited from root `flip_alleles` (default `true`). If `false`, EA/OA order is preserved (see `standardise_gwas` constraints with partial RSID).                                                                   |
+| `flip_alleles`         | No       | If omitted, inherited from root (default **`true`**). **`false`** is **allowed only for [`standardise_gwas.smk`](standardise_gwas.smk)** (other pipelines fail at YAML load). With `false`, EA/OA order is preserved; **partial** RSID + `flip_alleles: false` remains invalid (use **`none`** or **`full`** RSID). |
 | `remove_extra_columns` | No       | Default `false`.                                                                                                                                                                                                                |
 
 
@@ -52,7 +52,7 @@ These may appear at the **root** of the YAML document (alongside `gwases`).
 | `is_test`                      | `false`                              | Used by tests / logging.                                                                                                                                                                     |
 | `populate_rsid`                | `false`                              | Pipeline-wide default; each GWAS can override. **Clumping + false** here and on each GWAS ⇒ RSID population is **partial** (chrpos-based) unless you set `populate_rsid: true` where needed. |
 | `populate_eaf`                 | `false`                              | Pipeline-wide default; each GWAS can override. Any GWAS with `populate_eaf: true` must include `ancestry`.                                                                                   |
-| `flip_alleles`                 | `true`                               | Pipeline-wide default for `standardise_gwas`.                                                                                                                                                |
+| `flip_alleles`                 | `true`                               | Pipeline-wide default. Root or per-GWAS **`false`** only for **`standardise_gwas.smk`**; downstream pipelines require default harmonised alleles (`true`).                                                                                                      |
 | `output`                       | `build: GRCh37` + default column map | Only `standardise_gwas` / harmonisation: target `build` and/or output column names.                                                                                                          |
 | `finemap`                      | See below                            | Present in **finemap**, **coloc**, and **qtl_mr** inputs. Omitted keys get defaults from the parser (e.g. `window_kb` defaults to **500** unless you set it under `finemap`).                |
 | `coloc`                        | See below                            | Only **coloc** pipeline.                                                                                                                                                                     |
@@ -107,7 +107,7 @@ Used by **finemap**, **coloc**, and **qtl_mr**. If the block is missing, default
 Harmonisation only (`snakemake/standardise_gwas.smk`).
 
 - **GWAS**: one or more objects (see above).
-- **Root**: optional `populate_rsid`, `populate_eaf`, `flip_alleles`, `output.build` / `output.columns`, `is_test`.
+- **Root**: optional `populate_rsid`, `populate_eaf`, `flip_alleles`, `output.build` / `output.columns`, `is_test`. This is the **only** pipeline that allows **`flip_alleles: false`**; when combined with **`populate_eaf`**, EAF merge runs **before** the SNP id is rebuilt without allele flipping.
 - **Outputs**: `{DATA_DIR}/gwas/<prefix>_std.tsv.gz` per input file.
 
 ---

@@ -49,7 +49,7 @@ if (!dir.exists(args$output_finemap_dir)) {
   dir.create(args$output_finemap_dir, recursive = TRUE)
 }
 
-finemap_gwas(gwas = args$gwas_filename,
+invisible(finemap_gwas(gwas = args$gwas_filename,
              clumped_file = args$clumped_filename,
              ancestry = args$ancestry,
              default_n = args$N,
@@ -58,4 +58,4 @@ finemap_gwas(gwas = args$gwas_filename,
              max_causal = args$max_causal,
              coverage = args$coverage,
              min_abs_corr = args$min_abs_corr
-)
+))
