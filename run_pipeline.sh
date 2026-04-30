@@ -8,7 +8,13 @@ if [[ $# -lt 1 ]] ; then
   echo """
   Error: You have to provide at least 1 argument:
     PIPELINE_FILE (ex. snakemake/standardise_gwas.smk)
-    INPUT_FILE YAML (optional, defaults to input.yaml in the working directory)
+    INPUT_FILE YAML (optional, defaults to input.yaml; omit when passing only Snakemake flags)
+
+  Examples:
+    ./run_pipeline.sh snakemake/coloc.smk
+    ./run_pipeline.sh snakemake/coloc.smk my_input.yaml
+    ./run_pipeline.sh snakemake/coloc.smk --unlock
+    ./run_pipeline.sh snakemake/coloc.smk my_input.yaml --dry-run
 
   Default profile is local Apptainer (snakemake/profiles/local/). For Slurm, set
   SNAKEMAKE_PROFILE=snakemake/profiles/slurm/ or create a new profile under snakemake/profiles/
@@ -57,8 +63,14 @@ else
 fi
 
 SMK_FILE=$1
-PIPELINE_INPUT="${2:-input.yaml}"
-ADDITIONAL_ARGS="${@:3}"
+shift
+# Second arg is the input YAML only if it is present and not a Snakemake/cli flag (e.g. --unlock).
+if [[ $# -ge 1 && "${1}" != -* ]]; then
+  PIPELINE_INPUT="$1"
+  shift
+else
+  PIPELINE_INPUT="input.yaml"
+fi
 
 if [[ "${PROFILE}" != snakemake/profiles/local/* ]] && [[ "${PROFILE}" != snakemake/local/* ]]; then
   module load ${APPTAINER_MODULE}
@@ -120,4 +132,4 @@ fi
 
 echo "Running pipeline with profile: ${PROFILE}"
 
-snakemake --snakefile "${SMK_FILE}" --profile "${PROFILE}" --config "genehackman_input=${PIPELINE_INPUT}" ${ADDITIONAL_ARGS}
+snakemake --snakefile "${SMK_FILE}" --profile "${PROFILE}" --config "genehackman_input=${PIPELINE_INPUT}" "$@"
