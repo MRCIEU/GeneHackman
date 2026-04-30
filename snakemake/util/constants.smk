@@ -9,6 +9,16 @@ def format_dir_string(directory):
     if not directory: return None
     return directory + "/" if not directory.endswith('/') else directory
 
+
+def _available_cpus():
+    """CPUs on the allocated Slurm node if Slurm sets them, else logical CPUs on this host."""
+    slurm = os.getenv("SLURM_CPUS_ON_NODE")
+    if slurm is not None and str(slurm).strip() != "":
+        return max(1, int(slurm))
+    n = os.cpu_count()
+    return max(1, n if n is not None else 1)
+
+
 load_dotenv()
 docker_repo = "docker://mrcieu/genehackman"
 user = os.getenv('USER')
@@ -66,6 +76,8 @@ LDSC_DIR = format_dir_string(PIPELINE_DATA_DIR + "/LDSCORE/b37_dbsnp156")
 GENOMIC_DATA_DIR = format_dir_string(PIPELINE_DATA_DIR + "/genomic_data")
 THOUSAND_GENOMES_DIR = format_dir_string(GENOMIC_DATA_DIR + "1000genomes/b37_dbsnp156")
 QTL_DIRECTORY = format_dir_string(QTL_DATA_DIR)
+
+AVAILABLE_CPUS = _available_cpus()
 
 if DATA_DIR == RESULTS_DIR:
     raise ValueError("DATA_DIR and RESULTS_DIR must be different directories")

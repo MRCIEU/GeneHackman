@@ -8,8 +8,9 @@ for g in pipeline.gwases:
     setattr(pipeline, g.prefix, g)
 
 rule clump_gwases:
+    threads: 4
     resources:
-        mem = "4G"
+        mem = "8G"
     input:
         gwases = [g.standardised_gwas for g in pipeline.gwases]
     output: [g.clumped_file for g in pipeline.gwases]
@@ -25,6 +26,7 @@ rule clump_gwases:
         do
             ancestry=${{ancestries[$i]}}
             plink1.9 --bfile {THOUSAND_GENOMES_DIR}/$ancestry \
+                --threads {AVAILABLE_CPUS} \
                 --clump ${{gwases[$i]}} \
                 --clump-snp-field RSID \
                 {pipeline.plink_clump_arguments} \

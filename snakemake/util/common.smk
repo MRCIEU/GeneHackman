@@ -262,7 +262,6 @@ def cleanup_old_slurm_logs():
 
     one_month_ago = datetime.now() - relativedelta(months=1)
     files = [f for f in os.listdir(pipeline_log_directory) if os.path.isfile(os.path.join(pipeline_log_directory, f))]
-    print("deleting old logs")
 
     for filename in files: 
         file = os.path.join(pipeline_log_directory, filename)
