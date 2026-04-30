@@ -64,14 +64,6 @@ if [[ "${PROFILE}" != snakemake/profiles/local/* ]] && [[ "${PROFILE}" != snakem
   module load ${APPTAINER_MODULE}
 fi
 
-PIPELINE_GENOMIC_DIR="${PIPELINE_DATA_DIR%/}/pipeline/"
-if [[ -w "${PIPELINE_GENOMIC_DIR}" ]]; then
-  SIF_DIR="${PIPELINE_GENOMIC_DIR}"
-else
-  SIF_DIR=".snakemake/singularity"
-fi
-SIF_DIR="${SIF_DIR%/}"
-
 # Image tag: default GENEHACKMAN_VERSION from DOCKER_VERSION so pull and SIF basename stay aligned.
 GENEHACKMAN_VERSION="${GENEHACKMAN_VERSION:-${DOCKER_VERSION:-}}"
 SIF_VERSION="${DOCKER_VERSION:-${GENEHACKMAN_VERSION:-}}"
@@ -79,8 +71,18 @@ if [[ -z "${SIF_VERSION}" ]]; then
   echo "Error: Set DOCKER_VERSION in .env (e.g. 1.0.0) so the SIF name matches the Docker image tag."
   exit 1
 fi
+
 SIF_NAME="genehackman_${SIF_VERSION}.sif"
-SIF_PATH="${SIF_DIR}/${SIF_NAME}"
+PIPELINE_GENOMIC_DIR="${PIPELINE_DATA_DIR%/}/genomic_data/pipeline"
+PIPELINE_GENOMIC_DIR="${PIPELINE_GENOMIC_DIR%/}"
+SIF_PATH="${PIPELINE_GENOMIC_DIR}/${SIF_NAME}"
+
+echo "SIF_PATH: ${SIF_PATH}"
+if [[ -f "${SIF_PATH}" ]] || [[ -w "${PIPELINE_GENOMIC_DIR}" ]] ; then
+  mkdir -p "${PIPELINE_GENOMIC_DIR}"
+else
+  SIF_PATH=".snakemake/singularity/${SIF_NAME}"
+fi  
 
 SINGULARITY_DOCKER_REFERENCE="docker://mrcieu/genehackman:${GENEHACKMAN_VERSION}"
 
@@ -97,7 +99,7 @@ fi
 
 if [[ ! -f "${SIF_PATH}" ]]; then
   echo "SIF file not found: ${SIF_PATH}"
-  mkdir -p "${SIF_DIR}"
+  mkdir -p "${PIPELINE_GENOMIC_DIR}"
   echo "Building container with singularity from: ${SINGULARITY_DOCKER_REFERENCE}"
   if [[ "${#SINGULARITY_BUILD_ARCH_ARGS[@]}" -gt 0 ]]; then
     echo "(host is ARM: using singularity build ${SINGULARITY_BUILD_ARCH_ARGS[*]} for amd64 image)"
