@@ -14,7 +14,7 @@ number_of_cpus_available <- as.numeric(get_env_var("SLURM_CPUS_ON_NODE", 1))
 
 genomic_data_dir <- file.path(pipeline_data_dir, "genomic_data")
 # Must match snakemake/util/constants.smk THOUSAND_GENOMES_DIR (used by clumping + LD).
-thousand_genomes_dir <- file.path(pipeline_data_dir, "1000genomes", "b37_dbsnp156")
+thousand_genomes_dir <- file.path(genomic_data_dir, "1000genomes", "b37_dbsnp156")
 
 liftover_dir <- file.path(genomic_data_dir, "liftover")
 pqtl_top_hits_dir <- file.path(qtl_directory, "pqtl")

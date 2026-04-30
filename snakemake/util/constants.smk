@@ -64,7 +64,7 @@ QTL_DATA_DIR = os.getenv("QTL_DATA_DIR", "").strip()
 
 LDSC_DIR = format_dir_string(PIPELINE_DATA_DIR + "/LDSCORE/b37_dbsnp156")
 GENOMIC_DATA_DIR = format_dir_string(PIPELINE_DATA_DIR + "/genomic_data")
-THOUSAND_GENOMES_DIR = format_dir_string(PIPELINE_DATA_DIR + "/1000genomes/b37_dbsnp156")
+THOUSAND_GENOMES_DIR = format_dir_string(GENOMIC_DATA_DIR + "1000genomes/b37_dbsnp156")
 QTL_DIRECTORY = format_dir_string(QTL_DATA_DIR)
 
 if DATA_DIR == RESULTS_DIR:

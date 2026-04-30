@@ -64,7 +64,7 @@ if [[ "${PROFILE}" != snakemake/profiles/local/* ]] && [[ "${PROFILE}" != snakem
   module load ${APPTAINER_MODULE}
 fi
 
-PIPELINE_GENOMIC_DIR="${PIPELINE_DATA_DIR%/}/genomic_data/pipeline/"
+PIPELINE_GENOMIC_DIR="${PIPELINE_DATA_DIR%/}/pipeline/"
 if [[ -w "${PIPELINE_GENOMIC_DIR}" ]]; then
   SIF_DIR="${PIPELINE_GENOMIC_DIR}"
 else
