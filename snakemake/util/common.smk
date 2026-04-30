@@ -44,10 +44,14 @@ def get_docker_container():
 
 def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=False):
     global input_file
+    env_in = os.environ.get("GENEHACKMAN_INPUT") or os.environ.get("GENEHACKMAN_INPUT_FILE")
     try:
-        input_file = config.get("genehackman_input") or "input.yaml"
+        cfg_in = config.get("genehackman_input")
     except NameError:
-        input_file = "input.yaml"
+        cfg_in = None
+    if cfg_in is not None and str(cfg_in).startswith("-"):
+        cfg_in = None
+    input_file = env_in or cfg_in or "input.yaml"
 
     if not os.path.isfile(".env"):
         raise ValueError("Error: .env file doesn't exist")

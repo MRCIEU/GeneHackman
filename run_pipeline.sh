@@ -132,6 +132,5 @@ fi
 
 echo "Running pipeline with profile: ${PROFILE}"
 
-# Input YAML via env so Snakemake flags (e.g. --unlock) are never parsed as genehackman_input.
 export GENEHACKMAN_INPUT="${PIPELINE_INPUT}"
 snakemake --snakefile "${SMK_FILE}" --profile "${PROFILE}" "$@"
