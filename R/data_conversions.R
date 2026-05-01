@@ -58,11 +58,14 @@ map_ref_to_eaf <- function(ea, oa, ra1, ra2, a1_freq) {
 #'
 #' @param gwas Standardised GWAS tibble (CHR, BP, EA, OA; SNP id built after allele ordering).
 #' @param ancestry One of EUR, EAS, AFR, AMR, SAS matching the reference panel prefix.
-#' @param enabled If FALSE, returns \code{gwas} unchanged.
 #' @export
-populate_eaf_from_reference_panel <- function(gwas, ancestry, enabled = FALSE) {
-  if (!enabled) {
-    return(gwas)
+populate_eaf_from_reference_panel <- function(gwas, ancestry) {
+  if ("EAF" %in% colnames(gwas) && !all(is.na(gwas$EAF))) {
+    n_missing <- sum(is.na(gwas$EAF))
+    if (n_missing == 0) {
+      message("EAF column already fully populated; skipping reference panel lookup.")
+      return(gwas)
+    }
   }
   allowed <- c("EUR", "EAS", "AFR", "AMR", "SAS")
   if (!ancestry %in% allowed) {
@@ -87,28 +90,36 @@ populate_eaf_from_reference_panel <- function(gwas, ancestry, enabled = FALSE) {
     col_names = c("CHR", "SNP", "CM", "BP", "A1_bim", "A2_bim"),
     show_col_types = FALSE
   )
-  ref_frq <- vroom::vroom(frq_path, show_col_types = FALSE)
+  ref_frq <- data.table::fread(frq_path, header = TRUE, data.table = FALSE)
   names(ref_frq) <- stringr::str_trim(names(ref_frq))
   req <- c("CHR", "SNP", "A1", "A2", "MAF")
   if (!all(req %in% colnames(ref_frq))) {
     stop(".frq file must contain columns CHR, SNP, A1, A2, MAF (plink 1.9 --freq)")
   }
 
-  ref_bim <- dplyr::mutate(ref_bim, CHR = as.character(CHR))
-  ref_frq <- dplyr::mutate(dplyr::select(ref_frq, dplyr::all_of(req)), CHR = as.character(CHR))
+  normalise_chr <- function(x) {
+    x <- as.character(x)
+    x <- stringr::str_trim(x)
+    x <- sub("^chr", "", x, ignore.case = TRUE)
+    x <- sub("^0+", "", x)
+    x
+  }
+
+  ref_bim <- dplyr::mutate(ref_bim, CHR = normalise_chr(CHR))
+  ref_frq <- dplyr::mutate(dplyr::select(ref_frq, dplyr::all_of(req)), CHR = normalise_chr(CHR))
 
   ref <- dplyr::inner_join(ref_bim, ref_frq, by = c("CHR", "SNP"))
   ref <- dplyr::distinct(ref, CHR, BP, .keep_all = TRUE)
   ref <- dplyr::transmute(
     ref,
-    CHR = as.character(CHR),
+    CHR = CHR,
     BP = as.integer(BP),
     A1 = toupper(A1),
     A2 = toupper(A2),
     MAF = as.numeric(MAF)
   )
 
-  gwas$CHR <- as.character(gwas$CHR)
+  gwas$CHR <- normalise_chr(gwas$CHR)
   gwas$BP <- as.integer(gwas$BP)
 
   joined <- dplyr::left_join(gwas, ref, by = c("CHR", "BP"))

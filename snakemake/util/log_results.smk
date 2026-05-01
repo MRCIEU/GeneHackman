@@ -7,8 +7,11 @@ import os
 def update_google_sheet(pipeline_name, succeeded=True, error_file=None, is_test=False):
     if is_test: return
 
+    creds_file = GENOMIC_DATA_DIR + "/googlesheets/google_sheets_creds.json"
     try:
-        gc = pygsheets.authorize(service_file=GENOMIC_DATA_DIR + "/googlesheets/google_sheets_creds.json")
+        if not os.path.isfile(creds_file):
+            return
+        gc = pygsheets.authorize(service_file=creds_file)
         spreadsheet = gc.open('GeneHackman')
         worksheet = spreadsheet[0]
 

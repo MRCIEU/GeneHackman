@@ -51,13 +51,13 @@ standardise_gwas <- function(gwas,
     convert_reference_build_via_liftover(input_reference_build, output_reference_build)
 
   if (!flip_alleles && isTRUE(populate_eaf)) {
-    gwas <- populate_eaf_from_reference_panel(gwas, ancestry, TRUE)
+    gwas <- populate_eaf_from_reference_panel(gwas, ancestry)
   }
 
   gwas <- standardise_alleles(gwas, flip = flip_alleles)
 
   if (flip_alleles && isTRUE(populate_eaf)) {
-    gwas <- populate_eaf_from_reference_panel(gwas, ancestry, TRUE)
+    gwas <- populate_eaf_from_reference_panel(gwas, ancestry)
   }
 
   gwas <- gwas |>
