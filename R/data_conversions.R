@@ -156,7 +156,7 @@ populate_full_rsids <- function(gwas) {
   dbsnp_dir <- file.path(genomic_data_dir, "dbsnp")
   if (!build %in% rsid_builds) stop(paste("Error: invalid rsid build option:", build))
 
-  parallel_cores <- ifelse (is_on_cluster, number_of_cpus_available, 1)
+  parallel_cores <- if(is_on_cluster) number_of_cpus_available else 1
   message(paste0("Using ", parallel_cores, " cores for full RSID population"))
 
   gwas <- data.table::as.data.table(gwas)
@@ -172,7 +172,6 @@ populate_full_rsids <- function(gwas) {
     alt_rsids = FALSE,
     parallel_cores=parallel_cores
   )
-  print('finished chrpos_to_rsid')
   gwas <- tibble::as_tibble(gwas)
   return(gwas)
 }
