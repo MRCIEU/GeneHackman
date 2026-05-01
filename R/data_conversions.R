@@ -25,118 +25,90 @@ gene_name_to_ensembl_id <- function(gwas) {
   return(gwas)
 }
 
-#' Allele complement for strand alignment (SNPs only).
-#' @keywords internal
-allele_complement_vec <- function(alleles) {
-  u <- toupper(alleles)
-  r <- c(A = "T", T = "A", G = "C", C = "G", I = "I", D = "D")
-  out <- unname(r[u])
-  out[is.na(u) | u == ""] <- NA_character_
-  out
-}
-
-#' Map effect allele frequency using reference A1 allele frequency (PLINK --freq).
-#' @keywords internal
-map_ref_to_eaf <- function(ea, oa, ra1, ra2, a1_freq) {
-  ea <- toupper(ea)
-  oa <- toupper(oa)
-  ra1 <- toupper(ra1)
-  ra2 <- toupper(ra2)
-  dplyr::case_when(
-    ea == ra1 & oa == ra2 ~ a1_freq,
-    ea == ra2 & oa == ra1 ~ 1 - a1_freq,
-    ea == allele_complement_vec(ra2) & oa == allele_complement_vec(ra1) ~ 1 - a1_freq,
-    ea == allele_complement_vec(ra1) & oa == allele_complement_vec(ra2) ~ a1_freq,
-    TRUE ~ NA_real_
-  )
-}
-
-#' Populate missing EAF from the LD reference panel (1000 Genomes PLINK binary + .frq).
+#' Populate missing EAF from the LD reference panel \code{.frq} file via RSID matching.
 #'
-#' Expects \code{plink --bfile <prefix> --freq --out <prefix>} to exist beside the
-#' \code{.bed/.bim/.fam} files, i.e. \code{<thousand_genomes_dir>/<ANCESTRY>.frq}.
+#' Expects the GWAS to have an \code{RSID} column (populated by \code{populate_rsid})
+#' and alleles in canonical (alphabetically sorted) order from \code{standardise_alleles}.
+#' Only reads the lightweight \code{.frq} file; the \code{.bim} is not needed.
 #'
-#' @param gwas Standardised GWAS tibble (CHR, BP, EA, OA; SNP id built after allele ordering).
+#' @param gwas Standardised GWAS tibble with RSID, EA, OA columns.
 #' @param ancestry One of EUR, EAS, AFR, AMR, SAS matching the reference panel prefix.
 #' @export
 populate_eaf_from_reference_panel <- function(gwas, ancestry) {
   if ("EAF" %in% colnames(gwas) && !all(is.na(gwas$EAF))) {
-    n_missing <- sum(is.na(gwas$EAF))
-    if (n_missing == 0) {
+    if (sum(is.na(gwas$EAF)) == 0) {
       message("EAF column already fully populated; skipping reference panel lookup.")
       return(gwas)
     }
   }
+
   allowed <- c("EUR", "EAS", "AFR", "AMR", "SAS")
   if (!ancestry %in% allowed) {
     stop("ancestry must be one of: ", paste(allowed, collapse = ", "))
   }
-  prefix <- file.path(thousand_genomes_dir, ancestry)
-  bim_path <- paste0(prefix, ".bim")
-  frq_path <- paste0(prefix, ".frq")
-  if (!file.exists(bim_path)) {
-    stop("LD reference .bim not found: ", bim_path)
-  }
+  frq_path <- paste0(file.path(thousand_genomes_dir, ancestry), ".frq")
   if (!file.exists(frq_path)) {
-    stop(
-      "LD reference .frq not found: ", frq_path,
-      "\nGenerate with: plink --bfile ", prefix, " --freq --out ", prefix
-    )
+    stop("LD reference .frq not found: ", frq_path,
+         "\nGenerate with: plink --bfile ",
+         file.path(thousand_genomes_dir, ancestry), " --freq --out ",
+         file.path(thousand_genomes_dir, ancestry))
   }
 
-  ref_bim <- vroom::vroom(
-    bim_path,
-    delim = "\t",
-    col_names = c("CHR", "SNP", "CM", "BP", "A1_bim", "A2_bim"),
-    show_col_types = FALSE
-  )
-  ref_frq <- data.table::fread(frq_path, header = TRUE, data.table = FALSE)
-  names(ref_frq) <- stringr::str_trim(names(ref_frq))
-  req <- c("CHR", "SNP", "A1", "A2", "MAF")
-  if (!all(req %in% colnames(ref_frq))) {
-    stop(".frq file must contain columns CHR, SNP, A1, A2, MAF (plink 1.9 --freq)")
+  if (!"RSID" %in% colnames(gwas) || all(is.na(gwas$RSID))) {
+    warning("No RSIDs available for EAF lookup; skipping EAF population.")
+    return(gwas)
   }
-
-  normalise_chr <- function(x) {
-    x <- as.character(x)
-    x <- stringr::str_trim(x)
-    x <- sub("^chr", "", x, ignore.case = TRUE)
-    x <- sub("^0+", "", x)
-    x
-  }
-
-  ref_bim <- dplyr::mutate(ref_bim, CHR = normalise_chr(CHR))
-  ref_frq <- dplyr::mutate(dplyr::select(ref_frq, dplyr::all_of(req)), CHR = normalise_chr(CHR))
-
-  ref <- dplyr::inner_join(ref_bim, ref_frq, by = c("CHR", "SNP"))
-  ref <- dplyr::distinct(ref, CHR, BP, .keep_all = TRUE)
-  ref <- dplyr::transmute(
-    ref,
-    CHR = CHR,
-    BP = as.integer(BP),
-    A1 = toupper(A1),
-    A2 = toupper(A2),
-    MAF = as.numeric(MAF)
-  )
-
-  gwas$CHR <- normalise_chr(gwas$CHR)
-  gwas$BP <- as.integer(gwas$BP)
-
-  joined <- dplyr::left_join(gwas, ref, by = c("CHR", "BP"))
-  computed_eaf <- map_ref_to_eaf(joined$EA, joined$OA, joined$A1, joined$A2, joined$MAF)
 
   if (!"EAF" %in% names(gwas)) {
     gwas$EAF <- NA_real_
   }
-  need <- is.na(gwas$EAF)
-  fill <- need & !is.na(computed_eaf)
-  gwas$EAF[fill] <- computed_eaf[fill]
+  need <- which(is.na(gwas$EAF) & !is.na(gwas$RSID))
+  if (length(need) == 0L) {
+    message("EAF population: no rows need filling (all have EAF or lack RSID).")
+    return(gwas)
+  }
 
-  n_need <- sum(need)
-  n_fill <- sum(fill)
+  rsids_needed <- unique(gwas$RSID[need])
+  message("Reading reference .frq for ", length(rsids_needed), " RSIDs...")
+
+  ref <- data.table::fread(frq_path, header = TRUE, showProgress = FALSE, data.table = TRUE)
+  names(ref) <- stringr::str_trim(names(ref))
+  req <- c("SNP", "A1", "A2", "MAF")
+  if (!all(req %in% names(ref))) {
+    stop(".frq file must contain columns SNP, A1, A2, MAF (plink 1.9 --freq)")
+  }
+  ref <- ref[, .(SNP, A1 = toupper(A1), A2 = toupper(A2), MAF = as.numeric(MAF))]
+  ref <- ref[SNP %in% rsids_needed]
+  ref <- unique(ref, by = "SNP")
+
+  if (nrow(ref) == 0L) {
+    message("EAF population (", ancestry, " reference): 0 RSIDs matched in .frq; ",
+            length(need), " still missing.")
+    return(gwas)
+  }
+
+  idx <- match(gwas$RSID[need], ref$SNP)
+  matched <- !is.na(idx)
+
+  ea <- toupper(gwas$EA[need[matched]])
+  oa <- toupper(gwas$OA[need[matched]])
+  ra1 <- ref$A1[idx[matched]]
+  ra2 <- ref$A2[idx[matched]]
+  maf <- ref$MAF[idx[matched]]
+
+  eaf <- data.table::fcase(
+    ea == ra1 & oa == ra2, maf,
+    ea == ra2 & oa == ra1, 1 - maf,
+    default = NA_real_
+  )
+
+  gwas$EAF[need[matched]] <- eaf
+
+  n_fill <- sum(!is.na(eaf))
+  n_total_need <- sum(is.na(gwas$EAF)) + n_fill
   message(
     "EAF population (", ancestry, " reference): filled ", n_fill,
-    " of ", n_need, " missing values; ", n_need - n_fill, " still missing."
+    " of ", n_total_need, " missing values; ", n_total_need - n_fill, " still missing."
   )
   gwas
 }

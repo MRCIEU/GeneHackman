@@ -178,16 +178,15 @@ test_that("standardise_gwas errors when populate_eaf is TRUE and ancestry is mis
   )
 })
 
-test_that("standardise_gwas errors when flip_alleles is FALSE with partial RSID population", {
-  expect_error(
-    standardise_gwas(
-      "data/test_data_tiny.tsv.gz",
-      tempfile(fileext = ".tsv.gz"),
-      flip_alleles = FALSE,
-      populate_rsid_option = populate_rsid_options$partial
-    ),
-    "Partial RSID population requires alphabetically ordered alleles"
+test_that("standardise_gwas flip_alleles=FALSE with partial RSID succeeds (internal flip handles it)", {
+  out <- standardise_gwas(
+    "data/test_data_tiny.tsv.gz",
+    tempfile(fileext = ".tsv.gz"),
+    input_columns = "SNP=MARKER,CHR=CHR,BP=BP,EA=A0,OA=A1,EAF=A0FREQ,P=P,BETA=BETA,SE=SE,OR=OR,OR_LB=OR_LB,OR_UB=OR_UB,RSID=RSID",
+    flip_alleles = FALSE,
+    populate_rsid_option = populate_rsid_options$partial
   )
+  expect_equal(nrow(out), 12L)
 })
 
 test_that("standardise_gwas allows flip_alleles FALSE with populate_rsid none", {
@@ -201,7 +200,7 @@ test_that("standardise_gwas allows flip_alleles FALSE with populate_rsid none", 
   expect_equal(nrow(out_none), 12L)
 })
 
-test_that("standardise_alleles flip argument matches documented behaviour", {
+test_that("standardise_alleles always flips and unflip_alleles restores original", {
   g <- tibble::tibble(
     CHR = 1L,
     BP = 100L,
@@ -212,16 +211,19 @@ test_that("standardise_alleles flip argument matches documented behaviour", {
     P = 0.5,
     SE = 0.1
   )
-  no_flip <- GeneHackman:::standardise_alleles(g, flip = FALSE)
-  expect_equal(no_flip$BETA, 0.2)
-  expect_equal(no_flip$EA, "T")
-  expect_equal(no_flip$OA, "A")
+  flipped <- GeneHackman:::standardise_alleles(g)
+  expect_equal(flipped$BETA, -0.2)
+  expect_equal(flipped$EA, "A")
+  expect_equal(flipped$OA, "T")
+  expect_equal(flipped$EAF, 1 - 0.1)
+  expect_true(flipped$.ALLELES_FLIPPED[1])
 
-  yes_flip <- GeneHackman:::standardise_alleles(g, flip = TRUE)
-  expect_equal(yes_flip$BETA, -0.2)
-  expect_equal(yes_flip$EA, "A")
-  expect_equal(yes_flip$OA, "T")
-  expect_equal(yes_flip$EAF, 1 - 0.1)
+  restored <- GeneHackman:::unflip_alleles(flipped)
+  expect_equal(restored$BETA, 0.2)
+  expect_equal(restored$EA, "T")
+  expect_equal(restored$OA, "A")
+  expect_equal(restored$EAF, 0.1)
+  expect_false(".ALLELES_FLIPPED" %in% names(restored))
 })
 
 test_that("filter_incomplete_rows stops when all rows are incomplete", {
