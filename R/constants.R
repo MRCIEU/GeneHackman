@@ -28,6 +28,7 @@ user_results_dir <- get_env_var("RESULTS_DIR", "")
 pipeline_data_dir <- sub("/+$", "", get_env_var("PIPELINE_DATA_DIR", ""))
 qtl_directory <- sub("/+$", "", get_env_var("QTL_DATA_DIR", ""))
 number_of_cpus_available <- available_cpus()
+locally_running <- !nzchar(Sys.getenv("SLURM_JOB_ID", "")) || !nzchar(Sys.getenv("PBS_JOBID", ""))
 
 genomic_data_dir <- file.path(pipeline_data_dir, "genomic_data")
 # Must match snakemake/util/constants.smk THOUSAND_GENOMES_DIR (used by clumping + LD).

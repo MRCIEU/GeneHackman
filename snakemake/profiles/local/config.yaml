@@ -15,10 +15,10 @@ singularity-args: >-
   --env-file .env
   --pwd /home/scripts/
 
-jobs: 4
+jobs: 1
 default-resources:
-  - mem_mb=4000
-  - threads=1
+  - mem_mb=16000
+  - threads=8
 local-cores: 1
 latency-wait: 10
 keep-going: True

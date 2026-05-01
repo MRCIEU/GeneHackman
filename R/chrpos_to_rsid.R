@@ -103,6 +103,10 @@ chrpos_to_rsid <- function(dt,
 
   })
 
+  future::plan(future::sequential)
+  rm(dts)
+  gc(verbose = FALSE)
+
   # deal with alternative RSIDs if requested
   if(alt_rsids) {
 
@@ -112,6 +116,8 @@ chrpos_to_rsid <- function(dt,
   } else {
     out_data <- data.table::rbindlist(out)
   }
+  rm(out)
+  gc(verbose = FALSE)
 
   # put back the original chromosome column and remove the temporary one
   out_data[, (chr_col) := chr_col_orig]
@@ -148,6 +154,7 @@ chrpos_to_rsid <- function(dt,
 # the gwas data.table being captured in each futures environment. See this discussion
 # for the details: https://furrr.futureverse.org/articles/gotchas.html#function-environments-and-large-objects
 process_chromosome <- function(chrom_dt, chr_col, pos_col, build, dbsnp_dir, flip, alt_rsids, p, nea_col=NULL, ea_col=NULL) {
+  message(paste0("Processing chromosome ", chrom_dt[[1, chr_col]]))
 
   # silence RMDcheck warning
   RSID = i.RSID = baseRSID = rsid_flip_match = REF = ALT = NULL
@@ -202,6 +209,7 @@ process_chromosome <- function(chrom_dt, chr_col, pos_col, build, dbsnp_dir, fli
 
     # read the needed rows
     dbSNP_data <- dbSNP_fst[row_idxs, c("RSID", dbSNP_key)] |> data.table::as.data.table()
+    rm(dbSNP_fst)
 
     # increment progress bar #4
     p()
