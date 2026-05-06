@@ -1,9 +1,6 @@
 cluster:
-  export USER=$(whoami) &&
-  export ACCOUNT_ID=$(sacctmgr show user withassoc format=account where user=$USER | grep '[0-9]' | head -n1) &&
   export PARTITION="$SLURM_PARTITION" &&
-  if [ -n "$SLURM_ACCOUNT" ]; then export ACCOUNT_ID="$SLURM_ACCOUNT"; fi &&
-  mkdir -p "$PIPELINE_LOG_DIR" &&
+  export ACCOUNT_ID="$SLURM_ACCOUNT" &&
   sbatch
     --partition=$PARTITION
     --account=$ACCOUNT_ID

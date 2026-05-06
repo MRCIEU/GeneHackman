@@ -4,7 +4,7 @@ set -e
 export GRPC_VERBOSITY=NONE
 export GRPC_TRACE=
 
-if [[ $# -lt 1 ]] ; then
+if [[ $# -lt 1 || "$1" =~ "help" ]] ; then
   echo """
   Error: You have to provide at least 1 argument:
     PIPELINE_FILE (ex. snakemake/standardise_gwas.smk)
@@ -35,6 +35,7 @@ if [[ -z "${DATA_DIR:-}" || -z "${RESULTS_DIR:-}" || -z "${PIPELINE_DATA_DIR:-}"
   exit 1
 fi
 export PIPELINE_LOG_DIR="${DATA_DIR%/}/snakemake_logs"
+mkdir -p $PIPELINE_LOG_DIR
 
 if [[ -z "${SLURM_PARTITION:-}" ]]; then
   if command -v sinfo >/dev/null 2>&1; then
@@ -43,6 +44,13 @@ if [[ -z "${SLURM_PARTITION:-}" ]]; then
   SLURM_PARTITION="${SLURM_PARTITION:-compute}"
 fi
 export SLURM_PARTITION
+
+if [[ -z "${SLURM_ACCOUNT:-}" ]]; then
+  export USER=$(whoami)
+  export ACCOUNT_ID=$(sacctmgr show user withassoc format=account where user=$USER | grep '[0-9]' | head -n1)
+  if [ -n "$SLURM_ACCOUNT" ]; then export ACCOUNT_ID="$SLURM_ACCOUNT"; fi
+fi
+export SLURM_ACCOUNT
 
 export GENEHACKMAN_EXTRA_SINGULARITY_BINDS=""
 _trim_qtl="$(echo "${QTL_DATA_DIR:-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"

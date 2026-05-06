@@ -245,15 +245,32 @@ volcano_plot <- function(results_file, title="Volcano Plot of Results", label="E
 
 
 plot_heritability_contribution_per_ancestry <- function(heterogeneity_results_qj, output_file) {
-  graph_width <- max(1000, nrow(heterogeneity_results_qj) * 100)
-  plot <- tidyr::gather(as.data.frame(heterogeneity_results_qj), "key", "value", -SNP)
+  # ggplot2 caps raster sizes at 50 in; convert px via dpi (default 300) → keep under limit
+  dpi <- 300
+  max_width_in <- 49
+  max_width_px <- floor(max_width_in * dpi)
+  n_snps <- nrow(heterogeneity_results_qj)
+  # ~20 px per SNP keeps labels readable; cap width so ggsave stays under limits / avoids huge files
+  graph_width <- min(max(1000L, n_snps * 20L), max_width_px)
+  graph_height <- min(2100L, max_width_px)
 
-  ggplot2::ggplot(plot, ggplot2::aes(x=SNP, y=-log10(value))) +
-    ggplot2::geom_point(ggplot2::aes(colour=key)) +
-    ggplot2::scale_colour_brewer(type="qual") +
-    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  qj_df <- as.data.frame(heterogeneity_results_qj, check.names = TRUE)
+  plot_data <- tidyr::pivot_longer(qj_df, cols = -SNP, names_to = "key", values_to = "value")
+
+  p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = SNP, y = -log10(value))) +
+    ggplot2::geom_point(ggplot2::aes(colour = key), size = 0.35) +
+    ggplot2::scale_colour_brewer(type = "qual") +
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.5, hjust = 1)) +
     ggplot2::ggtitle("Contribution to heterogeneity score broken down by population") +
     ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5))
 
-  ggplot2::ggsave(output_file, width = graph_width, units = "px")
+  ggplot2::ggsave(
+    output_file,
+    plot = p,
+    width = graph_width,
+    height = graph_height,
+    units = "px",
+    dpi = dpi,
+    limitsize = FALSE
+  )
 }

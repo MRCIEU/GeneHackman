@@ -16,13 +16,7 @@
 #' @param max_causal maximum number of causal signals per locus (SuSiE L, default 10)
 #' @param coverage credible set coverage (default 0.95)
 #' @param min_abs_corr minimum absolute correlation for credible sets (default 0.5)
-#' @details Loci are fine-mapped in parallel with [parallel::mclapply()] (`mc.cores = 2`).
-#'   On Windows this runs sequentially. Each job writes its own output file.
-#' @return invisibly, the combined per-SNP finemap tibble (LD-matched SNPs only)
-
-
-
-
+#' @return invisibly, the combined per-SNP finemap data.table (LD-matched SNPs only)
 #' @export
 finemap_gwas <- function(gwas,
                          clumped_file,
@@ -35,10 +29,14 @@ finemap_gwas <- function(gwas,
                          min_abs_corr = 0.5) {
 
   gwas <- get_file_or_dataframe(gwas)
+  data.table::setDT(gwas)
+
   numeric_cols <- c("CHR", "BP", "BETA", "SE", "P", "EAF", "N", "N_CASE", "N_CONTROL")
   for (col in intersect(numeric_cols, colnames(gwas))) {
-    gwas[[col]] <- as.numeric(gwas[[col]])
+    data.table::set(gwas, j = col, value = as.numeric(gwas[[col]]))
   }
+
+  data.table::setkey(gwas, CHR, BP)
 
   if (!dir.exists(output_finemap_dir)) {
     dir.create(output_finemap_dir, recursive = TRUE)
@@ -47,7 +45,7 @@ finemap_gwas <- function(gwas,
   lead_snps <- data.table::fread(clumped_file, select = c("SNP", "CHR", "BP"))
   if (nrow(lead_snps) == 0) {
     message("No clumped SNPs found; no per-locus finemap files written.")
-    empty <- tibble::tibble(
+    empty <- data.table::data.table(
       SNP = character(), CHR = numeric(), BP = numeric(), RSID = character(),
       Z = numeric(), CS = integer()
     )
@@ -55,29 +53,44 @@ finemap_gwas <- function(gwas,
   }
 
   window_bp <- window_kb * 1000
+  has_rsid <- "RSID" %in% colnames(gwas)
+  has_n <- "N" %in% colnames(gwas)
+
+  n_loci <- nrow(lead_snps)
+
+  # Pre-extract per-locus subsets so workers don't need the full GWAS
+  locus_subsets <- vector("list", n_loci)
+  window_subsets <- vector("list", n_loci)
+  for (i in seq_len(n_loci)) {
+    lead_chr <- as.numeric(lead_snps$CHR[i])
+    lead_bp <- as.numeric(lead_snps$BP[i])
+    bp_lo <- lead_bp - window_bp
+    bp_hi <- lead_bp + window_bp
+
+    chr_rows <- gwas[.(lead_chr), nomatch = NULL]
+    window_dt <- chr_rows[BP >= bp_lo & BP <= bp_hi]
+    window_subsets[[i]] <- window_dt
+    locus_subsets[[i]] <- window_dt[!is.na(BETA) & !is.na(SE) & SE > 0]
+  }
+  rm(gwas); gc(verbose = FALSE)
 
   process_one_locus <- function(i) {
     lead_rsid <- lead_snps$SNP[i]
     lead_chr <- as.numeric(lead_snps$CHR[i])
     lead_bp <- as.numeric(lead_snps$BP[i])
+    locus_gwas <- locus_subsets[[i]]
+    window_gwas <- window_subsets[[i]]
 
-    locus_gwas <- dplyr::filter(gwas,
-      CHR == lead_chr &
-      BP >= (lead_bp - window_bp) &
-      BP <= (lead_bp + window_bp) &
-      !is.na(BETA) & !is.na(SE) & SE > 0
-    )
-
-    if (nrow(locus_gwas) < 2) {
+    if (nrow(locus_gwas) < 2L) {
       message(paste("Skipping locus", lead_rsid, "- fewer than 2 SNPs in window"))
       return(NULL)
     }
 
-    if (!"RSID" %in% colnames(locus_gwas) || all(is.na(locus_gwas$RSID))) {
+    if (!has_rsid || all(is.na(locus_gwas$RSID))) {
       message(paste("Skipping locus", lead_rsid, "- no RSIDs available for LD computation"))
       return(NULL)
     }
-    locus_gwas <- dplyr::filter(locus_gwas, !is.na(RSID) & nchar(RSID) > 0)
+    locus_gwas <- locus_gwas[!is.na(RSID) & nchar(RSID) > 0L]
 
     ld_result <- compute_ld_matrix(locus_gwas$RSID, lead_chr, ancestry)
     if (is.null(ld_result)) {
@@ -86,18 +99,19 @@ finemap_gwas <- function(gwas,
     }
 
     shared_rsids <- intersect(locus_gwas$RSID, ld_result$snps)
-    if (length(shared_rsids) < 2) {
+    if (length(shared_rsids) < 2L) {
+      rm(ld_result); gc(verbose = FALSE)
       message(paste("Skipping locus", lead_rsid, "- too few shared SNPs between GWAS and LD panel"))
       return(NULL)
     }
 
-    locus_gwas <- dplyr::filter(locus_gwas, RSID %in% shared_rsids)
-    locus_gwas <- locus_gwas[match(shared_rsids, locus_gwas$RSID), ]
+    locus_gwas <- locus_gwas[match(shared_rsids, RSID)]
     ld_idx <- match(shared_rsids, ld_result$snps)
     R <- ld_result$matrix[ld_idx, ld_idx]
+    rm(ld_result); gc(verbose = FALSE)
 
     z_scores <- locus_gwas$BETA / locus_gwas$SE
-    n <- `if`("N" %in% colnames(locus_gwas) && !is.na(as.numeric(locus_gwas$N[1])), as.numeric(locus_gwas$N[1]), default_n)
+    n <- if (has_n && !is.na(as.numeric(locus_gwas$N[1L]))) as.numeric(locus_gwas$N[1L]) else default_n
     if (is.na(n)) {
       stop("Fine-mapping requires GWAS sample size")
     }
@@ -112,22 +126,16 @@ finemap_gwas <- function(gwas,
       coverage = coverage,
       min_abs_corr = min_abs_corr
     )
+    rm(R, locus_gwas); gc(verbose = FALSE)
 
-    if (nrow(locus_lbf) == 0) {
-      return(NULL)
-    }
+    if (nrow(locus_lbf) == 0L) return(NULL)
 
     lbf_nm <- grep("^LBF_[0-9]+$", names(locus_lbf), value = TRUE)
-    finemap_join <- dplyr::select(locus_lbf, dplyr::any_of(c(
-      "RSID", "Z", "CS", lbf_nm
-    )))
+    finemap_cols <- intersect(c("RSID", "Z", "CS", lbf_nm), names(locus_lbf))
+    finemap_join <- locus_lbf[, ..finemap_cols]
 
-    out_gwas <- dplyr::filter(gwas,
-      CHR == lead_chr,
-      BP >= (lead_bp - window_bp),
-      BP <= (lead_bp + window_bp)
-    )
-    out_gwas <- dplyr::left_join(out_gwas, finemap_join, by = "RSID")
+    out_gwas <- merge(window_gwas, finemap_join, by = "RSID", all.x = TRUE, sort = FALSE)
+    rm(window_gwas, finemap_join)
 
     lead_chr_bp <- paste0(
       lead_chr, "_",
@@ -135,21 +143,25 @@ finemap_gwas <- function(gwas,
     )
     safe_locus <- gsub("[^A-Za-z0-9._-]+", "_", lead_chr_bp)
     out_file <- file.path(output_finemap_dir, paste0(safe_locus, "_finemap.tsv.gz"))
-    vroom::vroom_write(out_gwas, out_file)
+    data.table::fwrite(out_gwas, out_file, sep = "\t", compress = "gzip")
+    rm(out_gwas)
 
     locus_lbf
   }
 
-  n_loci <- nrow(lead_snps)
   locus_results <- parallel::mclapply(
     seq_len(n_loci),
     process_one_locus,
     mc.cores = 3L
   )
-  all_lbf <- locus_results[!vapply(locus_results, is.null, FUN.VALUE = logical(1))]
-  combined_lbf <- dplyr::bind_rows(all_lbf)
+  rm(locus_subsets, window_subsets); gc(verbose = FALSE)
 
-  if (nrow(combined_lbf) == 0) {
+  all_lbf <- locus_results[!vapply(locus_results, is.null, FUN.VALUE = logical(1))]
+  rm(locus_results)
+  combined_lbf <- data.table::rbindlist(all_lbf, fill = TRUE)
+  rm(all_lbf); gc(verbose = FALSE)
+
+  if (nrow(combined_lbf) == 0L) {
     message("No loci produced SuSiE results.")
   }
 
@@ -191,6 +203,8 @@ compute_ld_matrix <- function(rsids, chr, ancestry) {
   snp_order_file <- paste0(out_prefix, ".nosex")
 
   if (exit_code != 0 || !file.exists(ld_file)) {
+    unlink(c(snp_file, paste0(out_prefix, c(".ld", ".nosex", ".log", ".bim", ".bed", ".fam"))),
+           force = TRUE)
     return(NULL)
   }
 
@@ -201,15 +215,20 @@ compute_ld_matrix <- function(rsids, chr, ancestry) {
     bim_ref <- paste0(bfile, ".bim")
     all_bim <- data.table::fread(bim_ref, header = FALSE, select = c(1, 2, 4))
     colnames(all_bim) <- c("CHR", "SNP", "BP")
-    all_bim <- dplyr::filter(all_bim, CHR == chr & SNP %in% rsids)
-    all_bim <- dplyr::arrange(all_bim, BP)
+    all_bim <- all_bim[CHR == chr & SNP %chin% rsids]
+    data.table::setorder(all_bim, BP)
     snp_order <- all_bim$SNP
+    rm(all_bim)
   }
 
   ld_raw <- data.table::fread(ld_file, header = FALSE)
   R <- as.matrix(ld_raw)
+  rm(ld_raw)
 
   if (nrow(R) != length(snp_order) || ncol(R) != length(snp_order)) {
+    rm(R)
+    unlink(c(snp_file, paste0(out_prefix, c(".ld", ".nosex", ".log", ".bim", ".bed", ".fam"))),
+           force = TRUE)
     return(NULL)
   }
 
@@ -237,13 +256,13 @@ run_susie_rss_impl <- function(z, R, n, L, coverage, min_abs_corr, verbose = FAL
 susie_lbf_columns <- function(fitted, p) {
   lv <- fitted$lbf_variable
   if (is.null(lv) || !is.matrix(lv) || nrow(lv) < 1L || ncol(lv) != p) {
-    return(tibble::tibble())
+    return(data.table::data.table())
   }
 
   n_row <- nrow(lv)
   cs_list <- fitted$sets$cs
   cs_idx <- fitted$sets$cs_index
-  col_vecs <- list()
+  col_vecs <- vector("list", 0L)
 
   if (!is.null(cs_list) && length(cs_list) > 0L) {
     n_cs <- length(cs_list)
@@ -262,7 +281,7 @@ susie_lbf_columns <- function(fitted, p) {
     }
   }
 
-  tibble::as_tibble(col_vecs)
+  data.table::as.data.table(col_vecs)
 }
 
 
@@ -275,7 +294,7 @@ susie_lbf_columns <- function(fitted, p) {
 #' @param max_causal max causal signals (L)
 #' @param coverage credible set coverage
 #' @param min_abs_corr minimum absolute correlation for CS purity
-#' @return tibble with SNP, CHR, BP, RSID, Z, CS, and \code{LBF_1}, \code{LBF_2}, ... per signal
+#' @return data.table with SNP, CHR, BP, RSID, Z, CS, and \code{LBF_1}, \code{LBF_2}, ... per signal
 run_susie_for_locus <- function(z_scores, ld_matrix, snp_info, n, lead_snp,
                                 max_causal = 10, coverage = 0.95,
                                 min_abs_corr = 0.5) {
@@ -298,7 +317,7 @@ run_susie_for_locus <- function(z_scores, ld_matrix, snp_info, n, lead_snp,
   )
 
   if (is.null(fitted)) {
-    return(tibble::tibble(
+    return(data.table::data.table(
       SNP = character(), CHR = numeric(), BP = numeric(), RSID = character(),
       Z = numeric(), CS = integer()
     ))
@@ -308,13 +327,14 @@ run_susie_for_locus <- function(z_scores, ld_matrix, snp_info, n, lead_snp,
 
   cs_membership <- rep(NA_integer_, p)
   if (!is.null(fitted$sets) && !is.null(fitted$sets$cs)) {
-    for (cs_idx in seq_along(fitted$sets$cs)) {
-      snp_indices <- fitted$sets$cs[[cs_idx]]
-      cs_membership[snp_indices] <- cs_idx
+    for (cs_i in seq_along(fitted$sets$cs)) {
+      snp_indices <- fitted$sets$cs[[cs_i]]
+      cs_membership[snp_indices] <- cs_i
     }
   }
+  rm(fitted); gc(verbose = FALSE)
 
-  result <- tibble::tibble(
+  result <- data.table::data.table(
     SNP = snp_info$SNP,
     CHR = snp_info$CHR,
     BP = snp_info$BP,
@@ -322,5 +342,9 @@ run_susie_for_locus <- function(z_scores, ld_matrix, snp_info, n, lead_snp,
     Z = z_scores,
     CS = cs_membership
   )
-  dplyr::bind_cols(result, lbf_wide)
+
+  if (ncol(lbf_wide) > 0L) {
+    result <- cbind(result, lbf_wide)
+  }
+  result
 }
