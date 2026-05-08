@@ -70,14 +70,29 @@ grouped_forest_plot <- function(table, title, group_column, output_file, p_value
     ggplot2::ggtitle(title) +
     ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5))
 
-  if (!is.na(p_value_column)) {
+  p <- if (!is.na(p_value_column)) {
     plot_thing + ggplot2::geom_text(ggplot2::aes(label = paste("P=", signif(.data[[p_value_column]]), digits=3), group = .data[[group_column]]), position = ggplot2::position_dodge(width = 0.5))
   } else if (!is.na(q_stat_column)) {
     plot_thing + ggplot2::geom_text(ggplot2::aes(x = 1.5, label = .data[[q_stat_column]]))
+  } else {
+    plot_thing
   }
 
-  forest_plot_height <- max(nrow(table)*50, 2000)
-  ggplot2::ggsave(output_file, width = 2000, units = "px", height = forest_plot_height)
+  dpi <- 300
+  max_dim_px <- floor(49 * dpi)
+  n_rows <- nrow(table)
+  forest_plot_height <- min(max(2000L, n_rows * 30L), max_dim_px)
+  plot_width <- min(2000L, max_dim_px)
+
+  ggplot2::ggsave(
+    output_file,
+    plot = p,
+    width = plot_width,
+    height = forest_plot_height,
+    units = "px",
+    dpi = dpi,
+    limitsize = FALSE
+  )
 }
 
 
