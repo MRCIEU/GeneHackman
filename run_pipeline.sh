@@ -48,9 +48,11 @@ export SLURM_PARTITION
 if [[ -z "${SLURM_ACCOUNT:-}" ]]; then
   export USER=$(whoami)
   export ACCOUNT_ID=$(sacctmgr show user withassoc format=account where user=$USER | grep '[0-9]' | head -n1)
-  if [ -n "$SLURM_ACCOUNT" ]; then export ACCOUNT_ID="$SLURM_ACCOUNT"; fi
+  export SLURM_ACCOUNT="$ACCOUNT_ID"
 fi
-export SLURM_ACCOUNT
+
+echo "$SLURM_ACCOUNT"
+echo "$SLURM_PARTITION"
 
 export GENEHACKMAN_EXTRA_SINGULARITY_BINDS=""
 _trim_qtl="$(echo "${QTL_DATA_DIR:-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
