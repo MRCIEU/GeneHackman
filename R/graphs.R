@@ -262,22 +262,31 @@ volcano_plot <- function(results_file, title="Volcano Plot of Results", label="E
 plot_heritability_contribution_per_ancestry <- function(heterogeneity_results_qj, output_file) {
   # ggplot2 caps raster sizes at 50 in; convert px via dpi (default 300) → keep under limit
   dpi <- 300
-  max_width_in <- 49
-  max_width_px <- floor(max_width_in * dpi)
+  max_dim_in <- 49
+  max_dim_px <- floor(max_dim_in * dpi)
   n_snps <- nrow(heterogeneity_results_qj)
-  # ~20 px per SNP keeps labels readable; cap width so ggsave stays under limits / avoids huge files
-  graph_width <- min(max(1000L, n_snps * 20L), max_width_px)
-  graph_height <- min(2100L, max_width_px)
+  # Vertical layout: SNP on y-axis — height scales with number of SNPs; width stays moderate
+  px_per_row <- 20L
+  graph_height <- min(max(800L, n_snps * px_per_row), max_dim_px)
+  graph_width <- min(2400L, max_dim_px)
 
   qj_df <- as.data.frame(heterogeneity_results_qj, check.names = TRUE)
+  snp_levels <- qj_df$SNP
   plot_data <- tidyr::pivot_longer(qj_df, cols = -SNP, names_to = "key", values_to = "value")
+  plot_data$SNP <- factor(plot_data$SNP, levels = unique(snp_levels))
 
-  p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = SNP, y = -log10(value))) +
+  p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = -log10(value), y = SNP)) +
     ggplot2::geom_point(ggplot2::aes(colour = key), size = 0.35) +
-    ggplot2::scale_colour_brewer(type = "qual") +
-    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.5, hjust = 1)) +
-    ggplot2::ggtitle("Contribution to heterogeneity score broken down by population") +
-    ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5))
+    ggplot2::scale_colour_brewer(type = "qual", name = "Dataset") +
+    ggplot2::labs(
+      x = expression(-log[10] * " (per-dataset contribution p-value)"),
+      y = "SNP"
+    ) +
+    ggplot2::ggtitle("Contribution to heterogeneity score by dataset") +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(hjust = 0.5),
+      axis.text.y = ggplot2::element_text(size = ggplot2::rel(0.85))
+    )
 
   ggplot2::ggsave(
     output_file,

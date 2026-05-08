@@ -124,6 +124,13 @@ expected_vs_observed_replication <- function(b_disc, se_disc, b_rep, se_rep, alp
 
 
 
+dataset_label_from_gwas_path <- function(path) {
+  x <- basename(path)
+  x <- sub("\\.gz$", "", x, ignore.case = TRUE)
+  tools::file_path_sans_ext(x)
+}
+
+
 compare_heterogeneity_across_ancestries <- function(gwas_filenames = c(),
                                                     clumped_filenames = c(),
                                                     ancestry_list = c(),
@@ -143,49 +150,52 @@ compare_heterogeneity_across_ancestries <- function(gwas_filenames = c(),
   clumped_snps <- data.table::rbindlist(lapply(clumped_filenames, data.table::fread))$SNP
   clumped_snps <- unique(clumped_snps)
 
+  dataset_labels <- make.unique(
+    vapply(gwas_filenames, dataset_label_from_gwas_path, character(1)),
+    sep = "_"
+  )
+
   gwases <- lapply(gwas_filenames, function(gwas_filename) {
     get_file_or_dataframe(gwas_filename, columns = comparison_columns) |>
       dplyr::filter(RSID %in% clumped_snps)
   })
-  gwas_ancestry_names <- c()
   for (i in seq_along(gwases)) {
-    gwases[[i]]$ancestry <- ancestry_list[[i]]
-    gwas_ancestry_names[[i]] <- paste0(i, "_", ancestry_list[[i]])
+    gwases[[i]]$dataset <- dataset_labels[[i]]
   }
 
   harmonised_gwases <- rlang::inject(harmonise_gwases(!!!gwases))
-  gwases_by_ancestry <- stats::setNames(harmonised_gwases, gwas_ancestry_names)
+  gwases_by_dataset <- stats::setNames(harmonised_gwases, dataset_labels)
 
-  heterogeneity_results <- calculate_heterogeneity_scores(gwases_by_ancestry, heterogeneity_score_file)
+  heterogeneity_results <- calculate_heterogeneity_scores(gwases_by_dataset, heterogeneity_score_file)
   plot_heritability_contribution_per_ancestry(heterogeneity_results$Qj, heterogeneity_plot_file)
-  plot_snps_with_heterogeneity(gwases_by_ancestry, heterogeneity_results$Q, heterogeneity_plots_per_snp_file)
+  plot_snps_with_heterogeneity(gwases_by_dataset, heterogeneity_results$Q, heterogeneity_plots_per_snp_file)
 }
 
 
-plot_snps_with_heterogeneity <- function(gwases_by_ancestry, heterogeneity_resuts_q, heterogeneity_forest_plot_file) {
+plot_snps_with_heterogeneity <- function(gwases_by_dataset, heterogeneity_resuts_q, heterogeneity_forest_plot_file) {
   are_heterogeneous <- which(heterogeneity_resuts_q$Qpval < 0.05 / nrow(heterogeneity_resuts_q))
 
-  forest_plot_rows <- data.table::rbindlist(lapply(gwases_by_ancestry, function(gwas) {
+  forest_plot_rows <- data.table::rbindlist(lapply(gwases_by_dataset, function(gwas) {
     gwas$Qpval <- heterogeneity_resuts_q$Qpval
     gwas[are_heterogeneous, ]
   }))
 
   grouped_forest_plot(forest_plot_rows,
                       title = "Plot of SNPs That Are Heterogeneous",
-                      group_column = "ancestry",
+                      group_column = "dataset",
                       output_file = heterogeneity_forest_plot_file,
                       #p_value_column = "Qpval" ??
   )
 }
 
-#' Test for heterogeneity of effect estimates between populations
+#' Test for heterogeneity of effect estimates between GWAS datasets
 #'
 #' @description For each SNP this function will provide a Cochran's Q test statistic -
-#'  a measure of heterogeneity of effect sizes between populations. A low p-value means high heterogeneity.
-#'  In addition, for every SNP it gives a per population p-value -
-#'  this can be interpreted as asking for each SNP is a particular giving an outlier estimate.
+#'  a measure of heterogeneity of effect sizes between datasets. A low p-value means high heterogeneity.
+#'  In addition, for every SNP it gives a per-dataset p-value —
+#'  interpreted as whether a particular study is an outlier at that SNP.
 #'
-#' @param gwases_by_ancestry Named list of data frames, one for each population, with at least bhat, se and snp columns
+#' @param gwases_by_ancestry Named list of data frames, one per GWAS dataset, with at least BETA, SE and SNP columns
 #' @param heterogeneity_score_file file to save the heterogeneity scores
 #'
 #' @return List

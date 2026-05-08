@@ -51,9 +51,6 @@ if [[ -z "${SLURM_ACCOUNT:-}" ]]; then
   export SLURM_ACCOUNT="$ACCOUNT_ID"
 fi
 
-echo "$SLURM_ACCOUNT"
-echo "$SLURM_PARTITION"
-
 export GENEHACKMAN_EXTRA_SINGULARITY_BINDS=""
 _trim_qtl="$(echo "${QTL_DATA_DIR:-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
 if [[ -n "${_trim_qtl}" ]]; then
