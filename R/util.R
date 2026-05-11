@@ -154,6 +154,7 @@ get_docker_image_tag <- function() {
 #' @param effect_priors Effect priors
 #'
 #' @return Log Bayes Factor
+#' @internal
 convert_z_to_lbf <- function(
   z,
   se,
@@ -171,4 +172,31 @@ convert_z_to_lbf <- function(
   r <- sd_prior^2 / (sd_prior^2 + se^2)
   lbf <- (log(1 - r) + (r * z^2)) / 2
   return(lbf)
+}
+
+#' Estimate trait standard deviation given vectors of variance of coefficients,  MAF and sample size
+#'
+#' Estimate is based on var(beta-hat) = var(Y) / (n * var(X))
+#' var(X) = 2*maf*(1-maf)
+#' so we can estimate var(Y) by regressing n*var(X) against 1/var(beta)
+#'
+#' @title Estimate trait variance, internal function
+#' @param SE vector of standard errors
+#' @param EAF vector of MAF (same length as SE)
+#' @param n sample size
+#' 
+#' @return estimated standard deviation of Y
+#' @internal
+estimate_variance <- function(se, eaf, n) {
+  oneover <- 1 / se^2
+  nvx <- 2 * n * eaf * (1 - eaf)
+  m <- lm(nvx ~ oneover - 1)
+  cf <- coef(m)[["oneover"]]
+  if (cf < 0) {
+    stop(
+      "Estimated sdY is negative - this can happen with small datasets, or those with errors. ",
+      "A reasonable estimate of sdY is required to continue."
+    )
+  }
+  return(sqrt(cf))
 }
