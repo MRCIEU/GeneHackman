@@ -26,7 +26,6 @@ exposures_string = " ".join(pipeline.qtl.exposures)
 
 gwas_prefix = file_prefix(gwas.file)
 gwas.finemap_dir = RESULTS_DIR + "finemap/" + gwas_prefix
-finemap_dir_pattern = RESULTS_DIR + "finemap/{prefix}"
 
 mr_results = RESULTS_DIR + "mr/" + gwas_prefix + "_" + qtl_name + ".tsv.gz"
 coloc_results = RESULTS_DIR + "mr/coloc_" + gwas_prefix + "_" + qtl_name + ".tsv"
@@ -36,7 +35,13 @@ results_file = RESULTS_DIR + "mr/result_" + qtl_name + "_" + gwas_prefix  + ".ht
 
 std_file_pattern = standardised_gwas_name("{prefix}")
 rule all:
-    input: gwas.standardised_gwas, gwas.finemap_dir, mr_results, volcano_plot, coloc_results, results_file
+    input:
+        gwas.standardised_gwas,
+        expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=[gwas_prefix]),
+        mr_results,
+        volcano_plot,
+        coloc_results,
+        results_file
 
 include: "rules/standardise_rule.smk"
 include: "rules/clumping_rule.smk"
@@ -82,8 +87,9 @@ rule run_coloc_analysis_of_significant_mr_results:
         mem = "16G"
     input:
         mr_results = mr_results,
-        finemap_dir = gwas.finemap_dir
+        finemap_complete = expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=[gwas_prefix])
     params:
+        finemap_dir = gwas.finemap_dir,
         N = gwas.N,
         study_type = study_type,
         exposures = f"--exposures {exposures_string}" if exposures_string else ""
@@ -92,7 +98,7 @@ rule run_coloc_analysis_of_significant_mr_results:
         """
         Rscript coloc_of_mr_results.R \
             --mr_results_filename {input.mr_results} \
-            --finemap_dir {input.finemap_dir} \
+            --finemap_dir {params.finemap_dir} \
             --N {params.N} \
             --study_type {params.study_type} \
             --dataset {pipeline.qtl.dataset} {params.exposures} \

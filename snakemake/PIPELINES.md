@@ -133,7 +133,7 @@ SuSiE fine-mapping per GWAS — no MR, no trait–trait coloc.
 
 - **GWAS**: one or more; each needs `**ancestry`** (LD reference for clumping and LD matrix for `susieR::susie_rss`).
 - **Root**: `plink_clump_arguments`, optional `populate_rsid` / `populate_eaf`, optional `**finemap`** block (see above). Example template sets `window_kb` to `1000`.
-- **Outputs** (under `RESULTS_DIR`): `finemap/<prefix>/` per GWAS (per-locus `*_finemap.tsv.gz`, etc.).
+- **Outputs** (under `RESULTS_DIR`): `finemap/<prefix>/` per GWAS (per-locus `*_finemap.tsv.gz`, plus `finemap_complete.txt` with one line = expected lead count `n`). Snakemake registers only that completion file as the finemap rule output (`FINEMAP_COMPLETE_TXT_PATTERN` in `snakemake/util/constants.smk`).
 
 ---
 

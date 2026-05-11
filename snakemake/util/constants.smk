@@ -69,6 +69,9 @@ DOCKER_VERSION = os.getenv('DOCKER_VERSION')
 DATA_DIR = format_dir_string(os.getenv('DATA_DIR'))
 RESULTS_DIR = format_dir_string(os.getenv('RESULTS_DIR'))
 
+# Single Snakemake output path for successful finemap runs (written last by finemap_gwas).
+FINEMAP_COMPLETE_TXT_PATTERN = RESULTS_DIR + "finemap/{prefix}/finemap_complete.txt"
+
 PIPELINE_DATA_DIR = format_dir_string(os.getenv('PIPELINE_DATA_DIR'))
 QTL_DATA_DIR = os.getenv("QTL_DATA_DIR", "").strip()
 

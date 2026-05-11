@@ -23,7 +23,6 @@ coloc_p2 = getattr(coloc_opts, "p2", 1e-4)
 coloc_p12 = getattr(coloc_opts, "p12", 5e-6)
 
 std_file_pattern = standardised_gwas_name("{prefix}")
-finemap_dir_pattern = RESULTS_DIR + "finemap/{prefix}"
 
 for g in pipeline.gwases:
     g.finemap_dir = RESULTS_DIR + "finemap/" + g.prefix
@@ -41,7 +40,7 @@ ancestry_bar = "|".join([g.ancestry for g in pipeline.gwases])
 rule all:
     input:
         expand(std_file_pattern, prefix=trait_names),
-        expand(finemap_dir_pattern, prefix=trait_names),
+        expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=trait_names),
         coloc_results,
         results_file
 
@@ -54,7 +53,7 @@ rule run_coloc:
         mem = "16G",
         time = "02:00:00"
     input:
-        finemap_dirs = expand(finemap_dir_pattern, prefix=trait_names)
+        finemap_complete = expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=trait_names)
     params:
         finemap_dirs = finemap_dirs_str,
         trait_names = trait_names_str,

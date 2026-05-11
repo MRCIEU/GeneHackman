@@ -17,7 +17,6 @@ finemap_coverage = getattr(finemap_opts, "coverage", 0.95)
 finemap_min_abs_corr = getattr(finemap_opts, "min_abs_corr", 0.5)
 
 std_file_pattern = standardised_gwas_name("{prefix}")
-finemap_dir_pattern = RESULTS_DIR + "finemap/{prefix}"
 
 for g in pipeline.gwases:
     g.finemap_dir = RESULTS_DIR + "finemap/" + g.prefix
@@ -25,7 +24,7 @@ for g in pipeline.gwases:
 rule all:
     input:
         expand(std_file_pattern, prefix=[g.prefix for g in pipeline.gwases]),
-        expand(finemap_dir_pattern, prefix=[g.prefix for g in pipeline.gwases])
+        expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=[g.prefix for g in pipeline.gwases])
 
 include: "rules/standardise_rule.smk"
 include: "rules/clumping_rule.smk"
