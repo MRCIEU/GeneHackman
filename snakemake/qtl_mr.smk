@@ -26,6 +26,7 @@ exposures_string = " ".join(pipeline.qtl.exposures)
 
 gwas_prefix = file_prefix(gwas.file)
 gwas.finemap_dir = RESULTS_DIR + "finemap/" + gwas_prefix
+finemap_complete_file = expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=[gwas_prefix])[0]
 
 mr_results = RESULTS_DIR + "mr/" + gwas_prefix + "_" + qtl_name + ".tsv.gz"
 coloc_results = RESULTS_DIR + "mr/coloc_" + gwas_prefix + "_" + qtl_name + ".tsv"
@@ -107,7 +108,7 @@ rule run_coloc_analysis_of_significant_mr_results:
 
 files_created = {
     "gwas": gwas.standardised_gwas,
-    "finemap_dir": gwas.finemap_dir,
+    "finemap_complete": finemap_complete_file,
     "mr_results": mr_results,
     "volcano_plot": volcano_plot,
     "coloc_results": coloc_results
