@@ -238,13 +238,27 @@ volcano_plot <- function(results_file, title="Volcano Plot of Results", label="E
     get({{p_val}}) < 0.05 & BETA > 0 ~ "Protective"
   ))
 
-  #filter label to only showing the more 'important' labels
-  important_labels <- dplyr::filter(table, get({{p_val}}) < 0.05) |>
-    dplyr::arrange(dplyr::desc(-log10(get({{p_val}}) * abs(BETA))))
-  important_labels <- head(important_labels, num_labels)[[label]]
-  table[[label]] <- ifelse(table[[label]] %in% important_labels, table[[label]], NA)
+  # One label per distinct exposure/method key: MR outputs often repeat the same EXPOSURE
+  # (e.g. IVW rows); label only the best-scoring row per label value to avoid duplicate tags.
+  table <- dplyr::mutate(table, .volcano_row_id = dplyr::row_number())
+  sig <- dplyr::filter(table, .data[[p_val]] < 0.05)
+  representatives <- sig |>
+    dplyr::group_by(.data[[label]]) |>
+    dplyr::slice_max(
+      order_by = (-log10(.data[[p_val]]) * abs(BETA)),
+      n = 1L,
+      with_ties = FALSE
+    ) |>
+    dplyr::ungroup() |>
+    dplyr::arrange(dplyr::desc(-log10(.data[[p_val]]) * abs(BETA))) |>
+    dplyr::slice_head(n = num_labels)
 
-  ggplot2::ggplot(data = table, ggplot2::aes(x = BETA , y = -log10(.data[[p_val]]), col = category, label = .data[[label]])) +
+  rep_ids <- representatives$.volcano_row_id
+  lab_chr <- as.character(table[[label]])
+  table$.volcano_plot_label <- ifelse(table$.volcano_row_id %in% rep_ids, lab_chr, NA_character_)
+  table$.volcano_row_id <- NULL
+
+  p <- ggplot2::ggplot(data = table, ggplot2::aes(x = BETA , y = -log10(.data[[p_val]]), col = category, label = .volcano_plot_label)) +
     ggplot2::geom_vline(xintercept = c(-0.1, 0.1), col = "gray", linetype = 'dashed') +
     ggplot2::geom_hline(yintercept = -log10(0.05), col = "tomato2", linetype = 'dashed') +
     ggplot2::geom_point(size = 1) +
@@ -255,7 +269,7 @@ volcano_plot <- function(results_file, title="Volcano Plot of Results", label="E
     ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5)) +
     ggrepel::geom_text_repel(max.overlaps = Inf, show.legend = F)
 
-  ggplot2::ggsave(output_file)
+  ggplot2::ggsave(output_file, plot = p)
 }
 
 

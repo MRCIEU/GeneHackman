@@ -81,75 +81,81 @@ finemap_gwas <- function(gwas,
     lead_rsid <- lead_snps$SNP[i]
     lead_chr <- as.numeric(lead_snps$CHR[i])
     lead_bp <- as.numeric(lead_snps$BP[i])
-    locus_gwas <- locus_subsets[[i]]
-    window_gwas <- window_subsets[[i]]
 
-    if (nrow(locus_gwas) < 2L) {
-      message(paste("Skipping locus", lead_rsid, "- fewer than 2 SNPs in window"))
-      return(NULL)
-    }
+    tryCatch({
+      locus_gwas <- locus_subsets[[i]]
+      window_gwas <- window_subsets[[i]]
 
-    if (!has_rsid || all(is.na(locus_gwas$RSID))) {
-      message(paste("Skipping locus", lead_rsid, "- no RSIDs available for LD computation"))
-      return(NULL)
-    }
-    locus_gwas <- locus_gwas[!is.na(RSID) & nchar(RSID) > 0L]
+      if (nrow(locus_gwas) < 2L) {
+        message(paste("Skipping locus", lead_rsid, "- fewer than 2 SNPs in window"))
+        return(NULL)
+      }
 
-    ld_result <- compute_ld_matrix(locus_gwas$RSID, lead_chr, ancestry)
-    if (is.null(ld_result)) {
-      message(paste("Skipping locus", lead_rsid, "- LD matrix computation failed"))
-      return(NULL)
-    }
+      if (!has_rsid || all(is.na(locus_gwas$RSID))) {
+        message(paste("Skipping locus", lead_rsid, "- no RSIDs available for LD computation"))
+        return(NULL)
+      }
+      locus_gwas <- locus_gwas[!is.na(RSID) & nchar(RSID) > 0L]
 
-    shared_rsids <- intersect(locus_gwas$RSID, ld_result$snps)
-    if (length(shared_rsids) < 2L) {
+      ld_result <- compute_ld_matrix(locus_gwas$RSID, lead_chr, ancestry)
+      if (is.null(ld_result)) {
+        message(paste("Skipping locus", lead_rsid, "- LD matrix computation failed"))
+        return(NULL)
+      }
+
+      shared_rsids <- intersect(locus_gwas$RSID, ld_result$snps)
+      if (length(shared_rsids) < 2L) {
+        rm(ld_result); gc(verbose = FALSE)
+        message(paste("Skipping locus", lead_rsid, "- too few shared SNPs between GWAS and LD panel"))
+        return(NULL)
+      }
+
+      locus_gwas <- locus_gwas[match(shared_rsids, RSID)]
+      ld_idx <- match(shared_rsids, ld_result$snps)
+      R <- ld_result$matrix[ld_idx, ld_idx]
       rm(ld_result); gc(verbose = FALSE)
-      message(paste("Skipping locus", lead_rsid, "- too few shared SNPs between GWAS and LD panel"))
+
+      z_scores <- locus_gwas$BETA / locus_gwas$SE
+      n <- if (has_n && !is.na(as.numeric(locus_gwas$N[1L]))) as.numeric(locus_gwas$N[1L]) else default_n
+      if (is.na(n)) {
+        stop("Fine-mapping requires GWAS sample size")
+      }
+
+      locus_lbf <- run_susie_for_locus(
+        z_scores = z_scores,
+        ld_matrix = R,
+        snp_info = locus_gwas,
+        n = n,
+        lead_snp = lead_rsid,
+        max_causal = max_causal,
+        coverage = coverage,
+        min_abs_corr = min_abs_corr
+      )
+      rm(R, locus_gwas); gc(verbose = FALSE)
+
+      if (nrow(locus_lbf) == 0L) return(NULL)
+
+      lbf_nm <- grep("^LBF_[0-9]+$", names(locus_lbf), value = TRUE)
+      finemap_cols <- intersect(c("RSID", "Z", "CS", lbf_nm), names(locus_lbf))
+      finemap_join <- locus_lbf[, ..finemap_cols]
+
+      out_gwas <- merge(window_gwas, finemap_join, by = "RSID", all.x = TRUE, sort = FALSE)
+      rm(window_gwas, finemap_join)
+
+      lead_chr_bp <- paste0(
+        lead_chr, "_",
+        format(as.numeric(lead_bp), scientific = FALSE, trim = TRUE, digits = 20)
+      )
+      safe_locus <- gsub("[^A-Za-z0-9._-]+", "_", lead_chr_bp)
+      out_file <- file.path(output_finemap_dir, paste0(safe_locus, "_finemap.tsv.gz"))
+      data.table::fwrite(out_gwas, out_file, sep = "\t", compress = "gzip")
+      rm(out_gwas)
+
+      locus_lbf
+    }, error = function(e) {
+      message(paste("Error processing locus", lead_rsid, ":", conditionMessage(e)))
       return(NULL)
-    }
-
-    locus_gwas <- locus_gwas[match(shared_rsids, RSID)]
-    ld_idx <- match(shared_rsids, ld_result$snps)
-    R <- ld_result$matrix[ld_idx, ld_idx]
-    rm(ld_result); gc(verbose = FALSE)
-
-    z_scores <- locus_gwas$BETA / locus_gwas$SE
-    n <- if (has_n && !is.na(as.numeric(locus_gwas$N[1L]))) as.numeric(locus_gwas$N[1L]) else default_n
-    if (is.na(n)) {
-      stop("Fine-mapping requires GWAS sample size")
-    }
-
-    locus_lbf <- run_susie_for_locus(
-      z_scores = z_scores,
-      ld_matrix = R,
-      snp_info = locus_gwas,
-      n = n,
-      lead_snp = lead_rsid,
-      max_causal = max_causal,
-      coverage = coverage,
-      min_abs_corr = min_abs_corr
-    )
-    rm(R, locus_gwas); gc(verbose = FALSE)
-
-    if (nrow(locus_lbf) == 0L) return(NULL)
-
-    lbf_nm <- grep("^LBF_[0-9]+$", names(locus_lbf), value = TRUE)
-    finemap_cols <- intersect(c("RSID", "Z", "CS", lbf_nm), names(locus_lbf))
-    finemap_join <- locus_lbf[, ..finemap_cols]
-
-    out_gwas <- merge(window_gwas, finemap_join, by = "RSID", all.x = TRUE, sort = FALSE)
-    rm(window_gwas, finemap_join)
-
-    lead_chr_bp <- paste0(
-      lead_chr, "_",
-      format(as.numeric(lead_bp), scientific = FALSE, trim = TRUE, digits = 20)
-    )
-    safe_locus <- gsub("[^A-Za-z0-9._-]+", "_", lead_chr_bp)
-    out_file <- file.path(output_finemap_dir, paste0(safe_locus, "_finemap.tsv.gz"))
-    data.table::fwrite(out_gwas, out_file, sep = "\t", compress = "gzip")
-    rm(out_gwas)
-
-    locus_lbf
+    })
   }
 
   locus_results <- parallel::mclapply(
@@ -159,9 +165,26 @@ finemap_gwas <- function(gwas,
   )
   rm(locus_subsets, window_subsets); gc(verbose = FALSE)
 
-  all_lbf <- locus_results[!vapply(locus_results, is.null, FUN.VALUE = logical(1))]
+  is_valid <- vapply(locus_results, function(x) {
+    is.data.frame(x) || data.table::is.data.table(x)
+  }, FUN.VALUE = logical(1))
+
+  n_errors <- sum(vapply(locus_results, inherits, "try-error", FUN.VALUE = logical(1)))
+  if (n_errors > 0L) {
+    message(paste(n_errors, "locus worker(s) returned errors"))
+  }
+
+  all_lbf <- locus_results[is_valid]
   rm(locus_results)
-  combined_lbf <- data.table::rbindlist(all_lbf, fill = TRUE)
+
+  if (length(all_lbf) == 0L) {
+    combined_lbf <- data.table::data.table(
+      SNP = character(), CHR = numeric(), BP = numeric(), RSID = character(),
+      Z = numeric(), CS = integer()
+    )
+  } else {
+    combined_lbf <- data.table::rbindlist(all_lbf, fill = TRUE)
+  }
   rm(all_lbf); gc(verbose = FALSE)
 
   if (nrow(combined_lbf) == 0L) {
