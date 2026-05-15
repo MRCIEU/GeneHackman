@@ -19,11 +19,20 @@ def _available_cpus():
     return max(1, n if n is not None else 1)
 
 
+def _strip_project_path(s):
+    return (s or "").strip().rstrip("/\\")
+
+
 load_dotenv()
 docker_repo = "docker://mrcieu/genehackman"
 user = os.getenv('USER')
 input_file = "input.yaml"
 start_time = datetime.now()
+
+_project = _strip_project_path(os.getenv("PROJECT_DIR", ""))
+
+DATA_DIR = format_dir_string(os.path.join(_project, "data"))
+RESULTS_DIR = format_dir_string(os.path.join(_project, "results"))
 
 _pipeline_log_override = os.getenv("PIPELINE_LOG_DIR")
 _local_flag = os.getenv("GENEHACKMAN_LOCAL", "").strip().lower() in ("1", "true", "yes")
@@ -63,11 +72,7 @@ default_output_options = SimpleNamespace(**{
     "columns": SimpleNamespace(**default_columns)
 })
 
-if not os.getenv("DATA_DIR") or not os.getenv("RESULTS_DIR"):
-    raise ValueError("Please populate DATA_DIR and RESULTS_DIR in the .env file provided")
 DOCKER_VERSION = os.getenv('DOCKER_VERSION')
-DATA_DIR = format_dir_string(os.getenv('DATA_DIR'))
-RESULTS_DIR = format_dir_string(os.getenv('RESULTS_DIR'))
 
 # Single Snakemake output path for successful finemap runs (written last by finemap_gwas).
 FINEMAP_COMPLETE_TXT_PATTERN = RESULTS_DIR + "finemap/{prefix}/finemap_complete.txt"
@@ -81,6 +86,3 @@ THOUSAND_GENOMES_DIR = format_dir_string(GENOMIC_DATA_DIR + "1000genomes/b37_dbs
 QTL_DIRECTORY = format_dir_string(QTL_DATA_DIR)
 
 AVAILABLE_CPUS = _available_cpus()
-
-if DATA_DIR == RESULTS_DIR:
-    raise ValueError("DATA_DIR and RESULTS_DIR must be different directories")

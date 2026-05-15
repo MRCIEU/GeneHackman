@@ -85,6 +85,7 @@ Alternatives if you don’t set **`QTL_DATA_DIR`** directly: keep the same direc
 ### 4. Populate `.env` and `input.yaml` files
 
 `cp .env_example .env`
+* Set **`PROJECT_DIR`** to the root folder for this analysis; the pipeline uses **`PROJECT_DIR/data/`** for inputs (GWAS, clumps, …) and **`PROJECT_DIR/results/`** for outputs (finemap, coloc, plots, …).
 * Set **`PIPELINE_DATA_DIR`** to the path where you unpacked **`genehackman`** (see §3).
 * Set **`QTL_DATA_DIR`** to the path where you unpacked **`genehackman-qtl`** if you run **`qtl_mr`** (can be left empty otherwise; see [.env_example](.env_example)).
 * **Container cache:** If there is no pre-built `genehackman_<version>.sif` under `PIPELINE_DATA_DIR`, Snakemake pulls the `docker://` image and caches the SIF under `.snakemake/singularity` by default. Set **`GENEHACKMAN_SINGULARITY_PREFIX`** in `.env` to use another directory (e.g. scratch). Running `snakemake` without `./run_pipeline.sh`? Pass `--singularity-prefix /path` or add `singularity-prefix:` under **`snakemake/profiles/`** in **`config.yaml`** for the profile you use (paths are relative to the repo root).
@@ -94,7 +95,7 @@ Alternatives if you don’t set **`QTL_DATA_DIR`** directly: keep the same direc
 * Example: `cp snakemake/input_templates/compare_gwases.yaml input.yaml`
 * Each pipeline has its own shape; examples live under [`snakemake/input_templates/`](snakemake/input_templates/).
 * See [PIPELINES.md](snakemake/PIPELINES.md) for all fields.
-* Pass the input YAML as the **second** argument to `run_pipeline.sh`, or rely on **`input.yaml`** in the working directory. To call **`snakemake`** yourself without the wrapper, use **`--config genehackman_input=/path/to/file.yaml`**.
+* Pass the input YAML as the **second** argument to `run_pipeline.sh`, or rely on **`input.yaml`** in the working directory. To call **`snakemake`** yourself without the wrapper, set **`PROJECT_DIR`** in **`.env`** and export **`DATA_DIR="${PROJECT_DIR%/}/data"`** and **`RESULTS_DIR="${PROJECT_DIR%/}/results"`** (or load the same paths Snakemake uses) so shell rules and profile bind mounts resolve; also pass **`--config genehackman_input=/path/to/file.yaml`**.
 
 ### 5. Run the pipeline
 

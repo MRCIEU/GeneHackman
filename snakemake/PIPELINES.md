@@ -8,7 +8,7 @@ All pipelines consume a **YAML** file. Use **`./run_pipeline.sh <workflow>.smk [
 
 Indented nesting defines hierarchy (`gwases:` lists `- item` blocks). Use `true` / `false` for booleans. Quote a string if it could be parsed as a YAML 1.1 keyword (e.g. column names `yes`, `no`). Validate syntax with [yamllint](https://www.yamllint.com/) if needed.
 
-Paths like `RESULTS_DIR` and `DATA_DIR` resolve from your `.env` file (`DATA_DIR/gwas/`, `RESULTS_DIR/…`).
+Set **`PROJECT_DIR`** in **`.env`**: the pipeline uses **`PROJECT_DIR/data/`** (GWAS, clumps, …) and **`PROJECT_DIR/results/`** (finemap, coloc, plots, …).
 
 See also: [GWAS harmonisation README](../README.md#how-it-works).
 

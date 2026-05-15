@@ -5,7 +5,7 @@ Snakemake orchestrates steps; each step usually runs inside an **Apptainer/Singu
 General prerequisites:
 
 1. **Conda env:** `conda env create -f environment.yml` then `conda activate genehackman`
-2. **`.env`:** copy from `.env_example` and set at least `DATA_DIR`, `RESULTS_DIR`, `PIPELINE_DATA_DIR` (and paths your pipeline needs for genomic / 1000G data). Optionally set **`QTL_DATA_DIR`** when large QTL mirrors live on another volume or object-store mount; if omitted, `run_pipeline.sh` defaults it to `PIPELINE_DATA_DIR/qtl_datasets`.
+2. **`.env`:** copy from `.env_example` and set **`PROJECT_DIR`** (the pipeline uses **`PROJECT_DIR/data/`** and **`PROJECT_DIR/results/`**) and **`PIPELINE_DATA_DIR`** (and paths your pipeline needs for genomic / 1000G data). Optionally set **`QTL_DATA_DIR`** when large QTL mirrors live on another volume or object-store mount; if omitted, `run_pipeline.sh` defaults it to `PIPELINE_DATA_DIR/qtl_datasets`.
 3. **Input YAML:** see `snakemake/input_templates/` and `snakemake/PIPELINES.md`.
 
 **`./run_pipeline.sh`** loads `.env`, picks a **profile** (**`SNAKEMAKE_PROFILE`**, default `snakemake/profiles/local/`), then runs Snakemake. Pass the **`.smk` workflow first**, then optional input YAML, for example:
@@ -63,7 +63,7 @@ The published image may be **linux/amd64**. Use Lima with **Rosetta / x86 Linux*
    ./run_pipeline.sh snakemake/compare_gwases.smk
    ```
 
-4. Adjust **`snakemake/profiles/local/config.yaml`** `singularity-args` if your data live outside `DATA_DIR` / `RESULTS_DIR` / `PIPELINE_DATA_DIR` / `QTL_DATA_DIR` (profiles bind these four; add more `-B host:host` pairs if needed).
+4. Adjust **`snakemake/profiles/local/config.yaml`** `singularity-args` if your data live outside **`PROJECT_DIR`** (or **`PIPELINE_DATA_DIR`** / **`QTL_DATA_DIR`**); profiles bind **`DATA_DIR`** and **`RESULTS_DIR`** (derived from **`PROJECT_DIR`**). Add more `-B host:host` pairs if needed.
 
 ---
 
@@ -90,7 +90,7 @@ export SNAKEMAKE_PROFILE=snakemake/profiles/slurm/
 
 - **`Slurm account / partition`:** In **`.env`**, optional **`SLURM_ACCOUNT`** overrides **`sbatch --account`**; if unset, the profile uses **`sacctmgr … | grep … | head -n1`**. **`SLURM_PARTITION`**, if unset, is inferred by **`run_pipeline.sh`** from **`sinfo -h -o '%P'`** (the partition marked with **`*`**, e.g. **`compute*`** → **`compute`**); if **`sinfo`** is unavailable or returns nothing, the fallback is **`compute`**. Passed to Snakemake as **`--default-resources partition=…`**.
 - **`cluster:`** block: `sbatch` options (`partition`, `account`, walltime, memory, `--output` log directory).
-- **`singularity-args`:** The generic profile binds repo code, **`$HOME`**, **`DATA_DIR`**, **`RESULTS_DIR`**, **`PIPELINE_DATA_DIR`**, **`/tmp`**, and adds **`QTL_DATA_DIR`** only when non-empty (see **`GENEHACKMAN_EXTRA_SINGULARITY_BINDS`** in `run_pipeline.sh`). Add more `-B host:host` pairs for shared reference data on your site.
+- **`singularity-args`:** The generic profile binds repo code, **`$HOME`**, **`DATA_DIR`** and **`RESULTS_DIR`** (paths under **`PROJECT_DIR`**, set by `run_pipeline.sh`), **`PIPELINE_DATA_DIR`**, **`/tmp`**, and adds **`QTL_DATA_DIR`** only when non-empty (see **`GENEHACKMAN_EXTRA_SINGULARITY_BINDS`** in `run_pipeline.sh`). Add more `-B host:host` pairs for shared reference data on your site.
 
 **Snakemake version:** `environment.yml` pins **Snakemake 7.x**. Migrating to **Snakemake 8+** changes cluster syntax (`cluster-generic` executor + plugins); this repository’s profiles target the v7 style unless you have already updated them.
 

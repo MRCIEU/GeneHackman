@@ -23,8 +23,19 @@ available_cpus <- function() {
   }
 }
 
-user_data_dir <- get_env_var("DATA_DIR", "")
-user_results_dir <- get_env_var("RESULTS_DIR", "")
+.strip_path <- function(x) {
+  sub("/+$", "", trimws(x))
+}
+
+project_dir <- .strip_path(get_env_var("PROJECT_DIR", ""))
+if (nzchar(project_dir)) {
+  user_data_dir <- file.path(project_dir, "data")
+  user_results_dir <- file.path(project_dir, "results")
+} else {
+  user_data_dir <- ""
+  user_results_dir <- ""
+}
+
 pipeline_data_dir <- sub("/+$", "", get_env_var("PIPELINE_DATA_DIR", ""))
 qtl_directory <- sub("/+$", "", get_env_var("QTL_DATA_DIR", ""))
 number_of_cpus_available <- available_cpus()

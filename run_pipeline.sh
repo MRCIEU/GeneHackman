@@ -30,12 +30,17 @@ else
   exit 1
 fi
 
-if [[ -z "${DATA_DIR:-}" || -z "${RESULTS_DIR:-}" || -z "${PIPELINE_DATA_DIR:-}" ]]; then
-  echo "Error: DATA_DIR, RESULTS_DIR, and PIPELINE_DATA_DIR must be set in .env"
+# GWAS working dirs: always PROJECT_DIR/data and PROJECT_DIR/results (exported as DATA_DIR / RESULTS_DIR for shell rules and Singularity binds).
+if [[ -z "${PROJECT_DIR:-}" || -z "${PIPELINE_DATA_DIR:-}" ]]; then
+  echo "Error: PROJECT_DIR and PIPELINE_DATA_DIR must be set in .env."
   exit 1
 fi
+_pd="$(echo "${PROJECT_DIR}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s|/*$||')"
+export DATA_DIR="${_pd}/data"
+export RESULTS_DIR="${_pd}/results"
+unset _pd
 export PIPELINE_LOG_DIR="${DATA_DIR%/}/snakemake_logs"
-mkdir -p $PIPELINE_LOG_DIR
+mkdir -p $PIPELINE_LOG_DIR $DATA_DIR $RESULTS_DIR
 
 if [[ -z "${SLURM_PARTITION:-}" ]]; then
   if command -v sinfo >/dev/null 2>&1; then
