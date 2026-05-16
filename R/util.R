@@ -164,10 +164,10 @@ convert_z_to_lbf <- function(
   effect_priors = c(continuous = 0.15, categorical = 0.2)
 ) {
   estimated_sd <- estimate_variance(se, eaf, sample_size)
-  if (study_type == study_categories$continuous) {
-    sd_prior <- effect_priors[study_categories$continuous] * estimated_sd
+  if (study_type == study_types$continuous) {
+    sd_prior <- effect_priors[study_types$continuous] * estimated_sd
   } else {
-    sd_prior <- effect_priors[study_categories$categorical]
+    sd_prior <- effect_priors[study_types$categorical]
   }
   r <- sd_prior^2 / (sd_prior^2 + se^2)
   lbf <- (log(1 - r) + (r * z^2)) / 2
