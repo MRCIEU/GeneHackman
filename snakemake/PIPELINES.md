@@ -29,6 +29,7 @@ Each element describes one GWAS file.
 | `populate_rsid`        | No       | Per-GWAS override: `true` / `false`. With clumping and `false` at both levels, RSID population is **partial** (see below).                                                                                                      |
 | `populate_eaf`         | No       | Per-GWAS: if `true`, fills missing `EAF` from the 1000 Genomes reference (`<PIPELINE_DATA_DIR>/genomic_data/1000genomes/b37_dbsnp156/` … `<ancestry>.bim` + `.frq`). Requires `ancestry`.                                                                               |
 | `flip_alleles`         | No       | If omitted, inherited from root (default **`true`**). **`false`** is **allowed only for [`standardise_gwas.smk`](standardise_gwas.smk)** (other pipelines fail at YAML load). With `false`, EA/OA order is preserved; **partial** RSID + `flip_alleles: false` remains invalid (use **`none`** or **`full`** RSID). |
+| `study_type`           | No       | `continuous` (default) or `categorical`. Used by **qtl_mr** coloc step (LBF conversion from QTL z-scores); stored on the GWAS object for future pipeline steps that need it.                                                    |
 | `remove_extra_columns` | No       | Default `false`.                                                                                                                                                                                                                |
 
 
@@ -155,7 +156,7 @@ Standardise → clump → finemap for **all** input GWAS, then **pairwise** BF�
   - `dataset` — e.g. `metabrain`, `eqtlgen`
   - `subcategory` — one sub-run, e.g. `cortex` (MetaBrain) or `cis` (eQTLGen); combined with `dataset` in output names
   - `exposures` — optional list of exposure names; if empty, all exposures in that dataset run
-  - `study_type` — `continuous` (default) or `categorical` (affects LBF conversion from QTL *Z*-scores)
+- **`study_type`** on the GWAS object (`continuous` or `categorical`) controls LBF conversion in the coloc step.
 
 **Dataset / subcategory examples** (see also repository docs):
 

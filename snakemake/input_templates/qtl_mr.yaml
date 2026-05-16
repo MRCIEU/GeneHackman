@@ -11,6 +11,7 @@ gwases:
       SE: ""
     ancestry: EUR
     N: 0
+    study_type: continuous
 plink_clump_arguments: "--clump-p1 5e-8 --clump-r2 0.01 --clump-kb 1000"
 finemap:
   window_kb: 1000
@@ -21,5 +22,4 @@ qtl:
   dataset: ""
   subcategory: ""
   exposures: []
-  study_type: continuous
 populate_rsid: false

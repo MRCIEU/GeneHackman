@@ -104,6 +104,7 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
         if not hasattr(g, "remove_extra_columns"): g.remove_extra_columns = False
         if not hasattr(g, "flip_alleles"): g.flip_alleles = getattr(pipeline, "flip_alleles", True)
         if not hasattr(g, "build"): g.build = "GRCh37"
+        if not hasattr(g, "study_type"): g.study_type = "continuous"
         if not hasattr(g, "populate_rsid"): g.populate_rsid = False
         if not hasattr(g, "populate_eaf"): g.populate_eaf = False
         g.file = os.path.abspath(g.file)

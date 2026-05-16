@@ -18,7 +18,7 @@ finemap_coverage = getattr(finemap_opts, "coverage", 0.95)
 finemap_min_abs_corr = getattr(finemap_opts, "min_abs_corr", 0.5)
 
 qtl_opts = getattr(pipeline, "qtl", SimpleNamespace())
-study_type = getattr(qtl_opts, "study_type", "continuous")
+study_type = gwas.study_type
 
 qtl_name = pipeline.qtl.dataset + "_" + pipeline.qtl.subcategory
 if not hasattr(pipeline.qtl, "exposures"): pipeline.qtl.exposures = []
