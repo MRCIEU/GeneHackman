@@ -5,7 +5,10 @@ dynamic_plot_dims <- function(n_items, dpi = 300,
                               min_height_px = 800L,
                               base_width_px = 2400L) {
   max_dim_px <- floor(49 * dpi)
-  height <- min(max(min_height_px, as.integer(n_items) * px_per_item), max_dim_px)
+  effective_px <- if (n_items <= 30) max(px_per_item, 80L)
+                  else if (n_items <= 60) max(px_per_item, 55L)
+                  else px_per_item
+  height <- min(max(min_height_px, as.integer(n_items) * effective_px), max_dim_px)
   width <- min(base_width_px, max_dim_px)
   list(width = width, height = height)
 }
