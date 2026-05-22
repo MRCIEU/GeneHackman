@@ -1,3 +1,16 @@
+# Compute dynamic plot dimensions (px) given the number of items on the y-axis.
+# Returns list(width, height) in pixels capped at ggplot2's max (49 in * dpi).
+dynamic_plot_dims <- function(n_items, dpi = 300,
+                              px_per_item = 35L,
+                              min_height_px = 800L,
+                              base_width_px = 2400L) {
+  max_dim_px <- floor(49 * dpi)
+  height <- min(max(min_height_px, as.integer(n_items) * px_per_item), max_dim_px)
+  width <- min(base_width_px, max_dim_px)
+  list(width = width, height = height)
+}
+
+
 #' forest_plot: produce a forest plot from a GWAS file
 #' @param table dataframe with the following columns: BETA, SE
 #' @param title title of the plot
@@ -55,6 +68,8 @@ grouped_forest_plot <- function(table, title, group_column, output_file, p_value
   table$LL <- table$BETA - (1.96 * table$SE)
   table$UL <- table$BETA + (1.96 * table$SE)
 
+  n_groups <- length(unique(table[[group_column]]))
+
   plot_thing <- ggplot2::ggplot(table,
          ggplot2::aes(y = if(!is.na(q_stat_column)) paste0(.data[[first_column_name]], "\n Q-stat=", .data[[q_stat_column]]) else .data[[first_column_name]],
              x = BETA,
@@ -66,9 +81,11 @@ grouped_forest_plot <- function(table, title, group_column, output_file, p_value
     ggplot2::scale_colour_brewer(type="qual") +
     ggplot2::geom_vline(xintercept = 0) +
     ggplot2::geom_pointrange(cex = 1, fatten = 2, position=ggplot2::position_dodge(width = 0.5)) +
-    ggplot2::theme(legend.position = "bottom") +
     ggplot2::ggtitle(title) +
-    ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5))
+    ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5)) +
+    ggplot2::guides(colour = ggplot2::guide_legend(ncol = 1),
+                    fill = ggplot2::guide_legend(ncol = 1)) +
+    ggplot2::theme(legend.position = "right")
 
   p <- if (!is.na(p_value_column)) {
     plot_thing + ggplot2::geom_text(ggplot2::aes(label = paste("P=", signif(.data[[p_value_column]]), digits=3), group = .data[[group_column]]), position = ggplot2::position_dodge(width = 0.5))
@@ -78,17 +95,16 @@ grouped_forest_plot <- function(table, title, group_column, output_file, p_value
     plot_thing
   }
 
+  n_unique_y <- length(unique(table[[first_column_name]]))
   dpi <- 300
-  max_dim_px <- floor(49 * dpi)
-  n_rows <- nrow(table)
-  forest_plot_height <- min(max(2000L, n_rows * 30L), max_dim_px)
-  plot_width <- min(2000L, max_dim_px)
+  dims <- dynamic_plot_dims(n_unique_y, dpi = dpi, px_per_item = 40L, min_height_px = 800L,
+                            base_width_px = 2400L)
 
   ggplot2::ggsave(
     output_file,
     plot = p,
-    width = plot_width,
-    height = forest_plot_height,
+    width = dims$width,
+    height = dims$height,
     units = "px",
     dpi = dpi,
     limitsize = FALSE
@@ -274,39 +290,40 @@ volcano_plot <- function(results_file, title="Volcano Plot of Results", label="E
 
 
 plot_heritability_contribution_per_ancestry <- function(heterogeneity_results_qj, output_file) {
-  # ggplot2 caps raster sizes at 50 in; convert px via dpi (default 300) → keep under limit
   dpi <- 300
-  max_dim_in <- 49
-  max_dim_px <- floor(max_dim_in * dpi)
   n_snps <- nrow(heterogeneity_results_qj)
-  # Vertical layout: SNP on y-axis — height scales with number of SNPs; width stays moderate
-  px_per_row <- 20L
-  graph_height <- min(max(800L, n_snps * px_per_row), max_dim_px)
-  graph_width <- min(2400L, max_dim_px)
+  dims <- dynamic_plot_dims(n_snps, dpi = dpi, px_per_item = 35L, min_height_px = 800L,
+                            base_width_px = 2400L)
 
   qj_df <- as.data.frame(heterogeneity_results_qj, check.names = TRUE)
   snp_levels <- qj_df$SNP
   plot_data <- tidyr::pivot_longer(qj_df, cols = -SNP, names_to = "key", values_to = "value")
   plot_data$SNP <- factor(plot_data$SNP, levels = unique(snp_levels))
 
+  y_text_size <- if (n_snps > 80) ggplot2::rel(0.5)
+                 else if (n_snps > 40) ggplot2::rel(0.65)
+                 else ggplot2::rel(0.85)
+
   p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = -log10(value), y = SNP)) +
     ggplot2::geom_point(ggplot2::aes(colour = key), size = 0.35) +
-    ggplot2::scale_colour_brewer(type = "qual", name = "Dataset") +
+    ggplot2::scale_colour_brewer(type = "qual", name = "GWAS") +
+    ggplot2::guides(colour = ggplot2::guide_legend(ncol = 1)) +
     ggplot2::labs(
-      x = expression(-log[10] * " (per-dataset contribution p-value)"),
+      x = expression(-log[10] * " (per-GWAS contribution p-value)"),
       y = "SNP"
     ) +
-    ggplot2::ggtitle("Contribution to heterogeneity score by dataset") +
+    ggplot2::ggtitle("Contribution to heterogeneity score by GWAS") +
     ggplot2::theme(
       plot.title = ggplot2::element_text(hjust = 0.5),
-      axis.text.y = ggplot2::element_text(size = ggplot2::rel(0.85))
+      axis.text.y = ggplot2::element_text(size = y_text_size),
+      legend.position = "right"
     )
 
   ggplot2::ggsave(
     output_file,
     plot = p,
-    width = graph_width,
-    height = graph_height,
+    width = dims$width,
+    height = dims$height,
     units = "px",
     dpi = dpi,
     limitsize = FALSE

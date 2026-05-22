@@ -8,6 +8,7 @@ output:
 
 ### LDSC Result Files
 
+LD Score Regression (LDSC) estimates SNP heritability (h²) and genetic correlation (rg) between each pair of GWAS; each file below corresponds to one ancestry group.
 
 ```{r echo = F}
 ldsc_result_files <- Sys.glob(paste0(params$ldsc_directory, "*"))
@@ -20,18 +21,22 @@ for (file in ldsc_result_files) {
 
 ### Plots Comparing Heterogeneity Across Significant SNPs
 
-`r sprintf("![Plot comparing the heritability across clumped SNPs](%s)", params$heterogeneity_plot)`
-`r sprintf("![Forest Plot Comparing clumped SNPs that fail heterogeniety score](%s)", params$heterogeneity_snp_comparison)`
+The first plot shows the per-GWAS contribution to the Cochran's Q heterogeneity statistic for **all** clumped SNPs (one row per SNP). The second plot is a grouped forest plot of effect sizes for the **subset** of SNPs whose heterogeneity Q p-value passes Bonferroni correction (Q p-value < 0.05 / number of SNPs tested), i.e. only the significantly heterogeneous SNPs.
+
+`r sprintf("![Per-GWAS contribution to heterogeneity Q-statistic (all clumped SNPs)](%s)", params$heterogeneity_plot)`
+`r sprintf("![Forest plot of effect sizes for SNPs with significant heterogeneity (Bonferroni-corrected)](%s)", params$heterogeneity_snp_comparison)`
 
 ### Expected vs Observed Results
 
-This shows all expected vs. observed results run across all GWAS
+Compares the expected replication rate (based on discovery effect sizes and replication standard errors) against the observed replication rate across all GWAS pairs — a discrepancy suggests winner's curse or population differences.
+
 ```{r echo=F}
 expected_vs_observed <- vroom::vroom(params$results, show_col_types = F)
 knitr::kable(expected_vs_observed)
 ```
 ### Table of Heterogeneity Results
 
+Per-SNP Cochran's Q p-values and per-GWAS contribution p-values (Qj) for all clumped SNPs tested for heterogeneity of effect sizes across the input GWAS.
 
 ```{r echo=F}
 heterogeneity_results <- vroom::vroom(params$heterogeneity_scores, show_col_types = F)

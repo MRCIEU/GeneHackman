@@ -180,11 +180,14 @@ plot_snps_with_heterogeneity <- function(gwases_by_dataset, heterogeneity_resuts
     gwas[are_heterogeneous, ]
   }))
 
+  if ("dataset" %in% colnames(forest_plot_rows)) {
+    data.table::setnames(forest_plot_rows, "dataset", "GWAS")
+  }
+
   grouped_forest_plot(forest_plot_rows,
                       title = "Plot of SNPs That Are Heterogeneous",
-                      group_column = "dataset",
+                      group_column = "GWAS",
                       output_file = heterogeneity_forest_plot_file,
-                      #p_value_column = "Qpval" ??
   )
 }
 

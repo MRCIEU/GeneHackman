@@ -158,10 +158,12 @@ finemap_gwas <- function(gwas,
     })
   }
 
+  number_of_simultaneous_jobs <- 5L
+
   locus_results <- parallel::mclapply(
     seq_len(n_loci),
     process_one_locus,
-    mc.cores = 3L
+    mc.cores = number_of_simultaneous_jobs
   )
   rm(locus_subsets, window_subsets); gc(verbose = FALSE)
 

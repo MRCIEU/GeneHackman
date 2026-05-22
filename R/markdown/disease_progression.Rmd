@@ -10,10 +10,16 @@ library(vroom)
 library(dplyr, quietly=T)
 ```
 
-### Unadjusted Manhattan Plots of GWAS
-`r sprintf("![Miami Plot Comparing Unadjusted GWAS at p = 0.0001](%s)", params$unadjuested_miami_plot)`
+### Incident GWAS vs Collider Bias Adjusted GWAS
+
+Miami plot comparing the incident (discovery) GWAS against the collider-bias-adjusted subsequent GWAS — regions that diverge suggest variants whose apparent progression effect was driven by index-event bias.
+
+`r sprintf("![Miami Plot Comparing Incident GWAS and Collider Bias Adjusted GWAS](%s)", params$unadjuested_miami_plot)`
 
 ### Comparison of Collider Bias Results
+
+Summary of the collider bias correction model (e.g. SlopeHunter or CWLS): estimated correction slope, standard error, and significance — quantifies how strongly incidence confounds the subsequent GWAS effect estimates.
+
 ```{r echo=F}
 collider_bias_results <- vroom::vroom(params$collider_bias_results, show_col_types = F)
 knitr::kable(collider_bias_results)
@@ -21,9 +27,9 @@ knitr::kable(collider_bias_results)
 
 ### Expected vs Observed Results
 
-This shows all expected vs. observed results when comparing the incident vs. subsequent GWASes
+Compares the expected replication rate against observed replication between incident and subsequent GWASes, before and after collider-bias adjustment — improvement after correction indicates the adjustment is recovering true progression signals.
 
-First table: Expected vs. Observed before adjusted for Collider Bias
+First table: Expected vs. Observed before adjusting for Collider Bias
 
 Second table: Expected vs. Observed after adjusting for Collider Bias 
 ```{r echo=F}
@@ -34,12 +40,16 @@ adjusted_expected_vs_observed <- vroom::vroom(params$adjusted_expected_vs_observ
 knitr::kable(adjusted_expected_vs_observed)
 ```
 
-### Adjusted Manhattan Plots of GWAS
-`r sprintf("![Miami Plot of Adjusted GWAS at p = 0.0001](%s)", params$adjusted_miami_plot)`
+### Subsequent GWAS vs Collider Bias Adjusted GWAS
+
+Miami plot comparing the unadjusted subsequent GWAS against the collider-bias-adjusted subsequent GWAS — highlights which genomic regions are most affected by the correction.
+
+`r sprintf("![Miami Plot Comparing Subsequent GWAS and Collider Bias Adjusted GWAS](%s)", params$adjusted_miami_plot)`
 
 ### Comparing GWAS Results Across Top Hits in Subsequent GWAS
 
-This is a comparison of all top hits returned from clumped subsequent unadjusted
+Table of effect estimates (BETA, SE, P) for each clumped lead SNP from the subsequent GWAS, shown side-by-side across the incidence, subsequent, and adjusted GWASes — allows direct comparison of effect direction and magnitude before and after correction.
+
 ```{r echo=F}
 clumped_snps <- data.table::fread(params$clumped_subsequent)$SNP
 columns <- c("SNP", "RSID", "BETA", "SE", "P")

@@ -36,6 +36,10 @@ coloc_tbl <- if (coloc_exist) {
 }
 ```
 
+### Input GWAS
+
+Lists the GWAS datasets that were standardised, clumped, and finemapped as input to the colocalization analysis, along with the ancestry used for LD reference.
+
 ```{r echo = FALSE}
 if (length(traits_v) > 0L && identical(length(traits_v), length(ancestries_v))) {
   kv <- data.frame(trait_prefix = traits_v, ancestry = ancestries_v, stringsAsFactors = FALSE)
@@ -44,6 +48,8 @@ if (length(traits_v) > 0L && identical(length(traits_v), length(ancestries_v))) 
 ```
 
 ### Colocalization priors & overlap
+
+Shows the prior probabilities and overlap window used to define signal pairs for BF–BF colocalization testing.
 
 Overlapping finemapped signals were defined within ± **`r params$overlap_kb`** kb (pairs of credible-set leads on the same chromosome with lead positions within this window).
 
@@ -86,7 +92,7 @@ if (!cross_ancestry && length(uniq_anc) == 1L) {
 
 ### Colocalization results
 
-Overlapping signals were tested pairwise with `coloc::coloc.bf_bf()` using SuSiE-derived log-Bayes-factor columns from the fine-mapping outputs.
+Pairwise BF–BF colocalization results for overlapping finemapped signals — PP.H4.abf > 0.8 indicates strong evidence that two traits share the same causal variant at that locus.
 
 ```{r echo = FALSE}
 if (!is.null(coloc_tbl) && nrow(coloc_tbl) > 0L) {
