@@ -33,6 +33,11 @@ trait_names_str = " ".join(trait_names)
 
 coloc_results = RESULTS_DIR + "coloc/coloc_results.tsv"
 results_file = RESULTS_DIR + "coloc/result_coloc.html"
+locus_zoom_dir = RESULTS_DIR + "coloc/locus_zoom/"
+locus_zoom_done = RESULTS_DIR + "coloc/locus_zoom_complete.txt"
+
+gwas_files_str = " ".join([g.standardised_gwas for g in pipeline.gwases])
+first_ancestry = pipeline.gwases[0].ancestry
 
 trait_bar = "|".join(trait_names)
 ancestry_bar = "|".join([g.ancestry for g in pipeline.gwases])
@@ -42,7 +47,8 @@ rule all:
         expand(std_file_pattern, prefix=trait_names),
         expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=trait_names),
         coloc_results,
-        results_file
+        results_file,
+        locus_zoom_done
 
 include: "rules/standardise_rule.smk"
 include: "rules/clumping_rule.smk"
@@ -101,8 +107,33 @@ rule create_results_file:
             --output_file "{output}"
         """
 
+rule run_locus_zoom:
+    resources:
+        mem = "8G",
+        time = "01:00:00"
+    input:
+        coloc_results = coloc_results,
+        gwas_files = [g.standardised_gwas for g in pipeline.gwases]
+    params:
+        gwas_files = gwas_files_str,
+        trait_names = trait_names_str,
+        ancestry = first_ancestry,
+        output_dir = locus_zoom_dir
+    output:
+        done = locus_zoom_done
+    shell:
+        """
+        Rscript run_locus_zoom.R \
+            --coloc_results {input.coloc_results} \
+            --gwas_files {params.gwas_files} \
+            --trait_names {params.trait_names} \
+            --ancestry {params.ancestry} \
+            --output_dir {params.output_dir} \
+        && touch {output.done}
+        """
+
 onsuccess:
-    files = [g.finemap_dir for g in pipeline.gwases] + [coloc_results, results_file]
+    files = [g.finemap_dir for g in pipeline.gwases] + [coloc_results, results_file, locus_zoom_dir]
     onsuccess(pipeline_name, files, results_file, is_test=pipeline.is_test)
 
 onerror:

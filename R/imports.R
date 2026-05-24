@@ -19,6 +19,8 @@
 #' @rawNamespace import(Rfast, except = c(transpose, nth, is_integer, as_integer))
 #' @import coloc
 #' @import ggplot2
+#' @import locuszoomr
+#' @import patchwork
 #' @import ggrepel
 #' @import grDevices
 #' @import graphics

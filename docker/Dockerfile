@@ -53,6 +53,6 @@ RUN /bin/condabin/conda tos accept --override-channels --channel https://repo.an
 COPY docker/requirements.* docker/
 RUN Rscript docker/requirements.R
 ENV R_LIBS_SITE=/usr/lib/R/site-library
-RUN pip install -r docker/requirements.txt
+RUN pip install --no-cache-dir -r docker/requirements.txt
 
 CMD ["/bin/bash"]
