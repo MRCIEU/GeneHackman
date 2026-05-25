@@ -21,13 +21,31 @@ locus_zoom_coloc <- function(coloc_results_file,
                              pp_h4_threshold = 0.8,
                              window_kb = 500) {
 
+  message("=== Locus zoom plot generation ===")
+  message("Coloc results file: ", coloc_results_file)
+  message("GWAS files: ", paste(names(gwas_files), gwas_files, sep = " -> ", collapse = "\n  "))
+  message("Ancestry: ", ancestry)
+  message("PP.H4 threshold: ", pp_h4_threshold)
+  message("Window: ±", window_kb, " kb")
+
   coloc_res <- vroom::vroom(coloc_results_file, show_col_types = FALSE)
+  message("Total coloc results: ", nrow(coloc_res))
 
   significant <- coloc_res[coloc_res$PP.H4.abf >= pp_h4_threshold, ]
+  message("Significant results (PP.H4.abf >= ", pp_h4_threshold, "): ", nrow(significant))
+
   if (nrow(significant) == 0) {
-    message("No coloc results above PP.H4.abf threshold of ", pp_h4_threshold)
+    message("No coloc results above threshold — nothing to plot")
     if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
     return(invisible(NULL))
+  }
+
+  traits_in_results <- unique(c(significant$trait1, significant$trait2))
+  missing_traits <- setdiff(traits_in_results, names(gwas_files))
+  if (length(missing_traits) > 0) {
+    message("WARNING: Traits in coloc results but missing from gwas_files: ",
+            paste(missing_traits, collapse = ", "))
+    message("  Available trait names: ", paste(names(gwas_files), collapse = ", "))
   }
 
   if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
@@ -42,46 +60,64 @@ locus_zoom_coloc <- function(coloc_results_file,
 
   for (i in seq_len(nrow(significant))) {
     row <- significant[i, ]
+    locus_label <- paste0(row$trait1, " vs ", row$trait2, " at ", row$locus1, "/", row$locus2)
+    message("Processing locus ", i, "/", nrow(significant), ": ", locus_label)
 
-    chr <- as.integer(strsplit(row$locus1, "_")[[1]][1])
-    bp1 <- as.numeric(strsplit(row$locus1, "_")[[1]][2])
-    bp2 <- as.numeric(strsplit(row$locus2, "_")[[1]][2])
-    center_bp <- round(mean(c(bp1, bp2)))
+    tryCatch({
+      chr <- as.integer(strsplit(row$locus1, "_")[[1]][1])
+      bp1 <- as.numeric(strsplit(row$locus1, "_")[[1]][2])
+      bp2 <- as.numeric(strsplit(row$locus2, "_")[[1]][2])
+      center_bp <- round(mean(c(bp1, bp2)))
 
-    window_bp <- window_kb * 1000
-    xrange <- c(center_bp - window_bp, center_bp + window_bp)
+      window_bp <- window_kb * 1000
+      xrange <- c(center_bp - window_bp, center_bp + window_bp)
 
-    index_snp <- find_index_snp_from_ld_panel(chr, center_bp, window_bp, ancestry)
+      index_snp <- find_index_snp_from_ld_panel(chr, center_bp, window_bp, ancestry)
+      message("  Region: chr", chr, ":", xrange[1], "-", xrange[2],
+              ", index SNP: ", if (is.null(index_snp)) "NONE" else index_snp)
 
-    plot_list <- list()
-    for (trait in c(row$trait1, row$trait2)) {
-      gwas <- load_gwas(trait)
-      p <- build_single_locus_plot(gwas, chr, xrange, ens_db, ancestry,
-                                   index_snp, trait)
-      if (!is.null(p)) plot_list[[trait]] <- p
-    }
+      plot_list <- list()
+      for (trait in c(row$trait1, row$trait2)) {
+        if (!trait %in% names(gwas_files)) {
+          message("  WARNING: trait '", trait, "' not found in gwas_files. ",
+                  "Available: ", paste(names(gwas_files), collapse = ", "))
+          next
+        }
+        gwas <- load_gwas(trait)
+        message("  Building plot for '", trait, "' (", nrow(gwas), " rows in GWAS)")
+        p <- build_single_locus_plot(gwas, chr, xrange, ens_db, ancestry,
+                                     index_snp, trait)
+        if (!is.null(p)) {
+          plot_list[[trait]] <- p
+        } else {
+          message("  WARNING: build_single_locus_plot returned NULL for '", trait, "'")
+        }
+      }
 
-    if (length(plot_list) < 2) {
-      message("Skipping locus ", row$locus1, " — insufficient GWAS data for plotting")
-      next
-    }
+      if (length(plot_list) < 2) {
+        message("  Skipping — only ", length(plot_list), " of 2 trait plots could be built")
+        next
+      }
 
-    hit_info <- ""
-    if (!is.na(row$hit1) && !is.na(row$hit2)) {
-      hit_info <- paste0("_", row$hit1, "_vs_", row$hit2)
-    }
+      hit_info <- ""
+      if (!is.na(row$hit1) && !is.na(row$hit2)) {
+        hit_info <- paste0("_", row$hit1, "_vs_", row$hit2)
+      }
 
-    safe_name <- gsub("[^A-Za-z0-9._-]+", "_", paste0(
-      row$trait1, "_vs_", row$trait2, "_chr", chr, "_", center_bp, hit_info
-    ))
-    out_file <- file.path(output_dir, paste0(safe_name, ".png"))
+      safe_name <- gsub("[^A-Za-z0-9._-]+", "_", paste0(
+        row$trait1, "_vs_", row$trait2, "_chr", chr, "_", center_bp, hit_info
+      ))
+      out_file <- file.path(output_dir, paste0(safe_name, ".png"))
 
-    stacked <- patchwork::wrap_plots(plot_list, ncol = 1)
+      stacked <- patchwork::wrap_plots(plot_list, ncol = 1)
 
-    ggplot2::ggsave(out_file, plot = stacked,
-                    width = 10, height = 5 * length(plot_list),
-                    dpi = 300, limitsize = FALSE)
-    message("Saved locus zoom plot: ", out_file)
+      ggplot2::ggsave(out_file, plot = stacked,
+                      width = 10, height = 5 * length(plot_list),
+                      dpi = 300, limitsize = FALSE)
+      message("  Saved: ", out_file)
+    }, error = function(e) {
+      message("  ERROR processing locus ", locus_label, ": ", conditionMessage(e))
+    })
   }
 
   return(invisible(NULL))
@@ -109,14 +145,19 @@ find_index_snp_from_ld_panel <- function(chr, center_bp, window_bp, ancestry) {
 #' @keywords internal
 build_single_locus_plot <- function(gwas, chr, xrange, ens_db, ancestry,
                                     index_snp, trait_label) {
-  gwas_sub <- gwas[!is.na(gwas$CHR) & gwas$CHR == chr &
-                   !is.na(gwas$BP) & gwas$BP >= xrange[1] & gwas$BP <= xrange[2], ]
+  gwas_chr <- as.numeric(gwas$CHR)
+  gwas_bp <- as.numeric(gwas$BP)
+  keep <- !is.na(gwas_chr) & gwas_chr == chr &
+          !is.na(gwas_bp) & gwas_bp >= xrange[1] & gwas_bp <= xrange[2]
+  gwas_sub <- gwas[keep, ]
 
+  message("    Subsetting chr", chr, " ", xrange[1], "-", xrange[2],
+          ": ", nrow(gwas_sub), " SNPs in window")
   if (nrow(gwas_sub) < 2) return(NULL)
 
   plot_df <- data.frame(
-    chrom = gwas_sub$CHR,
-    pos = gwas_sub$BP,
+    chrom = as.numeric(gwas_sub$CHR),
+    pos = as.numeric(gwas_sub$BP),
     p = as.numeric(gwas_sub$P),
     stringsAsFactors = FALSE
   )
@@ -128,11 +169,15 @@ build_single_locus_plot <- function(gwas, chr, xrange, ens_db, ancestry,
   if ("BETA" %in% colnames(gwas_sub)) plot_df$beta <- as.numeric(gwas_sub$BETA)
 
   plot_df <- plot_df[!is.na(plot_df$p) & plot_df$p > 0, ]
+  message("    After filtering NA/zero p-values: ", nrow(plot_df), " SNPs")
   if (nrow(plot_df) < 2) return(NULL)
 
   ld_r2 <- compute_ld_r2_for_locus(plot_df$rsid, chr, ancestry, index_snp)
   if (!is.null(ld_r2)) {
     plot_df$r2 <- ld_r2[match(plot_df$rsid, names(ld_r2))]
+    message("    LD r2 computed for ", sum(!is.na(plot_df$r2)), "/", nrow(plot_df), " SNPs")
+  } else {
+    message("    LD r2 computation returned NULL — plotting without LD colouring")
   }
 
   ld_arg <- if ("r2" %in% colnames(plot_df)) "r2" else NULL
