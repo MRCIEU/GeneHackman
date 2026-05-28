@@ -36,6 +36,10 @@ parser <- add_argument(parser, "--output_dir",
                        help = "Directory to write locus zoom PNGs",
                        type = "character"
 )
+parser <- add_argument(parser, "--completion_file",
+                       help = "Sentinel file written on successful completion",
+                       type = "character"
+)
 
 args <- parse_args(parser)
 
@@ -60,5 +64,6 @@ locus_zoom_coloc(
   ens_db = ens_db,
   output_dir = args$output_dir,
   pp_h4_threshold = args$pp_h4_threshold,
-  window_kb = args$window_kb
+  window_kb = args$window_kb,
+  completion_file = args$completion_file
 )

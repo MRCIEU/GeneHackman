@@ -11,9 +11,10 @@
 #' @param ancestry ancestry code matching 1000 Genomes panel prefix (EUR, EAS, AFR, AMR, SAS)
 #' @param default_n GWAS sample size when not inferrable from \code{gwas}; see
 #' @param output_finemap_dir directory to write one
-#'   \verb{<CHR>_<BP>_finemap.tsv.gz} per clumped locus. On successful completion,
-#'   writes \verb{finemap_complete.txt} (one line: expected lead count \verb{n}),
-#'   where \verb{n} is the number of clumped lead SNPs (rows in the clump file excluding the header).
+#'   \verb{<CHR>_<BP>_finemap.tsv.gz} per clumped locus.
+#' @param completion_file path to a sentinel file written on successful completion
+#'   (one line: expected lead count). If NULL, defaults to
+#'   \verb{<output_finemap_dir>/finemap_complete.txt}.
 #' @param window_kb half-width of the fine-mapping window in kb (default 1000 = ±1 Mb)
 #' @param max_causal maximum number of causal signals per locus (SuSiE L, default 10)
 #' @param coverage credible set coverage (default 0.95)
@@ -25,6 +26,7 @@ finemap_gwas <- function(gwas,
                          ancestry,
                          default_n,
                          output_finemap_dir,
+                         completion_file = NULL,
                          window_kb = 1000,
                          max_causal = 10,
                          coverage = 0.95,
@@ -47,7 +49,7 @@ finemap_gwas <- function(gwas,
   lead_snps <- data.table::fread(clumped_file, select = c("SNP", "CHR", "BP"))
   if (nrow(lead_snps) == 0) {
     message("No clumped SNPs found; no per-locus finemap files written.")
-    write_finemap_complete_marker(output_finemap_dir, 0L)
+    write_finemap_complete_marker(completion_file %||% file.path(output_finemap_dir, "finemap_complete.txt"), 0L)
     empty <- data.table::data.table(
       SNP = character(), CHR = numeric(), BP = numeric(), RSID = character(),
       Z = numeric(), CS = integer()
@@ -198,17 +200,18 @@ finemap_gwas <- function(gwas,
     nrow(combined_lbf), "LD-matched SNPs with finemap stats,",
     "outputs in", output_finemap_dir))
 
-  write_finemap_complete_marker(output_finemap_dir, nrow(lead_snps))
+  write_finemap_complete_marker(completion_file %||% file.path(output_finemap_dir, "finemap_complete.txt"), nrow(lead_snps))
 
   return(invisible(combined_lbf))
 }
 
 
-#' Write \verb{finemap_complete.txt} (one line: expected lead count) for Snakemake.
+#' Write a completion sentinel file (one line: expected lead count) for Snakemake.
 #' @keywords internal
-write_finemap_complete_marker <- function(output_finemap_dir, n_loci) {
-  complete_txt <- file.path(output_finemap_dir, "finemap_complete.txt")
-  writeLines(as.character(as.integer(n_loci)), complete_txt)
+write_finemap_complete_marker <- function(completion_file, n_loci) {
+  dir_path <- dirname(completion_file)
+  if (!dir.exists(dir_path)) dir.create(dir_path, recursive = TRUE)
+  writeLines(as.character(as.integer(n_loci)), completion_file)
 }
 
 

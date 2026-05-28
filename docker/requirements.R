@@ -7,10 +7,11 @@ install.packages(pkgs)
 
 install.packages("devtools")
 
+
 if (!requireNamespace("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
 BiocManager::install(c("ensembldb", "EnsDb.Hsapiens.v75"), update = FALSE, ask = FALSE)
 
 install.packages(c("locuszoomr", "patchwork"))
 
-remotes::install_github(c("MRCIEU/GeneHackman"), upgrade = "never")
+remotes::install_local("/home/GeneHackman", upgrade = "never")

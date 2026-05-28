@@ -9,6 +9,7 @@ rule run_finemapping:
     params:
         ancestry = lambda wildcards: getattr(pipeline, wildcards.prefix).ancestry,
         n = lambda wildcards: getattr(pipeline, wildcards.prefix).N,
+        finemap_dir = lambda wildcards: getattr(pipeline, wildcards.prefix).finemap_dir,
         window_kb = finemap_window_kb,
         max_causal = finemap_max_causal,
         coverage = finemap_coverage,
@@ -17,13 +18,13 @@ rule run_finemapping:
         finemap_complete = FINEMAP_COMPLETE_TXT_PATTERN
     shell:
         """
-        OUT_FINEMAP="$(dirname {output.finemap_complete})"
         Rscript run_finemap.R \
             --gwas_filename {input.gwas} \
             --clumped_filename {input.clumped_file} \
             --ancestry {params.ancestry} \
             --N {params.n} \
-            --output_finemap_dir "$OUT_FINEMAP" \
+            --output_finemap_dir {params.finemap_dir} \
+            --completion_file {output.finemap_complete} \
             --window_kb {params.window_kb} \
             --max_causal {params.max_causal} \
             --coverage {params.coverage} \

@@ -12,6 +12,8 @@
 #' @param output_dir directory to write per-locus PNG files
 #' @param pp_h4_threshold minimum PP.H4.abf to consider significant (default 0.8)
 #' @param window_kb half-width of the region to plot in kb (default 500)
+#' @param completion_file path to a sentinel file written on successful completion.
+#'   If NULL, no sentinel is written.
 #' @export
 locus_zoom_coloc <- function(coloc_results_file,
                              gwas_files,
@@ -19,7 +21,8 @@ locus_zoom_coloc <- function(coloc_results_file,
                              ens_db,
                              output_dir,
                              pp_h4_threshold = 0.8,
-                             window_kb = 500) {
+                             window_kb = 500,
+                             completion_file = NULL) {
 
   message("=== Locus zoom plot generation ===")
   message("Coloc results file: ", coloc_results_file)
@@ -37,6 +40,7 @@ locus_zoom_coloc <- function(coloc_results_file,
   if (nrow(significant) == 0) {
     message("No coloc results above threshold — nothing to plot")
     if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+    write_completion_file(completion_file, "0 loci plotted")
     return(invisible(NULL))
   }
 
@@ -120,7 +124,18 @@ locus_zoom_coloc <- function(coloc_results_file,
     })
   }
 
+  write_completion_file(completion_file, paste(nrow(significant), "loci processed"))
   return(invisible(NULL))
+}
+
+
+#' Write a completion sentinel file for Snakemake
+#' @keywords internal
+write_completion_file <- function(completion_file, content = "done") {
+  if (is.null(completion_file)) return(invisible(NULL))
+  dir_path <- dirname(completion_file)
+  if (!dir.exists(dir_path)) dir.create(dir_path, recursive = TRUE)
+  writeLines(content, completion_file)
 }
 
 

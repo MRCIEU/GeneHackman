@@ -129,7 +129,7 @@ rule run_locus_zoom:
             --trait_names {params.trait_names} \
             --ancestry {params.ancestry} \
             --output_dir {params.output_dir} \
-        && touch {output.done}
+            --completion_file {output.done}
         """
 
 onsuccess:

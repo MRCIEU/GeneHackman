@@ -43,6 +43,10 @@ parser <- add_argument(parser, "--min_abs_corr",
                        type = "numeric",
                        default = 0.5
 )
+parser <- add_argument(parser, "--completion_file",
+                       help = "Sentinel file written on successful completion",
+                       type = "character"
+)
 
 args <- parse_args(parser)
 if (!dir.exists(args$output_finemap_dir)) {
@@ -54,6 +58,7 @@ invisible(finemap_gwas(gwas = args$gwas_filename,
              ancestry = args$ancestry,
              default_n = args$N,
              output_finemap_dir = args$output_finemap_dir,
+             completion_file = args$completion_file,
              window_kb = args$window_kb,
              max_causal = args$max_causal,
              coverage = args$coverage,

@@ -50,9 +50,9 @@ RUN /bin/condabin/conda tos accept --override-channels --channel https://repo.an
 #    tar -xf finemap_v1.4.2_x86_64.tgz && \
 #    mv finemap_v1.4.2_x86_64 /usr/local/bin/finemap
 
-COPY docker/requirements.* docker/
-RUN Rscript docker/requirements.R
+COPY . /home/GeneHackman
+RUN Rscript /home/GeneHackman/docker/requirements.R
 ENV R_LIBS_SITE=/usr/lib/R/site-library
-RUN pip install --no-cache-dir -r docker/requirements.txt
+RUN pip install --no-cache-dir -r /home/GeneHackman/docker/requirements.txt
 
 CMD ["/bin/bash"]
