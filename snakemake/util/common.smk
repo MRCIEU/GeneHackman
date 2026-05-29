@@ -25,12 +25,13 @@ def dict_to_namespace(obj):
 
 def get_docker_container():
     version = DOCKER_VERSION if DOCKER_VERSION else None
-    with open("DESCRIPTION") as file:
-        for line in file:
-            match = re.match(r"^Version: ([\w\.]+)", line)
-            if match:
-                version = match.group(1)
-                break
+    if not version:
+        with open("DESCRIPTION") as file:
+            for line in file:
+                match = re.match(r"^Version: ([\w\.]+)", line)
+                if match:
+                    version = match.group(1)
+                    break
 
     singularity_dir = os.getenv("SINGULARITY_DIR", ".snakemake/singularity").rstrip("/\\")
     sif_file = os.path.join(singularity_dir, f"genehackman_{version}.sif")
