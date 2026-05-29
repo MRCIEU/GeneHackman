@@ -31,7 +31,6 @@ Imports:
     progressr,
     qqman,
     rlang,
-    Rfast,
     R.utils,
     rmarkdown,
     shiny,

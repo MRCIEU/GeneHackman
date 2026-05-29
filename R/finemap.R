@@ -49,7 +49,7 @@ finemap_gwas <- function(gwas,
   lead_snps <- data.table::fread(clumped_file, select = c("SNP", "CHR", "BP"))
   if (nrow(lead_snps) == 0) {
     message("No clumped SNPs found; no per-locus finemap files written.")
-    write_finemap_complete_marker(completion_file %||% file.path(output_finemap_dir, "finemap_complete.txt"), 0L)
+    write_finemap_complete_marker(completion_file, 0L)
     empty <- data.table::data.table(
       SNP = character(), CHR = numeric(), BP = numeric(), RSID = character(),
       Z = numeric(), CS = integer()
@@ -200,7 +200,7 @@ finemap_gwas <- function(gwas,
     nrow(combined_lbf), "LD-matched SNPs with finemap stats,",
     "outputs in", output_finemap_dir))
 
-  write_finemap_complete_marker(completion_file %||% file.path(output_finemap_dir, "finemap_complete.txt"), nrow(lead_snps))
+  write_finemap_complete_marker(completion_file, nrow(lead_snps))
 
   return(invisible(combined_lbf))
 }
