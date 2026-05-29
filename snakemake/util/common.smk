@@ -24,23 +24,14 @@ def dict_to_namespace(obj):
 
 
 def get_docker_container():
-    version = DOCKER_VERSION if DOCKER_VERSION else None
+    version = DOCKER_VERSION
     if not version:
-        with open("DESCRIPTION") as file:
-            for line in file:
-                match = re.match(r"^Version: ([\w\.]+)", line)
-                if match:
-                    version = match.group(1)
-                    break
-
-    singularity_dir = os.getenv("SINGULARITY_DIR", ".snakemake/singularity").rstrip("/\\")
-    sif_file = os.path.join(singularity_dir, f"genehackman_{version}.sif")
-    if os.path.isfile(sif_file):
-        return sif_file
-    elif version:
-        return f"{docker_repo}:{version}"
-    else:
-        return f"{docker_repo}:latest"
+        raise ValueError("Error: DOCKER_VERSION must be set in .env")
+    pipeline_genomic_dir = os.path.join(PIPELINE_DATA_DIR.rstrip("/"), "genomic_data", "pipeline")
+    sif_path = os.path.join(pipeline_genomic_dir, f"genehackman_{version}.sif")
+    if not os.path.isfile(sif_path):
+        raise ValueError(f"Error: SIF file not found: {sif_path}")
+    return sif_path
 
 
 def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=False):
