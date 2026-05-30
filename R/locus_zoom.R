@@ -116,7 +116,13 @@ locus_zoom_coloc <- function(coloc_results_file,
       ))
       out_file <- file.path(output_dir, paste0(safe_name, ".png"))
 
-      stacked <- patchwork::wrap_plots(plot_list, ncol = 1)
+      stacked <- patchwork::wrap_plots(plot_list, ncol = 1, guides = "collect") +
+        patchwork::plot_annotation(
+          title = locus_label,
+          theme = ggplot2::theme(
+            plot.title = ggplot2::element_text(face = "bold", size = 12, hjust = 0.5)
+          )
+        )
 
       ggplot2::ggsave(out_file, plot = stacked,
                       width = 10, height = 5 * length(plot_list),
@@ -234,7 +240,14 @@ build_single_locus_plot <- function(gwas, chr, xrange, ens_db, ancestry,
 
   p <- locuszoomr::locus_ggplot(loc, labels = "index",
                                 filter_gene_biotype = "protein_coding")
-  p <- p + ggplot2::ggtitle(trait_label)
+  # patchwork tags (not ggtitle) stay visible when panels are stacked
+  p <- p +
+    ggplot2::labs(tag = trait_label) +
+    ggplot2::theme(
+      plot.tag = ggplot2::element_text(size = 14, face = "bold", hjust = 0),
+      plot.tag.position = c(0, 1),
+      plot.margin = ggplot2::margin(t = 20, r = 5, b = 5, l = 5, unit = "pt")
+    )
   p
 }
 
