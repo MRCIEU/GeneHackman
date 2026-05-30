@@ -236,7 +236,9 @@ build_single_locus_plot <- function(gwas, chr, xrange, ens_db, ancestry,
     patchwork::plot_annotation(
       title = trait_label,
       theme = ggplot2::theme(
-        plot.title = ggplot2::element_text(size = 14, face = "bold", hjust = 0)
+        plot.title = ggplot2::element_text(
+          size = 14, face = "bold", hjust = 0, margin = ggplot2::margin(b = 10)
+        )
       )
     )
   p
