@@ -46,10 +46,14 @@ locus_zoom_coloc <- function(coloc_results_file,
 
   traits_in_results <- unique(c(significant$trait1, significant$trait2))
   missing_traits <- setdiff(traits_in_results, names(gwas_files))
+
   if (length(missing_traits) > 0) {
-    message("WARNING: Traits in coloc results but missing from gwas_files: ",
-            paste(missing_traits, collapse = ", "))
-    message("  Available trait names: ", paste(names(gwas_files), collapse = ", "))
+    stop(
+      "Traits in coloc results but missing from gwas_files: ",
+      paste(missing_traits, collapse = ", "),
+      ". Available: ",
+      paste(names(gwas_files), collapse = ", ")
+    )
   }
 
   if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
@@ -62,12 +66,14 @@ locus_zoom_coloc <- function(coloc_results_file,
     gwas_cache[[trait]]
   }
 
+  failures <- character()
+
   for (i in seq_len(nrow(significant))) {
     row <- significant[i, ]
     locus_label <- paste0(row$trait1, " vs ", row$trait2, " at ", row$locus1, "/", row$locus2)
     message("Processing locus ", i, "/", nrow(significant), ": ", locus_label)
 
-    tryCatch({
+    failure_msg <- tryCatch({
       chr <- as.integer(strsplit(row$locus1, "_")[[1]][1])
       bp1 <- as.numeric(strsplit(row$locus1, "_")[[1]][2])
       bp2 <- as.numeric(strsplit(row$locus2, "_")[[1]][2])
@@ -82,11 +88,6 @@ locus_zoom_coloc <- function(coloc_results_file,
 
       plot_list <- list()
       for (trait in c(row$trait1, row$trait2)) {
-        if (!trait %in% names(gwas_files)) {
-          message("  WARNING: trait '", trait, "' not found in gwas_files. ",
-                  "Available: ", paste(names(gwas_files), collapse = ", "))
-          next
-        }
         gwas <- load_gwas(trait)
         message("  Building plot for '", trait, "' (", nrow(gwas), " rows in GWAS)")
         p <- build_single_locus_plot(gwas, chr, xrange, ens_db, ancestry,
@@ -99,8 +100,12 @@ locus_zoom_coloc <- function(coloc_results_file,
       }
 
       if (length(plot_list) < 2) {
-        message("  Skipping — only ", length(plot_list), " of 2 trait plots could be built")
-        next
+        return(paste0(
+          locus_label,
+          ": only ",
+          length(plot_list),
+          " of 2 trait plots could be built"
+        ))
       }
 
       hit_info <- ""
@@ -119,12 +124,31 @@ locus_zoom_coloc <- function(coloc_results_file,
                       width = 10, height = 5 * length(plot_list),
                       dpi = 300, limitsize = FALSE)
       message("  Saved: ", out_file)
+      NULL
     }, error = function(e) {
-      message("  ERROR processing locus ", locus_label, ": ", conditionMessage(e))
+      paste0(locus_label, ": ", conditionMessage(e))
     })
+
+    if (!is.null(failure_msg)) {
+      failures <- c(failures, failure_msg)
+    }
   }
 
-  write_completion_file(completion_file, paste(nrow(significant), "loci processed"))
+  if (length(failures) > 0) {
+    message("Locus zoom failed for ", length(failures), " of ", nrow(significant), " locus/loci:")
+    for (msg in failures) {
+      message("  - ", msg)
+    }
+    stop(
+      "Locus zoom failed for ",
+      length(failures),
+      " of ",
+      nrow(significant),
+      " locus/loci. See log messages above."
+    )
+  }
+
+  write_completion_file(completion_file, paste(nrow(significant), "loci plotted"))
   return(invisible(NULL))
 }
 

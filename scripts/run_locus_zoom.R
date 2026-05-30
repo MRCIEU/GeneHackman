@@ -55,6 +55,8 @@ if (!requireNamespace("EnsDb.Hsapiens.v75", quietly = TRUE)) {
   stop("EnsDb.Hsapiens.v75 is required for gene annotations. ",
        "Install with: BiocManager::install('EnsDb.Hsapiens.v75')")
 }
+# locuszoomr requires the EnsDb package to be loaded (not just installed); see ?locuszoomr::locus
+suppressPackageStartupMessages(library(EnsDb.Hsapiens.v75))
 ens_db <- "EnsDb.Hsapiens.v75"
 
 locus_zoom_coloc(
