@@ -36,10 +36,10 @@ locus_zoom_coloc <- function(coloc_results_file,
 
   significant <- coloc_res[coloc_res$PP.H4.abf >= pp_h4_threshold, ]
   message("Significant results (PP.H4.abf >= ", pp_h4_threshold, "): ", nrow(significant))
+  if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
   if (nrow(significant) == 0) {
     message("No coloc results above threshold — nothing to plot")
-    if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
     write_completion_file(completion_file, "0 loci plotted")
     return(invisible(NULL))
   }
@@ -55,8 +55,6 @@ locus_zoom_coloc <- function(coloc_results_file,
       paste(names(gwas_files), collapse = ", ")
     )
   }
-
-  if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
   gwas_cache <- list()
   load_gwas <- function(trait) {

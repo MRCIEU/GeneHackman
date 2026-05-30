@@ -34,7 +34,7 @@ trait_names_str = " ".join(trait_names)
 coloc_results = RESULTS_DIR + "coloc/coloc_results.tsv"
 results_file = RESULTS_DIR + "coloc/result_coloc.html"
 locus_zoom_dir = RESULTS_DIR + "coloc/locus_zoom/"
-locus_zoom_done = RESULTS_DIR + "coloc/locus_zoom_complete.txt"
+locus_zoom_done = RESULTS_DIR + "coloc/locus_zoom/locus_zoom_complete.txt"
 
 gwas_files_str = " ".join([g.standardised_gwas for g in pipeline.gwases])
 first_ancestry = pipeline.gwases[0].ancestry
