@@ -81,13 +81,9 @@ locus_zoom_coloc <- function(coloc_results_file,
       xrange <- c(center_bp - window_bp, center_bp + window_bp)
 
       index_snp <- find_index_snp_from_ld_panel(chr, center_bp, window_bp, ancestry)
-      message("  Region: chr", chr, ":", xrange[1], "-", xrange[2],
-              ", index SNP: ", if (is.null(index_snp)) "NONE" else index_snp)
-
       plot_list <- list()
       for (trait in c(row$trait1, row$trait2)) {
         gwas <- load_gwas(trait)
-        message("  Building plot for '", trait, "' (", nrow(gwas), " rows in GWAS)")
         p <- build_single_locus_plot(gwas, chr, xrange, ens_db, ancestry,
                                      index_snp, trait)
         if (!is.null(p)) {
@@ -127,7 +123,6 @@ locus_zoom_coloc <- function(coloc_results_file,
       ggplot2::ggsave(out_file, plot = stacked,
                       width = 10, height = 5 * length(plot_list),
                       dpi = 300, limitsize = FALSE)
-      message("  Saved: ", out_file)
       NULL
     }, error = function(e) {
       paste0(locus_label, ": ", conditionMessage(e))
@@ -194,8 +189,6 @@ build_single_locus_plot <- function(gwas, chr, xrange, ens_db, ancestry,
           !is.na(gwas_bp) & gwas_bp >= xrange[1] & gwas_bp <= xrange[2]
   gwas_sub <- gwas[keep, ]
 
-  message("    Subsetting chr", chr, " ", xrange[1], "-", xrange[2],
-          ": ", nrow(gwas_sub), " SNPs in window")
   if (nrow(gwas_sub) < 2) return(NULL)
 
   plot_df <- data.frame(
@@ -212,13 +205,11 @@ build_single_locus_plot <- function(gwas, chr, xrange, ens_db, ancestry,
   if ("BETA" %in% colnames(gwas_sub)) plot_df$beta <- as.numeric(gwas_sub$BETA)
 
   plot_df <- plot_df[!is.na(plot_df$p) & plot_df$p > 0, ]
-  message("    After filtering NA/zero p-values: ", nrow(plot_df), " SNPs")
   if (nrow(plot_df) < 2) return(NULL)
 
   ld_r2 <- compute_ld_r2_for_locus(plot_df$rsid, chr, ancestry, index_snp)
   if (!is.null(ld_r2)) {
     plot_df$r2 <- ld_r2[match(plot_df$rsid, names(ld_r2))]
-    message("    LD r2 computed for ", sum(!is.na(plot_df$r2)), "/", nrow(plot_df), " SNPs")
   } else {
     message("    LD r2 computation returned NULL — plotting without LD colouring")
   }
@@ -240,13 +231,13 @@ build_single_locus_plot <- function(gwas, chr, xrange, ens_db, ancestry,
 
   p <- locuszoomr::locus_ggplot(loc, labels = "index",
                                 filter_gene_biotype = "protein_coding")
-  # patchwork tags (not ggtitle) stay visible when panels are stacked
-  p <- p +
-    ggplot2::labs(tag = trait_label) +
-    ggplot2::theme(
-      plot.tag = ggplot2::element_text(size = 14, face = "bold", hjust = 0),
-      plot.tag.position = c(0, 1),
-      plot.margin = ggplot2::margin(t = 20, r = 5, b = 5, l = 5, unit = "pt")
+  # locus_ggplot returns an assembled patchwork; wrap it and add a visible title
+  p <- patchwork::wrap_elements(p) +
+    patchwork::plot_annotation(
+      title = trait_label,
+      theme = ggplot2::theme(
+        plot.title = ggplot2::element_text(size = 14, face = "bold", hjust = 0)
+      )
     )
   p
 }
