@@ -109,7 +109,7 @@ rule create_results_file:
 
 rule run_locus_zoom:
     resources:
-        mem = "8G",
+        mem = "12G",
         time = "01:00:00"
     input:
         coloc_results = coloc_results,

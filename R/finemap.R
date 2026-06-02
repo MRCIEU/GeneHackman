@@ -160,12 +160,10 @@ finemap_gwas <- function(gwas,
     })
   }
 
-  number_of_simultaneous_jobs <- 5L
-
   locus_results <- parallel::mclapply(
     seq_len(n_loci),
     process_one_locus,
-    mc.cores = number_of_simultaneous_jobs
+    mc.cores = calculate_parallelism()
   )
   rm(locus_subsets, window_subsets); gc(verbose = FALSE)
 
@@ -231,7 +229,7 @@ compute_ld_matrix <- function(rsids, chr, ancestry) {
 
   cmd <- paste(
     "plink1.9",
-    "--threads", as.character(number_of_cpus_available),
+    "--threads", as.character(available_cpus()),
     "--bfile", bfile,
     "--chr", chr,
     "--extract", snp_file,
@@ -388,4 +386,20 @@ run_susie_for_locus <- function(z_scores, ld_matrix, snp_info, n, lead_snp,
     result <- cbind(result, lbf_wide)
   }
   result
+}
+
+calculate_parallelism <- function() {
+  available_memory <- available_memory()
+  available_cpus <- available_cpus()
+  if(is_on_cluster) {
+    return(available_cpus - 1L)
+  } else {
+    memory_needed_per_finemap <- 6000
+    minumum_cpus <- floor(available_memory / memory_needed_per_finemap)
+    if (minumum_cpus > available_cpus) {
+      return(available_cpus)
+    } else {
+      return(minumum_cpus)
+    }
+  }
 }

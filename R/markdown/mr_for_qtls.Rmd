@@ -14,7 +14,7 @@ options(scipen=1)
 
 ### Volcano Plot of MR Results Against `r params$dataset` QTL Dataset
 
-Displays all MR exposure–outcome tests: x-axis is causal effect (BETA), y-axis is −log10 FDR-adjusted p-value — points above the significance line (red dashed) and labelled are exposures with evidence of a causal relationship with the outcome GWAS.
+Displays all MR exposure-outcome tests: x-axis is causal effect (BETA), y-axis is −log10 FDR-adjusted p-value — points above the significance line (red dashed) and labelled are exposures with evidence of a causal relationship with the outcome GWAS.
 
 `r sprintf("![](%s)", params$volcano_plot)`
 
@@ -33,10 +33,12 @@ knitr::kable(head(mr_results, 20))
 
 ### Coloc Results
 
-BF–BF colocalization results for each significant MR exposure — PP.H4.abf > 0.8 indicates that the MR signal and the QTL share the same causal variant, strengthening the causal inference beyond MR alone.
+Colocalization results for each significant MR exposure — PP.H4.abf > 0.8 indicates that the MR signal and the QTL share the same causal variant, strengthening the causal inference beyond MR alone.
 
 ```{r echo=F}
-coloc_results <- coloc_results |> dplyr::filter(exposure %in% mr_results$EXPOSURE)
+coloc_results <- coloc_results |>
+  dplyr::filter(exposure %in% mr_results$EXPOSURE) |>
+  dplyr::arrange(desc(PP.H4.abf))
 knitr::kable(coloc_results)
 ```
 

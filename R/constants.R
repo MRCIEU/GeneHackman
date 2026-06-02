@@ -6,6 +6,27 @@ get_env_var <- function(env_var_name, default_value=NULL) {
   }
 }
 
+# Slurm allocated memory (MB) when running under Slurm, else total system memory.
+available_memory <- function() {
+  slurm <- Sys.getenv("SLURM_MEM_PER_NODE", "")
+  if (nzchar(slurm)) {
+    v <- suppressWarnings(as.numeric(slurm))
+    if (!is.na(v) && v > 0) return(v)
+  }
+  os <- Sys.info()[["sysname"]]
+  if (os == "Linux") {
+    meminfo <- tryCatch(readLines("/proc/meminfo", n = 1), error = function(e) "")
+    kb <- suppressWarnings(as.numeric(gsub("[^0-9]", "", meminfo)))
+    if (!is.na(kb) && kb > 0) return(kb / 1024)
+  } else if (os == "Darwin") {
+    raw <- tryCatch(system2("sysctl", "-n hw.memsize", stdout = TRUE, stderr = FALSE),
+                    error = function(e) "")
+    bytes <- suppressWarnings(as.numeric(raw))
+    if (!is.na(bytes) && bytes > 0) return(bytes / (1024^2))
+  }
+  return(NA)
+}
+
 # Slurm node CPUs when SLURM_* env is set, else parallel::detectCores().
 available_cpus <- function() {
   slurm <- Sys.getenv("SLURM_CPUS_ON_NODE", "")
@@ -17,11 +38,12 @@ available_cpus <- function() {
   }
   dc <- suppressWarnings(parallel::detectCores(logical = TRUE))
   if (is.na(dc) || dc < 1L) {
-    1L
+    return(1L)
   } else {
-    as.integer(dc)
+    return(as.integer(dc))
   }
 }
+
 
 .strip_path <- function(x) {
   sub("/+$", "", trimws(x))
@@ -38,7 +60,6 @@ if (nzchar(project_dir)) {
 
 pipeline_data_dir <- sub("/+$", "", get_env_var("PIPELINE_DATA_DIR", ""))
 qtl_directory <- sub("/+$", "", get_env_var("QTL_DATA_DIR", ""))
-number_of_cpus_available <- available_cpus()
 is_on_cluster <- nzchar(Sys.getenv("SLURM_JOB_ID")) || nzchar(Sys.getenv("PBS_JOBID"))
 
 genomic_data_dir <- file.path(pipeline_data_dir, "genomic_data")

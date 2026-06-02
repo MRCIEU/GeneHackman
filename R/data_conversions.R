@@ -149,15 +149,13 @@ populate_partial_rsids <- function(gwas) {
 }
 
 
-
-
 populate_full_rsids <- function(gwas) {
   build <- rsid_builds$GRCh37
   dbsnp_dir <- file.path(genomic_data_dir, "dbsnp")
   if (!build %in% rsid_builds) stop(paste("Error: invalid rsid build option:", build))
 
-  parallel_cores <- if(is_on_cluster) number_of_cpus_available else 1
-  message(paste0("Using ", parallel_cores, " cores for full RSID population"))
+  parallel_chr_population <- calculate_parallelism()
+  message(paste0("Using ", parallel_chr_population, " cores for full RSID population"))
 
   gwas <- data.table::as.data.table(gwas)
   gwas <- chrpos_to_rsid(
@@ -170,8 +168,19 @@ populate_full_rsids <- function(gwas) {
     dbsnp_dir = dbsnp_dir,
     build = build,
     alt_rsids = FALSE,
-    parallel_cores=parallel_cores
+    parallel_cores=parallel_chr_population
   )
   gwas <- tibble::as_tibble(gwas)
   return(gwas)
+}
+
+calculate_parallelism <- function() {
+  available_memory <- available_memory()
+  available_cpus <- available_cpus()
+  if(is_on_cluster) {
+    return(available_cpus - 1L)
+  } else {
+    memory_needed_per_chr <- 8000
+    return(floor(available_memory / memory_needed_per_chr))
+  }
 }

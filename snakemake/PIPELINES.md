@@ -94,11 +94,11 @@ Used by **finemap**, **coloc**, and **qtl_mr**. If the block is missing, default
 | Snakemake file                                          | Example template                                                                       | One-line role                                                                       |
 | ------------------------------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | [`standardise_gwas.smk`](standardise_gwas.smk) | [`input_templates/standardise_gwases.yaml`](input_templates/standardise_gwases.yaml) | Harmonise GWAS columns and builds only (no PLINK). |
-| [`compare_gwases.smk`](compare_gwases.smk) | [`input_templates/compare_gwases.yaml`](input_templates/compare_gwases.yaml) | Standardise → clump → heterogeneity / LDSC / expected–observed plots. |
+| [`compare_gwases.smk`](compare_gwases.smk) | [`input_templates/compare_gwases.yaml`](input_templates/compare_gwases.yaml) | Standardise → clump → heterogeneity / LDSC / expected-observed plots. |
 | [`disease_progression.smk`](disease_progression.smk) | [`input_templates/disease_progression.yaml`](input_templates/disease_progression.yaml) | Incident vs subsequent GWAS: collider bias, plots, comparisons. |
 | [`finemap.smk`](finemap.smk) | [`input_templates/finemap.yaml`](input_templates/finemap.yaml) | Standardise → clump → SuSiE RSS fine-mapping per GWAS (no pairwise coloc). |
 | [`coloc.smk`](coloc.smk) | [`input_templates/coloc.yaml`](input_templates/coloc.yaml) | Same as finemap prep for ≥2 GWAS, then pairwise `coloc::coloc.bf_bf` + HTML report. |
-| [`qtl_mr.smk`](qtl_mr.smk) | [`input_templates/qtl_mr.yaml`](input_templates/qtl_mr.yaml) | One GWAS: MR vs a QTL panel, volcano plot, BF–BF coloc for MR hits. |
+| [`qtl_mr.smk`](qtl_mr.smk) | [`input_templates/qtl_mr.yaml`](input_templates/qtl_mr.yaml) | One GWAS: MR vs a QTL panel, volcano plot, BF-BF coloc for MR hits. |
 
 
 ---
@@ -130,7 +130,7 @@ Harmonisation only (`snakemake/standardise_gwas.smk`).
 
 ## `finemap`
 
-SuSiE fine-mapping per GWAS — no MR, no trait–trait coloc.
+SuSiE fine-mapping per GWAS — no MR, no trait-trait coloc.
 
 - **GWAS**: one or more; each needs `**ancestry`** (LD reference for clumping and LD matrix for `susieR::susie_rss`).
 - **Root**: `plink_clump_arguments`, optional `populate_rsid` / `populate_eaf`, optional `**finemap`** block (see above). Example template sets `window_kb` to `1000`.
@@ -140,7 +140,7 @@ SuSiE fine-mapping per GWAS — no MR, no trait–trait coloc.
 
 ## `coloc`
 
-Standardise → clump → finemap for **all** input GWAS, then **pairwise** BF–BF colocalisation between overlapping finemapped signals (`coloc::coloc.bf_bf`).
+Standardise → clump → finemap for **all** input GWAS, then **pairwise** BF-BF colocalisation between overlapping finemapped signals (`coloc::coloc.bf_bf`).
 
 - **GWAS**: **at least two**; each needs `**ancestry`**.
 - **Root**: `plink_clump_arguments`, optional `populate_rsid` / `populate_eaf`, optional `**finemap`** and `**coloc**` blocks (see tables above).
@@ -163,7 +163,7 @@ Standardise → clump → finemap for **all** input GWAS, then **pairwise** BF�
 - **metabrain**: `basalganglia`, `cerebellum`, `cortex`, `hippocampus`, `spinalcord`
 - **eqtlgen**: `cis` (trans may be added later)
 
-Pipeline flow: standardise → clump → finemap → MR → volcano → BF–BF coloc on significant MR results (GWAS LBF vs QTL LBF from `convert_z_to_lbf`).
+Pipeline flow: standardise → clump → finemap → MR → volcano → BF-BF coloc on significant MR results (GWAS LBF vs QTL LBF from `convert_z_to_lbf`).
 
 ---
 

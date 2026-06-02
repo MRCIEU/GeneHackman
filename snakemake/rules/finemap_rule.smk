@@ -1,5 +1,5 @@
 rule run_finemapping:
-    threads: 6
+    threads: 8
     resources:
         mem = "48G",
         time = "24:00:00"

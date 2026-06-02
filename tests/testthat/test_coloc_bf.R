@@ -1,4 +1,4 @@
-# Tests for R/coloc_bf.R (BF–BF colocalization on finemapped loci)
+# Tests for R/coloc_bf.R (BF-BF colocalization on finemapped loci)
 
 min_locus_tbl <- function(snps, lbf1, lbf2 = NULL, cs = 1L) {
   n <- length(snps)

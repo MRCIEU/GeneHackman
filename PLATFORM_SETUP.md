@@ -69,7 +69,7 @@ The published image may be **linux/amd64**. Use Lima with **Rosetta / x86 Linux*
 
 ## Slurm (HPC)
 
-The repo ships Slurm-oriented profiles (paths and partitions are **Bristol / MRC IEU–oriented**; **edit** them for your site):
+The repo ships Slurm-oriented profiles (paths and partitions are **Bristol / MRC IEU-oriented**; **edit** them for your site):
 
 | Profile directory | Notes |
 |-------------------|--------|
