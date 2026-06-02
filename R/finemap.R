@@ -396,6 +396,7 @@ calculate_parallelism <- function() {
   } else {
     memory_needed_per_finemap <- 6000
     minumum_cpus <- floor(available_memory / memory_needed_per_finemap)
+    minimum_cpus <- min(10L, minumum_cpus)
     if (minumum_cpus > available_cpus) {
       return(available_cpus)
     } else {
