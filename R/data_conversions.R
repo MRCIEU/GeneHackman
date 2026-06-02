@@ -175,13 +175,15 @@ populate_full_rsids <- function(gwas) {
 }
 
 calculate_parallelism <- function() {
-  available_memory <- available_memory()
-  available_cpus <- available_cpus()
+  cpus <- available_cpus()
+  mem <- available_memory()
   if(is_on_cluster) {
-    return(available_cpus - 1L)
-  } else {
-    memory_needed_per_chr <- 8000
-    minumum_cpus <- floor(available_memory / memory_needed_per_chr)
-    return(min(10L, minumum_cpus))
+    return(min(10L, cpus - 1L))
   }
+  by_mem <- if (!is.na(mem) && mem > 0) {
+    floor(mem / 8000)
+  } else {
+    cpus
+  }
+  max(1L, min(10L, by_mem, cpus))
 }
