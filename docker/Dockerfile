@@ -23,6 +23,8 @@ RUN apt update && \
     unzip /tmp/plink.zip -d /usr/local/bin/ && \
     rm /tmp/plink.zip && \
     ln -s /usr/local/bin/plink /usr/local/bin/plink1.9 && \
+    wget https://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64/liftOver -O /usr/local/bin/liftOver && \
+    chmod +x /usr/local/bin/liftOver && \
     wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh && \
     chmod +x miniconda.sh && \
    ./miniconda.sh -b -f -p /bin && \

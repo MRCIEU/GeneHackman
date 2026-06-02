@@ -92,12 +92,13 @@ run_system <- function(command, wait = TRUE, intern = FALSE,
 }
 
 run_liftover <- function(bed_file_input, bed_file_output, input_build, output_build, unmapped) {
-  liftover_binary <- file.path(liftover_dir, "liftOver")
   liftover_conversion <- available_liftover_conversions[[paste0(input_build, output_build)]]
-
-  chain_file <- file.path(liftover_dir, liftover_conversion)
+  chain_file <- file.path(liftover_chain_dir, liftover_conversion)
   liftover_command <- paste(liftover_binary, bed_file_input, chain_file, bed_file_output, unmapped)
-  run_system(liftover_command, wait = TRUE)
+  status <- run_system(liftover_command, wait = TRUE)
+  if (!is.null(status) && status != 0) {
+    stop("liftOver failed (exit code ", status, "): ", liftover_command)
+  }
 }
 
 

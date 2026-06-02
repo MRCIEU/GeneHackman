@@ -3,6 +3,7 @@ set -e
 
 export GRPC_VERBOSITY=NONE
 export GRPC_TRACE=
+export APPTAINER_SILENT=true
 
 if [[ $# -lt 1 || "$1" =~ "help" ]] ; then
   echo """

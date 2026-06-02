@@ -66,7 +66,11 @@ genomic_data_dir <- file.path(pipeline_data_dir, "genomic_data")
 # Must match snakemake/util/constants.smk THOUSAND_GENOMES_DIR (used by clumping + LD).
 thousand_genomes_dir <- file.path(genomic_data_dir, "1000genomes", "b37_dbsnp156")
 
-liftover_dir <- file.path(genomic_data_dir, "liftover")
+liftover_chain_dir <- file.path(genomic_data_dir, "liftover")
+liftover_binary <- Sys.which("liftOver")
+if (!nzchar(liftover_binary)) {
+  liftover_binary <- "/usr/local/bin/liftOver"
+}
 pqtl_top_hits_dir <- file.path(qtl_directory, "pqtl")
 metabrain_top_hits_dir <- file.path(qtl_directory, "metabrain", "top_hits")
 metabrain_gwas_dir <- file.path(qtl_directory, "metabrain", "gwas")

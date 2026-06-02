@@ -181,6 +181,7 @@ calculate_parallelism <- function() {
     return(available_cpus - 1L)
   } else {
     memory_needed_per_chr <- 8000
-    return(floor(available_memory / memory_needed_per_chr))
+    minumum_cpus <- floor(available_memory / memory_needed_per_chr)
+    return(min(10L, minumum_cpus))
   }
 }
