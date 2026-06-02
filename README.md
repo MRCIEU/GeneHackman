@@ -42,7 +42,7 @@ There are **six** Snakemake pipelines (grouped as two tables of three). Each pip
 ### 1. Clone the repository into your personal space on BlueCrystal 4
 `git clone git@github.com:MRCIEU/GeneHackman.git && cd GeneHackman`
 
-### 2. Ensure you [have conda installed and initialised before activating](https://www.acrc.bris.ac.uk/protected/hpc-docs/software/python_conda.html)
+### 2. Ensure you [have conda installed and initialised before activating](https://www.anaconda.com/docs/getting-started/miniconda/install/overview)
 
 ```conda env create --file environment.yml```
 
@@ -84,11 +84,41 @@ Alternatives if you don’t set **`QTL_DATA_DIR`** directly: keep the same direc
 
 ### 4. Populate `.env` and `input.yaml` files
 
-`cp .env_example .env`
-* Set **`PROJECT_DIR`** to the root folder for this analysis; the pipeline uses **`PROJECT_DIR/data/`** for inputs (GWAS, clumps, …) and **`PROJECT_DIR/results/`** for outputs (finemap, coloc, plots, …).
-* Set **`PIPELINE_DATA_DIR`** to the path where you unpacked **`genehackman`** (see §3).
-* Set **`QTL_DATA_DIR`** to the path where you unpacked **`genehackman-qtl`** if you run **`qtl_mr`** (can be left empty otherwise; see [.env_example](.env_example)).
-* **Container cache:** If there is no pre-built `genehackman_<version>.sif` under `PIPELINE_DATA_DIR`, Snakemake pulls the `docker://` image and caches the SIF under `.snakemake/singularity` by default. Set **`GENEHACKMAN_SINGULARITY_PREFIX`** in `.env` to use another directory (e.g. scratch). Running `snakemake` without `./run_pipeline.sh`? Pass `--singularity-prefix /path` or add `singularity-prefix:` under **`snakemake/profiles/`** in **`config.yaml`** for the profile you use (paths are relative to the repo root).
+Copy the template and edit paths for your machine:
+
+```bash
+cp .env_example .env
+```
+
+Variables match [.env_example](.env_example):
+
+**Mandatory**
+
+| Variable | Purpose |
+|----------|---------|
+| **`PROJECT_DIR`** | Root folder for this analysis. The pipeline uses **`PROJECT_DIR/data/`** for inputs (GWAS, clumps, …) and **`PROJECT_DIR/results/`** for outputs (finemap, coloc, plots, …). |
+| **`PIPELINE_DATA_DIR`** | Path where you unpacked the shared **`genehackman`** reference data (see §3). Also used for the Apptainer image: **`PIPELINE_DATA_DIR/genomic_data/pipeline/genehackman_<DOCKER_VERSION>.sif`**. If that SIF is missing and the directory is writable, `run_pipeline.sh` builds it from `docker://mrcieu/genehackman:<DOCKER_VERSION>`. |
+| **`DOCKER_VERSION`** | Docker/Apptainer image tag (e.g. `1.1.0` or `develop`). Must match the SIF filename and the image you intend to run. |
+
+**Optional**
+
+| Variable | Purpose |
+|----------|---------|
+| **`QTL_DATA_DIR`** | Path to **`genehackman-qtl`** data if you run **`qtl_mr`**. Leave empty for other pipelines. You can instead place QTL data under **`PIPELINE_DATA_DIR/qtl_datasets/`** (see [PLATFORM_SETUP.md](PLATFORM_SETUP.md)). |
+| **`SNAKEMAKE_PROFILE`** | Snakemake profile directory. Default in `.env_example`: **`snakemake/profiles/local/`** (local Apptainer). On HPC use e.g. **`snakemake/profiles/slurm/`**. |
+| **`APPTAINER_MODULE`** | Environment module name to load Apptainer/Singularity before running on HPC (only used when the profile is not `local`). |
+| **`SLURM_PARTITION`** | Slurm partition for cluster jobs. If unset, `run_pipeline.sh` tries to detect one from `sinfo`, else uses **`compute`**. |
+| **`SLURM_ACCOUNT`** | Slurm account for cluster jobs. If unset, `run_pipeline.sh` tries to infer it from `sacctmgr`. |
+
+Example `.env`:
+
+```bash
+PROJECT_DIR=/path/to/my_project
+PIPELINE_DATA_DIR=/path/to/my_pipeline_data/
+DOCKER_VERSION=1.1.0
+QTL_DATA_DIR=/path/to/my_qtl_data/
+SNAKEMAKE_PROFILE=snakemake/profiles/local/
+```
 
 **`input.yaml`**
 

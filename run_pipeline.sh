@@ -24,7 +24,7 @@ fi
 
 if [ -f .env ]
 then
-  export $(cat .env | xargs)
+  export $(grep -vE '^[[:space:]]*#' .env | xargs)
 else
   echo "Error: .env file missing"
   exit 1
@@ -50,10 +50,10 @@ if [[ -z "${SLURM_PARTITION:-}" ]]; then
 fi
 export SLURM_PARTITION
 
-if [[ -z "${SLURM_ACCOUNT:-}" ]]; then
+if [[ -z "${SLURM_ACCOUNT:-}" ]] && command -v sacctmgr >/dev/null 2>&1; then
   export USER=$(whoami)
-  export ACCOUNT_ID=$(sacctmgr show user withassoc format=account where user=$USER | grep '[0-9]' | head -n1)
-  export SLURM_ACCOUNT="$ACCOUNT_ID"
+  export ACCOUNT_ID=$(sacctmgr show user withassoc format=account where user="$USER" | grep '[0-9]' | head -n1)
+  export SLURM_ACCOUNT="${ACCOUNT_ID:-}"
 fi
 
 export GENEHACKMAN_EXTRA_SINGULARITY_BINDS=""
@@ -102,11 +102,13 @@ PIPELINE_GENOMIC_DIR="${PIPELINE_GENOMIC_DIR%/}"
 SIF_PATH="${PIPELINE_GENOMIC_DIR}/${SIF_NAME}"
 
 echo "SIF_PATH: ${SIF_PATH}"
-if [[ -f "${SIF_PATH}" ]] || [[ -w "${PIPELINE_GENOMIC_DIR}" ]] ; then
-  mkdir -p "${PIPELINE_GENOMIC_DIR}"
-else
-  SIF_PATH=".snakemake/singularity/${SIF_NAME}"
-fi  
+if [[ ! -f "${SIF_PATH}" ]]; then
+  if ! mkdir -p "${PIPELINE_GENOMIC_DIR}" 2>/dev/null || [[ ! -w "${PIPELINE_GENOMIC_DIR}" ]]; then
+    SIF_PATH=".snakemake/singularity/${SIF_NAME}"
+    echo "Note: caching SIF under ${SIF_PATH} (${PIPELINE_GENOMIC_DIR} missing or not writable)"
+  fi
+fi
+mkdir -p "$(dirname "${SIF_PATH}")"
 
 SINGULARITY_DOCKER_REFERENCE="docker://mrcieu/genehackman:${GENEHACKMAN_VERSION}"
 
@@ -123,7 +125,6 @@ fi
 
 if [[ ! -f "${SIF_PATH}" ]]; then
   echo "SIF file not found: ${SIF_PATH}"
-  mkdir -p "${PIPELINE_GENOMIC_DIR}"
   echo "Building container with singularity from: ${SINGULARITY_DOCKER_REFERENCE}"
   if [[ "${#SINGULARITY_BUILD_ARCH_ARGS[@]}" -gt 0 ]]; then
     echo "(host is ARM: using singularity build ${SINGULARITY_BUILD_ARCH_ARGS[*]} for amd64 image)"
