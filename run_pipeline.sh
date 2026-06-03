@@ -93,7 +93,7 @@ fi
 GENEHACKMAN_VERSION="${GENEHACKMAN_VERSION:-${DOCKER_VERSION:-}}"
 SIF_VERSION="${DOCKER_VERSION:-${GENEHACKMAN_VERSION:-}}"
 if [[ -z "${SIF_VERSION}" ]]; then
-  echo "Error: Set DOCKER_VERSION in .env (e.g. 1.0.0) so the SIF name matches the Docker image tag."
+  echo "Error: Set DOCKER_VERSION in .env (e.g. 1.1.0) so the SIF name matches the Docker image tag."
   exit 1
 fi
 
