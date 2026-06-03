@@ -254,7 +254,7 @@ compute_ld_matrix <- function(rsids, chr, ancestry) {
     bim_ref <- paste0(bfile, ".bim")
     all_bim <- data.table::fread(bim_ref, header = FALSE, select = c(1, 2, 4))
     colnames(all_bim) <- c("CHR", "SNP", "BP")
-    all_bim <- all_bim[CHR == chr & SNP %chin% rsids]
+    all_bim <- all_bim[CHR == chr & SNP %in% rsids]
     data.table::setorder(all_bim, BP)
     snp_order <- all_bim$SNP
     rm(all_bim)

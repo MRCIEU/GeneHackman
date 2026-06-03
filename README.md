@@ -171,10 +171,10 @@ Pipelines use the image **`mrcieu/genehackman`** (tag usually matches the **`Ver
 docker build --platform linux/amd64 -f docker/Dockerfile -t mrcieu/genehackman:$(grep '^Version:' DESCRIPTION | awk '{print $2}') .
 ```
 
-To tag a specific version explicitly (for example `1.0.0`):
+To tag a specific version explicitly (for example `1.1.0`):
 
 ```bash
-docker build --platform linux/amd64 -f docker/Dockerfile -t mrcieu/genehackman:1.0.0 .
+docker build --platform linux/amd64 -f docker/Dockerfile -t mrcieu/genehackman:1.1.0 .
 ```
 
 The image is **x86_64/amd64-only** (Posit R `.deb`, PLINK, Miniconda, etc.). Use **`--platform linux/amd64`** when building so it works on **ARM** laptops (e.g. Apple Silicon) as well as on amd64 Linux; on native amd64 machines the flag is optional but harmless.

@@ -49,15 +49,15 @@ calculate_parallelism <- function(max_workers = 10L, memory_per_worker_mb = 8000
   cpus <- available_cpus()
   mem <- available_memory()
   by_mem <- if (!is.na(mem) && mem > 0) {
-    floor(mem / memory_per_worker_mb)
+    round(floor(mem / memory_per_worker_mb))
   } else {
-    cpus
+    return(cpus)
   }
-  max(1L, min(max_workers, by_mem, cpus))
+  return(max(1L, min(max_workers, by_mem, cpus)))
 }
 
 .strip_path <- function(x) {
-  sub("/+$", "", trimws(x))
+  return(sub("/+$", "", trimws(x)))
 }
 
 project_dir <- .strip_path(get_env_var("PROJECT_DIR", ""))

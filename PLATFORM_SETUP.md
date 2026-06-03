@@ -44,7 +44,7 @@ If the workflow pulls a `docker://` image, Snakemake caches the `.sif` under **`
 
 - Set **`SINGULARITY_DIR`** in `.env` to a **writable** location **inside the Linux VM** (commonly a path under that VM’s **`/tmp`**, e.g. `/tmp/genehackman_snakemake_singularity`), or to native VM disk — not only a bind-mounted folder that cannot handle the build.
 - Alternatively, place a pre-built **`$PIPELINE_DATA_DIR/genehackman_<version>.sif`** (underscore; see `DESCRIPTION` / `DOCKER_VERSION`) so Snakemake does not need to build on a problematic mount.
-- Avoid **colons** in host-side SIF filenames (`genehackman:1.0.0.sif`); macOS can reject them. The repo’s Snakemake helper uses **`genehackman_<version>.sif`**.
+- Avoid **colons** in host-side SIF filenames (`genehackman:1.1.0.sif`); macOS can reject them. The repo’s Snakemake helper uses **`genehackman_<version>.sif`**.
 
 ### Apple Silicon (arm64)
 
