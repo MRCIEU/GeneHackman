@@ -2,12 +2,12 @@
 % Please edit documentation in R/gwas_comparisons.R
 \name{calculate_heterogeneity_scores}
 \alias{calculate_heterogeneity_scores}
-\title{Test for heterogeneity of effect estimates between populations}
+\title{Test for heterogeneity of effect estimates between GWAS datasets}
 \usage{
 calculate_heterogeneity_scores(gwases_by_ancestry, heterogeneity_score_file)
 }
 \arguments{
-\item{gwases_by_ancestry}{Named list of data frames, one for each population, with at least bhat, se and snp columns}
+\item{gwases_by_ancestry}{Named list of data frames, one per GWAS dataset, with at least BETA, SE and SNP columns}
 
 \item{heterogeneity_score_file}{file to save the heterogeneity scores}
 }
@@ -20,7 +20,7 @@ List
 }
 \description{
 For each SNP this function will provide a Cochran's Q test statistic -
-a measure of heterogeneity of effect sizes between populations. A low p-value means high heterogeneity.
-In addition, for every SNP it gives a per population p-value -
-this can be interpreted as asking for each SNP is a particular giving an outlier estimate.
+a measure of heterogeneity of effect sizes between datasets. A low p-value means high heterogeneity.
+In addition, for every SNP it gives a per-dataset p-value —
+interpreted as whether a particular study is an outlier at that SNP.
 }

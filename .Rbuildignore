@@ -16,3 +16,4 @@ venv
 ^PLATFORM_SETUP\.md$
 ^\.git$
 ^\.gitignore$
+^\.cursorrules$

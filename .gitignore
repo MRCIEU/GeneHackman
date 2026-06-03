@@ -1,4 +1,5 @@
 .Rproj.user
+.cursorrules
 .snakemake/
 .genehackman/
 pipeline_logs/

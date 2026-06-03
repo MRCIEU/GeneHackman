@@ -33,7 +33,7 @@ run_susie_for_locus(
 \item{min_abs_corr}{minimum absolute correlation for CS purity}
 }
 \value{
-tibble with SNP, CHR, BP, RSID, Z, CS, and \code{LBF_1}, \code{LBF_2}, ... per signal
+data.table with SNP, CHR, BP, RSID, Z, CS, and \code{LBF_1}, \code{LBF_2}, ... per signal
 }
 \description{
 Run SuSiE on a single locus

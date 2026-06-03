@@ -18,7 +18,6 @@
 #' @rawNamespace import(utils, except = c(timestamp))
 #' @import coloc
 #' @import ggplot2
-#' @import locuszoomr
 #' @import patchwork
 #' @import ggrepel
 #' @import grDevices

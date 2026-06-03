@@ -42,14 +42,23 @@ finemap_gwas <- function(gwas,
 
   data.table::setkey(gwas, CHR, BP)
 
+  has_n <- "N" %in% colnames(gwas)
+  if (!has_n && (length(default_n) != 1L || is.na(default_n))) {
+    stop("Fine-mapping requires GWAS sample size")
+  }
+
   if (!dir.exists(output_finemap_dir)) {
     dir.create(output_finemap_dir, recursive = TRUE)
+  }
+
+  if (is.null(completion_file)) {
+    completion_file <- file.path(output_finemap_dir, "finemap_complete.txt")
   }
 
   lead_snps <- data.table::fread(clumped_file, select = c("SNP", "CHR", "BP"))
   if (nrow(lead_snps) == 0) {
     message("No clumped SNPs found; no per-locus finemap files written.")
-    write_finemap_complete_marker(completion_file, 0L)
+    write_finemap_complete_marker(completion_file, 0L, output_finemap_dir)
     empty <- data.table::data.table(
       SNP = character(), CHR = numeric(), BP = numeric(), RSID = character(),
       Z = numeric(), CS = integer()
@@ -59,7 +68,6 @@ finemap_gwas <- function(gwas,
 
   window_bp <- window_kb * 1000
   has_rsid <- "RSID" %in% colnames(gwas)
-  has_n <- "N" %in% colnames(gwas)
 
   n_loci <- nrow(lead_snps)
 
@@ -160,10 +168,14 @@ finemap_gwas <- function(gwas,
     })
   }
 
+  finemap_workers <- min(
+    calculate_parallelism(memory_per_worker_mb = 6000L),
+    n_loci
+  )
   locus_results <- parallel::mclapply(
     seq_len(n_loci),
     process_one_locus,
-    mc.cores = calculate_parallelism(memory_per_worker_mb = 6000L)
+    mc.cores = finemap_workers
   )
   rm(locus_subsets, window_subsets); gc(verbose = FALSE)
 
@@ -198,7 +210,7 @@ finemap_gwas <- function(gwas,
     nrow(combined_lbf), "LD-matched SNPs with finemap stats,",
     "outputs in", output_finemap_dir))
 
-  write_finemap_complete_marker(completion_file, nrow(lead_snps))
+  write_finemap_complete_marker(completion_file, nrow(lead_snps), output_finemap_dir)
 
   return(invisible(combined_lbf))
 }
@@ -206,7 +218,16 @@ finemap_gwas <- function(gwas,
 
 #' Write a completion sentinel file (one line: expected lead count) for Snakemake.
 #' @keywords internal
-write_finemap_complete_marker <- function(completion_file, n_loci) {
+write_finemap_complete_marker <- function(completion_file, n_loci, output_finemap_dir = NULL) {
+  if (is.null(completion_file)) {
+    if (is.null(output_finemap_dir) || length(output_finemap_dir) != 1L || !nzchar(output_finemap_dir)) {
+      stop("completion_file is NULL; provide output_finemap_dir or an explicit completion_file path")
+    }
+    completion_file <- file.path(output_finemap_dir, "finemap_complete.txt")
+  }
+  if (!is.character(completion_file) || length(completion_file) != 1L || !nzchar(completion_file)) {
+    stop("completion_file must be a non-empty character path")
+  }
   dir_path <- dirname(completion_file)
   if (!dir.exists(dir_path)) dir.create(dir_path, recursive = TRUE)
   writeLines(as.character(as.integer(n_loci)), completion_file)

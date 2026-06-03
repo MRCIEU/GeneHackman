@@ -23,23 +23,13 @@ locus_zoom_coloc <- function(coloc_results_file,
                              pp_h4_threshold = 0.8,
                              window_kb = 500,
                              completion_file = NULL) {
-
-  message("=== Locus zoom plot generation ===")
-  message("Coloc results file: ", coloc_results_file)
-  message("GWAS files: ", paste(names(gwas_files), gwas_files, sep = " -> ", collapse = "\n  "))
-  message("Ancestry: ", ancestry)
-  message("PP.H4 threshold: ", pp_h4_threshold)
-  message("Window: ±", window_kb, " kb")
-
   coloc_res <- vroom::vroom(coloc_results_file, show_col_types = FALSE)
-  message("Total coloc results: ", nrow(coloc_res))
 
   significant <- coloc_res[coloc_res$PP.H4.abf >= pp_h4_threshold, ]
-  message("Significant results (PP.H4.abf >= ", pp_h4_threshold, "): ", nrow(significant))
+  message("Significant results to plot: (PP.H4.abf >= ", pp_h4_threshold, "): ", nrow(significant))
   if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
   if (nrow(significant) == 0) {
-    message("No coloc results above threshold — nothing to plot")
     write_completion_file(completion_file, "0 loci plotted")
     return(invisible(NULL))
   }
@@ -69,7 +59,6 @@ locus_zoom_coloc <- function(coloc_results_file,
   for (i in seq_len(nrow(significant))) {
     row <- significant[i, ]
     locus_label <- paste0(row$trait1, " vs ", row$trait2, " at ", row$locus1, "/", row$locus2)
-    message("Processing locus ", i, "/", nrow(significant), ": ", locus_label)
 
     failure_msg <- tryCatch({
       chr <- as.integer(strsplit(row$locus1, "_")[[1]][1])
@@ -211,7 +200,7 @@ build_single_locus_plot <- function(gwas, chr, xrange, ens_db, ancestry,
   if (!is.null(ld_r2)) {
     plot_df$r2 <- ld_r2[match(plot_df$rsid, names(ld_r2))]
   } else {
-    message("    LD r2 computation returned NULL — plotting without LD colouring")
+    message("LD r2 computation returned NULL; plotting without LD colouring")
   }
 
   ld_arg <- if ("r2" %in% colnames(plot_df)) "r2" else NULL

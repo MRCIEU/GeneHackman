@@ -2,18 +2,17 @@
 % Please edit documentation in R/data_conversions.R
 \name{populate_eaf_from_reference_panel}
 \alias{populate_eaf_from_reference_panel}
-\title{Populate missing EAF from the LD reference panel (1000 Genomes PLINK binary + .frq).}
+\title{Populate missing EAF from the LD reference panel \code{.frq} file via RSID matching.}
 \usage{
-populate_eaf_from_reference_panel(gwas, ancestry, enabled = FALSE)
+populate_eaf_from_reference_panel(gwas, ancestry)
 }
 \arguments{
-\item{gwas}{Standardised GWAS tibble (CHR, BP, EA, OA; SNP id built after allele ordering).}
+\item{gwas}{Standardised GWAS tibble with RSID, EA, OA columns.}
 
 \item{ancestry}{One of EUR, EAS, AFR, AMR, SAS matching the reference panel prefix.}
-
-\item{enabled}{If FALSE, returns \code{gwas} unchanged.}
 }
 \description{
-Expects \code{plink --bfile <prefix> --freq --out <prefix>} to exist beside the
-\code{.bed/.bim/.fam} files, i.e. \code{<thousand_genomes_dir>/<ANCESTRY>.frq}.
+Expects the GWAS to have an \code{RSID} column (populated by \code{populate_rsid})
+and alleles in canonical (alphabetically sorted) order from \code{standardise_alleles}.
+Only reads the lightweight \code{.frq} file; the \code{.bim} is not needed.
 }

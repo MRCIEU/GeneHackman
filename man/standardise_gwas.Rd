@@ -40,15 +40,16 @@ can be list() of key/value pairs, string of row in predefined_column_maps, or co
 
 \item{remove_extra_columns}{logical flag on if to remove extra columns}
 
-\item{populate_eaf}{If TRUE, fill missing \code{EAF} from the 1000 Genomes LD panel (\code{ANCESTRY.bim} + \code{ANCESTRY.frq} under \code{THOUSAND_GENOMES_DIR}).}
+\item{populate_eaf}{If TRUE, fill missing \code{EAF} from the 1000 Genomes \code{.frq}
+file via RSID matching.  Requires \code{ancestry}.  A partial RSID population is
+performed automatically when RSIDs are not already present.}
 
 \item{ancestry}{Ancestry code (EUR, EAS, AFR, AMR, SAS) matching the reference panel prefix; required when \code{populate_eaf} is TRUE.}
 
-\item{flip_alleles}{If TRUE (default), reorder EA/OA alphabetically and flip BETA, EAF, Z accordingly.
-Set to FALSE to keep alleles as-is (useful when you only need harmonisation without allele reordering).
-Only supported when running \strong{standardise_gwas.smk}. When \code{populate_eaf} is TRUE and
-\code{flip_alleles} is FALSE, EAF is merged from the LD panel before rebuilding the SNP id so
-effect alleles align with reference coding.}
+\item{flip_alleles}{If TRUE (default), keep EA/OA in alphabetical order with flipped
+BETA/EAF/Z in the output.  When FALSE the original allele order and effect direction
+are restored before saving; all internal steps still operate on the canonical
+(alphabetically flipped) representation.}
 }
 \value{
 modified gwas: saves new gwas in output_file if present

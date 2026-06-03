@@ -10,6 +10,7 @@ finemap_gwas(
   ancestry,
   default_n,
   output_finemap_dir,
+  completion_file = NULL,
   window_kb = 1000,
   max_causal = 10,
   coverage = 0.95,
@@ -26,7 +27,11 @@ finemap_gwas(
 \item{default_n}{GWAS sample size when not inferrable from \code{gwas}; see}
 
 \item{output_finemap_dir}{directory to write one
-\verb{<CHR>_<BP>_finemap.tsv.gz} per clumped locus}
+\verb{<CHR>_<BP>_finemap.tsv.gz} per clumped locus.}
+
+\item{completion_file}{path to a sentinel file written on successful completion
+(one line: expected lead count). If NULL, defaults to
+\verb{<output_finemap_dir>/finemap_complete.txt}.}
 
 \item{window_kb}{half-width of the fine-mapping window in kb (default 1000 = ±1 Mb)}
 
@@ -37,7 +42,7 @@ finemap_gwas(
 \item{min_abs_corr}{minimum absolute correlation for credible sets (default 0.5)}
 }
 \value{
-invisibly, the combined per-SNP finemap tibble (LD-matched SNPs only)
+invisibly, the combined per-SNP finemap data.table (LD-matched SNPs only)
 }
 \description{
 For each lead SNP from plink --clump output, extracts a window, computes an
@@ -45,8 +50,4 @@ LD matrix from the 1000 Genomes reference panel via plink, and runs
 susieR::susie_rss.  Writes one TSV per locus: all GWAS variants within the
 genomic window around the lead SNP, with SuSiE Z-scores, credible-set
 membership, and per-credible-set (independent signal) columns \code{LBF_1}, \code{LBF_2}, ...
-}
-\details{
-Loci are fine-mapped in parallel with \code{\link[parallel:mclapply]{parallel::mclapply()}} (\code{mc.cores = 2}).
-On Windows this runs sequentially. Each job writes its own output file.
 }

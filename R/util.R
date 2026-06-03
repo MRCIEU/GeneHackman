@@ -181,8 +181,8 @@ convert_z_to_lbf <- function(
 #' so we can estimate var(Y) by regressing n*var(X) against 1/var(beta)
 #'
 #' @title Estimate trait variance, internal function
-#' @param SE vector of standard errors
-#' @param EAF vector of MAF (same length as SE)
+#' @param se vector of standard errors
+#' @param eaf vector of MAF (same length as SE)
 #' @param n sample size
 #' 
 #' @return estimated standard deviation of Y
