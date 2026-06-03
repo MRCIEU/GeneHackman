@@ -163,7 +163,7 @@ finemap_gwas <- function(gwas,
   locus_results <- parallel::mclapply(
     seq_len(n_loci),
     process_one_locus,
-    mc.cores = calculate_parallelism()
+    mc.cores = calculate_parallelism(memory_per_worker_mb = 6000L)
   )
   rm(locus_subsets, window_subsets); gc(verbose = FALSE)
 
@@ -386,21 +386,4 @@ run_susie_for_locus <- function(z_scores, ld_matrix, snp_info, n, lead_snp,
     result <- cbind(result, lbf_wide)
   }
   result
-}
-
-calculate_parallelism <- function() {
-  available_memory <- available_memory()
-  available_cpus <- available_cpus()
-  if(is_on_cluster) {
-    return(available_cpus - 1L)
-  } else {
-    memory_needed_per_finemap <- 6000
-    minumum_cpus <- floor(available_memory / memory_needed_per_finemap)
-    minimum_cpus <- min(10L, minumum_cpus)
-    if (minumum_cpus > available_cpus) {
-      return(available_cpus)
-    } else {
-      return(minumum_cpus)
-    }
-  }
 }

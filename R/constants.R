@@ -44,6 +44,17 @@ available_cpus <- function() {
   }
 }
 
+# Shared by RSID population, finemap, etc. (load.R sources all R/*.R; keep only this definition).
+calculate_parallelism <- function(max_workers = 10L, memory_per_worker_mb = 8000L) {
+  cpus <- available_cpus()
+  mem <- available_memory()
+  by_mem <- if (!is.na(mem) && mem > 0) {
+    floor(mem / memory_per_worker_mb)
+  } else {
+    cpus
+  }
+  max(1L, min(max_workers, by_mem, cpus))
+}
 
 .strip_path <- function(x) {
   sub("/+$", "", trimws(x))

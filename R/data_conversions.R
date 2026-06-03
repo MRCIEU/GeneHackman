@@ -173,17 +173,3 @@ populate_full_rsids <- function(gwas) {
   gwas <- tibble::as_tibble(gwas)
   return(gwas)
 }
-
-calculate_parallelism <- function() {
-  cpus <- available_cpus()
-  mem <- available_memory()
-  if(is_on_cluster) {
-    return(min(10L, cpus - 1L))
-  }
-  by_mem <- if (!is.na(mem) && mem > 0) {
-    floor(mem / 8000)
-  } else {
-    cpus
-  }
-  max(1L, min(10L, by_mem, cpus))
-}
