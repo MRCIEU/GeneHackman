@@ -154,7 +154,7 @@ get_docker_image_tag <- function() {
 #' @param effect_priors Effect priors
 #'
 #' @return Log Bayes Factor
-#' @internal
+#' @keywords internal
 convert_z_to_lbf <- function(
   z,
   se,
@@ -186,7 +186,7 @@ convert_z_to_lbf <- function(
 #' @param n sample size
 #' 
 #' @return estimated standard deviation of Y
-#' @internal
+#' @keywords internal
 estimate_variance <- function(se, eaf, n) {
   oneover <- 1 / se^2
   nvx <- 2 * n * eaf * (1 - eaf)

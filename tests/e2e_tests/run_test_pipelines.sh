@@ -11,3 +11,6 @@ if [[ -n "${QTL_DATA_DIR}" ]]; then
   ./run_pipeline.sh snakemake/qtl_mr.smk tests/testthat/data/snakemake_inputs/qtl_mr_eqtlgen.yaml -F
 fi
 
+branch_name=$(git rev-parse --abbrev-ref HEAD)
+status_message="SUCCESS: All tests passed on branch: $branch_name"
+echo "$status_message" > testing_complete.txt

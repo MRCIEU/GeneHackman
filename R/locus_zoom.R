@@ -14,6 +14,8 @@
 #' @param window_kb half-width of the region to plot in kb (default 500)
 #' @param completion_file path to a sentinel file written on successful completion.
 #'   If NULL, no sentinel is written.
+#' @return Invisibly returns \code{NULL}. On failure, stops with an error summarising
+#'   loci that could not be plotted.
 #' @export
 locus_zoom_coloc <- function(coloc_results_file,
                              gwas_files,

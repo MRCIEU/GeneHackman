@@ -32,3 +32,4 @@ Log Bayes Factor
 \description{
 Generate log Bayes Factor from Z-score
 }
+\keyword{internal}
