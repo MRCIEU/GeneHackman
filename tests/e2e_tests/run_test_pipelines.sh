@@ -13,4 +13,4 @@ fi
 
 branch_name=$(git rev-parse --abbrev-ref HEAD)
 status_message="SUCCESS: All tests passed on branch: $branch_name"
-echo "$status_message" > testing_complete.txt
+echo "$status_message" > tests/testing_complete.txt
