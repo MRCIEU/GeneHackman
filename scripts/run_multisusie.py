@@ -167,6 +167,24 @@ def _cleanup_plink(snp_file, out_prefix):
             pass
 
 
+def estimate_var_y(se, eaf, n):
+    """Estimate outcome variance from GWAS SE, EAF, and sample size."""
+    se = np.asarray(se, dtype=float)
+    if eaf is None:
+        return 1.0
+    eaf = np.asarray(eaf, dtype=float)
+    valid = np.isfinite(se) & (se > 0) & np.isfinite(eaf) & (eaf > 0) & (eaf < 1)
+    if valid.sum() < 2:
+        return 1.0
+    oneover = 1.0 / (se[valid] ** 2)
+    nvx = 2 * n * eaf[valid] * (1 - eaf[valid])
+    denom = np.dot(oneover, oneover)
+    if denom <= 0:
+        return 1.0
+    var_y = np.dot(nvx, oneover) / denom
+    return float(var_y) if var_y > 0 else 1.0
+
+
 def extract_locus_data(gwas_df, chrom, start, end):
     """Extract GWAS data for a genomic window."""
     mask = (
@@ -215,6 +233,7 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
     s_list = []
     R_list = []
     n_list = []
+    varY_list = []
 
     for ad in ancestry_data:
         gwas_sub = ad["gwas"][ad["gwas"]["RSID"].isin(shared_rsids_list)].copy()
@@ -240,11 +259,13 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
 
         beta = gwas_sub["BETA"].astype(float).values
         se = gwas_sub["SE"].astype(float).values
+        eaf = gwas_sub["EAF"].astype(float).values if "EAF" in gwas_sub.columns else None
 
         b_list.append(beta)
         s_list.append(se)
         R_list.append(R_sub)
         n_list.append(ad["n"])
+        varY_list.append(estimate_var_y(se, eaf, ad["n"]))
 
     final_rsids = common
     if len(final_rsids) < 2:
@@ -255,6 +276,7 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
             b_list=b_list,
             s_list=s_list,
             R_list=R_list,
+            varY_list=varY_list,
             population_sizes=n_list,
             L=max_causal,
             coverage=coverage,

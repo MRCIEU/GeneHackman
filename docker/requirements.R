@@ -14,4 +14,9 @@ BiocManager::install(c("ensembldb", "EnsDb.Hsapiens.v75"), update = FALSE, ask =
 
 install.packages(c("locuszoomr", "patchwork"))
 
-remotes::install_local("/home/GeneHackman", upgrade = "never")
+remotes::install_deps(
+  "docker",
+  dependencies = c("Depends", "Imports", "LinkingTo"),
+  upgrade = "never",
+  repos = BiocManager::repositories()
+)

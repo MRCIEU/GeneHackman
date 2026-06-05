@@ -47,9 +47,9 @@ RUN /bin/condabin/conda tos accept --override-channels --channel https://repo.an
     cd /home/ldsc && \
     /bin/condabin/conda env create --file environment.yml
 
-COPY . /home/GeneHackman
-RUN Rscript /home/GeneHackman/docker/requirements.R
+COPY DESCRIPTION docker/requirements.* docker/
+RUN Rscript docker/requirements.R
 ENV R_LIBS_SITE=/usr/lib/R/site-library
-RUN pip install --no-cache-dir -r /home/GeneHackman/docker/requirements.txt
+RUN pip install --no-cache-dir -r docker/requirements.txt
 
 CMD ["/bin/bash"]
