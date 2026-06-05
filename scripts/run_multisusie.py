@@ -185,6 +185,100 @@ def estimate_var_y(se, eaf, n):
     return float(var_y) if var_y > 0 else 1.0
 
 
+def assign_credible_set_columns(sets, n_variants):
+    """Map MultiSuSiE credible sets to IN_CS and CS_ID per variant."""
+    in_cs = np.zeros(n_variants, dtype=int)
+    cs_id = np.full(n_variants, np.nan)
+    if sets is None or not isinstance(sets, (list, tuple)) or len(sets) == 0:
+        return in_cs, cs_id
+
+    cs_list = sets[0]
+    include_mask = sets[3] if len(sets) > 3 else [True] * len(cs_list)
+    cs_counter = 0
+    for l_idx, indices in enumerate(cs_list):
+        if l_idx >= len(include_mask) or not include_mask[l_idx] or len(indices) == 0:
+            continue
+        cs_counter += 1
+        for idx in np.asarray(indices, dtype=int):
+            if 0 <= idx < n_variants:
+                in_cs[idx] = 1
+                if np.isnan(cs_id[idx]):
+                    cs_id[idx] = cs_counter
+    return in_cs, cs_id
+
+
+def build_multisusie_result_df(fit, final_rsids, ref_gwas, ancestries):
+    """Build per-variant output table from a MultiSuSiE fit."""
+    n = len(final_rsids)
+    result_df = pd.DataFrame({
+        "SNP": ref_gwas["SNP"].values if "SNP" in ref_gwas.columns else final_rsids,
+        "CHR": ref_gwas["CHR"].values,
+        "BP": ref_gwas["BP"].values,
+        "RSID": final_rsids,
+    })
+
+    if hasattr(fit, "pip") and fit.pip is not None and len(fit.pip) == n:
+        result_df["JOINT_PIP"] = fit.pip
+    else:
+        result_df["JOINT_PIP"] = np.nan
+
+    in_cs, cs_id = assign_credible_set_columns(
+        getattr(fit, "sets", None), n
+    )
+    result_df["IN_CS"] = in_cs
+    result_df["CS_ID"] = pd.array(cs_id, dtype="Int64")
+
+    if hasattr(fit, "coef") and fit.coef is not None:
+        for k, ancestry in enumerate(ancestries):
+            if fit.coef.shape[0] > k and len(fit.coef[k]) == n:
+                result_df[f"BETA_{ancestry}"] = fit.coef[k]
+
+    return result_df
+
+
+def build_credible_sets_df(fit, final_rsids):
+    """Summarise each MultiSuSiE credible set for locus_credible_sets.tsv."""
+    sets = getattr(fit, "sets", None)
+    columns = ["CS_ID", "CS_SIZE", "PURITY", "MAX_PIP_RSID", "MAX_PIP", "LBF"]
+    if sets is None or not isinstance(sets, (list, tuple)) or len(sets) == 0:
+        return pd.DataFrame(columns=columns)
+
+    cs_list = sets[0]
+    purity_list = sets[1] if len(sets) > 1 else [np.nan] * len(cs_list)
+    include_mask = sets[3] if len(sets) > 3 else [True] * len(cs_list)
+    pip = (
+        np.asarray(fit.pip, dtype=float)
+        if hasattr(fit, "pip") and fit.pip is not None
+        else np.full(len(final_rsids), np.nan)
+    )
+    lbf = (
+        np.asarray(fit.lbf, dtype=float)
+        if hasattr(fit, "lbf") and fit.lbf is not None
+        else np.full(len(cs_list), np.nan)
+    )
+
+    rows = []
+    cs_counter = 0
+    for l_idx, indices in enumerate(cs_list):
+        if l_idx >= len(include_mask) or not include_mask[l_idx] or len(indices) == 0:
+            continue
+        cs_counter += 1
+        indices = np.asarray(indices, dtype=int)
+        cs_pip = pip[indices]
+        best_local = int(np.nanargmax(cs_pip))
+        best_idx = int(indices[best_local])
+        rows.append({
+            "CS_ID": cs_counter,
+            "CS_SIZE": len(indices),
+            "PURITY": purity_list[l_idx] if l_idx < len(purity_list) else np.nan,
+            "MAX_PIP_RSID": final_rsids[best_idx],
+            "MAX_PIP": float(cs_pip[best_local]),
+            "LBF": float(lbf[l_idx]) if l_idx < len(lbf) else np.nan,
+        })
+
+    return pd.DataFrame(rows, columns=columns)
+
+
 def extract_locus_data(gwas_df, chrom, start, end):
     """Extract GWAS data for a genomic window."""
     mask = (
@@ -229,12 +323,7 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
 
     shared_rsids_list = sorted(shared_rsids)
 
-    b_list = []
-    s_list = []
-    R_list = []
-    n_list = []
-    varY_list = []
-
+    ancestry_ld = []
     for ad in ancestry_data:
         gwas_sub = ad["gwas"][ad["gwas"]["RSID"].isin(shared_rsids_list)].copy()
         gwas_sub = gwas_sub.drop_duplicates(subset="RSID")
@@ -246,17 +335,33 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
         if R is None:
             return None
 
-        ld_rsids = set(snp_order)
-        common = [s for s in shared_rsids_list if s in ld_rsids]
-        if len(common) < 2:
-            return None
+        ancestry_ld.append({
+            "gwas_sub": gwas_sub,
+            "R": R,
+            "snp_order": snp_order,
+            "ancestry": ad["ancestry"],
+            "n": ad["n"],
+        })
 
-        ld_idx = [snp_order.index(s) for s in common]
-        R_sub = R[np.ix_(ld_idx, ld_idx)]
+    final_rsids = set(shared_rsids_list)
+    for entry in ancestry_ld:
+        final_rsids &= set(entry["snp_order"])
+    final_rsids = sorted(final_rsids)
+    if len(final_rsids) < 2:
+        return None
 
-        gwas_sub = gwas_sub[gwas_sub["RSID"].isin(common)]
-        gwas_sub = gwas_sub.set_index("RSID").loc[common].reset_index()
+    b_list = []
+    s_list = []
+    R_list = []
+    n_list = []
+    varY_list = []
 
+    for entry in ancestry_ld:
+        snp_order = entry["snp_order"]
+        ld_idx = [snp_order.index(r) for r in final_rsids]
+        R_sub = entry["R"][np.ix_(ld_idx, ld_idx)]
+
+        gwas_sub = entry["gwas_sub"].set_index("RSID").loc[final_rsids].reset_index()
         beta = gwas_sub["BETA"].astype(float).values
         se = gwas_sub["SE"].astype(float).values
         eaf = gwas_sub["EAF"].astype(float).values if "EAF" in gwas_sub.columns else None
@@ -264,12 +369,8 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
         b_list.append(beta)
         s_list.append(se)
         R_list.append(R_sub)
-        n_list.append(ad["n"])
-        varY_list.append(estimate_var_y(se, eaf, ad["n"]))
-
-    final_rsids = common
-    if len(final_rsids) < 2:
-        return None
+        n_list.append(entry["n"])
+        varY_list.append(estimate_var_y(se, eaf, entry["n"]))
 
     try:
         fit = MultiSuSiE.multisusie_rss(
@@ -292,33 +393,9 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
     ref_gwas = ref_gwas.drop_duplicates(subset="RSID")
     ref_gwas = ref_gwas.set_index("RSID").loc[final_rsids].reset_index()
 
-    result_df = pd.DataFrame({
-        "SNP": ref_gwas["SNP"].values if "SNP" in ref_gwas.columns else final_rsids,
-        "CHR": ref_gwas["CHR"].values,
-        "BP": ref_gwas["BP"].values,
-        "RSID": final_rsids,
-    })
-
-    if hasattr(fit, "sets") and fit.sets is not None and hasattr(fit.sets, "cs"):
-        cs_membership = np.full(len(final_rsids), np.nan)
-        for cs_i, cs_snps in enumerate(fit.sets.cs, start=1):
-            for idx in cs_snps:
-                if idx < len(cs_membership):
-                    cs_membership[idx] = cs_i
-        result_df["CS"] = cs_membership.astype("Int64")
-    else:
-        result_df["CS"] = pd.NA
-
-    if hasattr(fit, "pip"):
-        result_df["PIP"] = fit.pip
-
-    if hasattr(fit, "lbf_variable") and fit.lbf_variable is not None:
-        lbf = fit.lbf_variable
-        if lbf.ndim == 2:
-            for j in range(lbf.shape[0]):
-                result_df[f"LBF_{j+1}"] = lbf[j, :]
-
-    return result_df
+    variant_df = build_multisusie_result_df(fit, final_rsids, ref_gwas, ancestries)
+    cs_df = build_credible_sets_df(fit, final_rsids)
+    return variant_df, cs_df
 
 
 def main():
@@ -376,10 +453,13 @@ def main():
             min_abs_corr=args.min_abs_corr,
         )
 
-        if result is not None and len(result) > 0:
-            safe_name = f"{locus['chr']}_{locus['center']}_finemap.tsv.gz"
-            out_file = os.path.join(args.output_dir, safe_name)
-            result.to_csv(out_file, sep="\t", index=False, compression="gzip")
+        if result is not None and len(result[0]) > 0:
+            variant_df, cs_df = result
+            safe_name = f"{locus['chr']}_{locus['center']}"
+            out_file = os.path.join(args.output_dir, f"{safe_name}_finemap.tsv.gz")
+            variant_df.to_csv(out_file, sep="\t", index=False, compression="gzip")
+            cs_file = os.path.join(args.output_dir, f"{safe_name}_locus_credible_sets.tsv")
+            cs_df.to_csv(cs_file, sep="\t", index=False)
             n_success += 1
         else:
             print(f"    Skipped {locus_label} (insufficient shared data or MultiSuSiE failure)")
