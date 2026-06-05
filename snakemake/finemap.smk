@@ -9,6 +9,8 @@ onstart:
 
 ancestries = list([g.ancestry for g in pipeline.gwases])
 validate_ancestries(ancestries)
+unique_ancestries = list(set(ancestries))
+is_multi_ancestry = len(unique_ancestries) > 1
 
 finemap_opts = getattr(pipeline, "finemap", SimpleNamespace())
 finemap_window_kb = getattr(finemap_opts, "window_kb", 1000)
@@ -21,17 +23,32 @@ std_file_pattern = standardised_gwas_name("{prefix}")
 for g in pipeline.gwases:
     g.finemap_dir = RESULTS_DIR + "finemap/" + g.prefix
 
-rule all:
-    input:
-        expand(std_file_pattern, prefix=[g.prefix for g in pipeline.gwases]),
-        expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=[g.prefix for g in pipeline.gwases])
+MULTI_FINEMAP_COMPLETE = RESULTS_DIR + "finemap/multi_ancestry_finemap_complete.txt"
+
+if is_multi_ancestry:
+    rule all:
+        input:
+            expand(std_file_pattern, prefix=[g.prefix for g in pipeline.gwases]),
+            MULTI_FINEMAP_COMPLETE
+else:
+    rule all:
+        input:
+            expand(std_file_pattern, prefix=[g.prefix for g in pipeline.gwases]),
+            expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=[g.prefix for g in pipeline.gwases])
 
 include: "rules/standardise_rule.smk"
 include: "rules/clumping_rule.smk"
-include: "rules/finemap_rule.smk"
+
+if is_multi_ancestry:
+    include: "rules/finemap_multi_ancestry_rule.smk"
+else:
+    include: "rules/finemap_rule.smk"
 
 onsuccess:
-    files = [g.finemap_dir for g in pipeline.gwases]
+    if is_multi_ancestry:
+        files = [RESULTS_DIR + "finemap/multi_ancestry"]
+    else:
+        files = [g.finemap_dir for g in pipeline.gwases]
     onsuccess(pipeline_name, files, is_test=pipeline.is_test)
 
 onerror:

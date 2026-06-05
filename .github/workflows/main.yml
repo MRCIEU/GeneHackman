@@ -8,7 +8,7 @@ on:
     types: [opened, reopened, ready_for_review, synchronize]
 
 jobs:
-  test:
+  devtools_check:
     runs-on: ubuntu-latest
     container:
       image: mrcieu/genehackman:develop
@@ -19,7 +19,7 @@ jobs:
 
       - name: Run devtools::check()
         run: Rscript -e "devtools::check()"
-  end_to_end:
+  end_to_end_tests_run:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

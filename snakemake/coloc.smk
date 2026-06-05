@@ -10,6 +10,15 @@ onstart:
 ancestries = list([g.ancestry for g in pipeline.gwases])
 validate_ancestries(ancestries)
 
+unique_ancestries = list(set(ancestries))
+if len(unique_ancestries) > 1:
+    raise ValueError(
+        "Colocalization is not supported for multiple ancestries. "
+        f"Found {len(unique_ancestries)} unique ancestries: {unique_ancestries}. "
+        "Please use the same ancestry for all GWAS inputs in the coloc pipeline, "
+        "or use the finemap pipeline for multi-ancestry fine-mapping with MultiSuSiE."
+    )
+
 finemap_opts = getattr(pipeline, "finemap", SimpleNamespace())
 finemap_window_kb = getattr(finemap_opts, "window_kb", 1000)
 finemap_max_causal = getattr(finemap_opts, "max_causal", 10)
