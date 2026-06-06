@@ -10,6 +10,12 @@ onstart:
 ancestries = list([g.ancestry for g in pipeline.gwases])
 validate_ancestries(ancestries)
 unique_ancestries = list(set(ancestries))
+if len(unique_ancestries) > 1 and len(unique_ancestries) < len(ancestries):
+    raise ValueError(
+        "Finemap requires either the same ancestry for all GWAS inputs, "
+        "or a distinct ancestry per GWAS (no duplicates). "
+        f"Found ancestries: {ancestries}"
+    )
 is_multi_ancestry = len(unique_ancestries) > 1
 
 finemap_opts = getattr(pipeline, "finemap", SimpleNamespace())
@@ -23,7 +29,7 @@ std_file_pattern = standardised_gwas_name("{prefix}")
 for g in pipeline.gwases:
     g.finemap_dir = RESULTS_DIR + "finemap/" + g.prefix
 
-MULTI_FINEMAP_COMPLETE = RESULTS_DIR + "finemap/multi_ancestry_finemap_complete.txt"
+MULTI_FINEMAP_COMPLETE = RESULTS_DIR + "finemap/multi_ancestry/finemap_complete.txt"
 
 if is_multi_ancestry:
     rule all:
