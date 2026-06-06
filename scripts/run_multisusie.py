@@ -9,6 +9,7 @@ multisusie_rss to produce cross-ancestry credible sets.
 import argparse
 import gzip
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -56,7 +57,6 @@ def available_cpus():
 
 
 def calculate_parallelism(max_workers=10, memory_per_worker_mb=8000):
-    """Match R/constants.R calculate_parallelism() for worker count."""
     slurm = os.environ.get("SLURM_CPUS_ON_NODE", "").strip()
     if slurm:
         try:
@@ -162,61 +162,101 @@ def get_union_loci(clumped_dfs, window_bp):
     return loci
 
 
+def _read_plink_ld_matrix(ld_file, n_snps):
+    """Parse plink --r square output into an n_snps x n_snps matrix."""
+    try:
+        R = np.loadtxt(ld_file)
+    except (OSError, ValueError):
+        return None
+
+    if n_snps < 2:
+        return None
+    if R.ndim == 0:
+        return None
+    if R.ndim == 1:
+        if len(R) == n_snps * n_snps:
+            R = R.reshape(n_snps, n_snps)
+        else:
+            return None
+    if R.shape[0] != n_snps or R.shape[1] != n_snps:
+        return None
+    return R
+
+
 def compute_ld_matrix(rsids, chrom, ancestry, thousand_genomes_dir):
     """Compute LD correlation matrix from 1000 Genomes via plink."""
     if len(rsids) < 2:
         return None, None
 
     bfile = os.path.join(thousand_genomes_dir, ancestry)
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".snps", delete=False) as f:
-        snp_file = f.name
-        f.write("\n".join(rsids) + "\n")
+    tmpdir = tempfile.mkdtemp(prefix="ld_")
+    snp_file = os.path.join(tmpdir, "snps.txt")
+    out_prefix = os.path.join(tmpdir, "ld")
 
-    out_prefix = tempfile.mktemp(prefix="ld_")
-    cmd = [
-        "plink1.9",
-        "--bfile", bfile,
-        "--chr", str(chrom),
-        "--extract", snp_file,
-        "--r", "square",
-        "--out", out_prefix
-    ]
+    try:
+        with open(snp_file, "w", encoding="utf-8") as f:
+            f.write("\n".join(rsids) + "\n")
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    ld_file = out_prefix + ".ld"
+        cmd = [
+            "plink1.9",
+            "--bfile", bfile,
+            "--chr", str(chrom),
+            "--extract", snp_file,
+            "--r", "square",
+            "--out", out_prefix,
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        ld_file = out_prefix + ".ld"
 
-    if result.returncode != 0 or not os.path.exists(ld_file):
-        _cleanup_plink(snp_file, out_prefix)
-        return None, None
+        if result.returncode != 0 or not os.path.exists(ld_file):
+            return None, None
 
-    bim_file = out_prefix + ".bim"
-    if os.path.exists(bim_file):
-        bim = pd.read_csv(bim_file, sep="\t", header=None, usecols=[1], names=["SNP"])
-        snp_order = bim["SNP"].tolist()
-    else:
-        bim_ref = bfile + ".bim"
-        bim = pd.read_csv(bim_ref, sep="\t", header=None, usecols=[0, 1, 3],
-                          names=["CHR", "SNP", "BP"])
-        bim = bim[(bim["CHR"].astype(str) == str(chrom)) & (bim["SNP"].isin(rsids))]
-        bim = bim.sort_values("BP")
-        snp_order = bim["SNP"].tolist()
+        bim_file = out_prefix + ".bim"
+        if os.path.exists(bim_file):
+            bim = pd.read_csv(bim_file, sep="\t", header=None, usecols=[1], names=["SNP"])
+            snp_order = bim["SNP"].tolist()
+        else:
+            bim_ref = bfile + ".bim"
+            bim = pd.read_csv(
+                bim_ref, sep="\t", header=None, usecols=[0, 1, 3],
+                names=["CHR", "SNP", "BP"],
+            )
+            bim = bim[(bim["CHR"].astype(str) == str(chrom)) & (bim["SNP"].isin(rsids))]
+            bim = bim.sort_values("BP")
+            snp_order = bim["SNP"].tolist()
 
-    R = np.loadtxt(ld_file)
-    _cleanup_plink(snp_file, out_prefix)
+        R = _read_plink_ld_matrix(ld_file, len(snp_order))
+        if R is None:
+            return None, None
 
-    if R.shape[0] != len(snp_order):
-        return None, None
+        return R, snp_order
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
-    return R, snp_order
 
-
-def _cleanup_plink(snp_file, out_prefix):
-    for f in [snp_file] + [out_prefix + ext for ext in
-              (".ld", ".nosex", ".log", ".bim", ".bed", ".fam")]:
-        try:
-            os.unlink(f)
-        except OSError:
-            pass
+def _validate_multisusie_inputs(b_list, s_list, R_list, ancestries, locus_label):
+    """Ensure every population has the same variant count before MultiSuSiE."""
+    p = int(R_list[0].shape[0])
+    for i, ancestry in enumerate(ancestries):
+        b_arr = np.asarray(b_list[i])
+        s_arr = np.asarray(s_list[i])
+        r_arr = np.asarray(R_list[i])
+        if (
+            b_arr.ndim != 1
+            or s_arr.ndim != 1
+            or r_arr.ndim != 2
+            or b_arr.shape[0] != p
+            or s_arr.shape[0] != p
+            or r_arr.shape != (p, p)
+        ):
+            print(
+                f"  MultiSuSiE input mismatch for {locus_label} "
+                f"({ancestry}): b={b_arr.shape}, s={s_arr.shape}, "
+                f"R={r_arr.shape}, expected P={p}",
+                file=sys.stderr,
+            )
+            return False
+    return True
 
 
 def estimate_var_y(se, eaf, n):
@@ -408,14 +448,22 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
     n_list = []
     varY_list = []
 
+    locus_label = f"chr{chrom}:{start}-{end}"
     for entry in ancestry_ld:
         snp_order = entry["snp_order"]
-        ld_idx = [snp_order.index(r) for r in final_rsids]
-        R_sub = entry["R"][np.ix_(ld_idx, ld_idx)]
+        snp_to_idx = {rsid: idx for idx, rsid in enumerate(snp_order)}
+        ld_idx = [snp_to_idx[r] for r in final_rsids]
+        R_sub = np.ascontiguousarray(entry["R"][np.ix_(ld_idx, ld_idx)], dtype=np.float64)
 
-        gwas_sub = entry["gwas_sub"].set_index("RSID").loc[final_rsids].reset_index()
-        beta = gwas_sub["BETA"].astype(float).values
-        se = gwas_sub["SE"].astype(float).values
+        gwas_sub = entry["gwas_sub"].set_index("RSID").reindex(final_rsids)
+        if gwas_sub["BETA"].isna().any() or gwas_sub["SE"].isna().any():
+            return None
+        beta = np.ascontiguousarray(
+            gwas_sub["BETA"].astype(float).to_numpy().ravel(), dtype=np.float64
+        )
+        se = np.ascontiguousarray(
+            gwas_sub["SE"].astype(float).to_numpy().ravel(), dtype=np.float64
+        )
         eaf = gwas_sub["EAF"].astype(float).values if "EAF" in gwas_sub.columns else None
 
         b_list.append(beta)
@@ -423,6 +471,9 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
         R_list.append(R_sub)
         n_list.append(entry["n"])
         varY_list.append(estimate_var_y(se, eaf, entry["n"]))
+
+    if not _validate_multisusie_inputs(b_list, s_list, R_list, ancestries, locus_label):
+        return None
 
     try:
         fit = MultiSuSiE.multisusie_rss(
@@ -434,7 +485,8 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
             L=max_causal,
             coverage=coverage,
             min_abs_corr=min_abs_corr,
-            low_memory_mode=True,
+            variant_ids=final_rsids,
+            low_memory_mode=False,
         )
     except Exception as e:
         print(f"  MultiSuSiE failed for locus chr{chrom}:{start}-{end}: {e}", file=sys.stderr)
