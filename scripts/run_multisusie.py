@@ -12,11 +12,63 @@ import os
 import subprocess
 import sys
 import tempfile
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import numpy as np
 import pandas as pd
 
 import MultiSuSiE
+
+
+def available_memory_mb():
+    """Slurm allocated memory (MB) when under Slurm, else total system memory."""
+    slurm = os.environ.get("SLURM_MEM_PER_NODE", "").strip()
+    if slurm:
+        try:
+            value = float(slurm)
+            if value > 0:
+                return value
+        except ValueError:
+            pass
+    if sys.platform == "linux":
+        try:
+            with open("/proc/meminfo", encoding="utf-8") as meminfo:
+                line = meminfo.readline()
+            kb = int("".join(c for c in line if c.isdigit()))
+            return kb / 1024
+        except (OSError, ValueError):
+            pass
+    elif sys.platform == "darwin":
+        try:
+            raw = subprocess.check_output(
+                ["sysctl", "-n", "hw.memsize"], stderr=subprocess.DEVNULL
+            )
+            return int(raw.strip()) / (1024 ** 2)
+        except (subprocess.SubprocessError, ValueError):
+            pass
+    return None
+
+
+def available_cpus():
+    """Logical CPUs on this host."""
+    cpus = os.cpu_count()
+    return max(1, cpus if cpus is not None else 1)
+
+
+def calculate_parallelism(max_workers=10, memory_per_worker_mb=8000):
+    """Match R/constants.R calculate_parallelism() for worker count."""
+    slurm = os.environ.get("SLURM_CPUS_ON_NODE", "").strip()
+    if slurm:
+        try:
+            return max(1, int(slurm) - 1)
+        except ValueError:
+            pass
+    cpus = available_cpus()
+    mem = available_memory_mb()
+    if mem is not None and mem > 0:
+        by_mem = int(mem // memory_per_worker_mb)
+        return max(1, min(max_workers, by_mem, cpus))
+    return max(1, min(max_workers, cpus))
 
 
 def parse_args():
@@ -398,6 +450,44 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
     return variant_df, cs_df
 
 
+_WORKER_CTX = {}
+
+
+def _init_worker(ctx):
+    global _WORKER_CTX
+    _WORKER_CTX = ctx
+
+
+def _run_locus_job(job):
+    """Process one locus in a worker process; writes output files."""
+    i, n_loci, locus = job
+    ctx = _WORKER_CTX
+    locus_label = f"chr{locus['chr']}:{locus['start']}-{locus['end']}"
+
+    result = run_multisusie_for_locus(
+        locus=locus,
+        gwas_dfs=ctx["gwas_dfs"],
+        ancestries=ctx["ancestries"],
+        sample_sizes=ctx["sample_sizes"],
+        thousand_genomes_dir=ctx["thousand_genomes_dir"],
+        max_causal=ctx["max_causal"],
+        coverage=ctx["coverage"],
+        min_abs_corr=ctx["min_abs_corr"],
+    )
+
+    if result is None or len(result[0]) == 0:
+        return i, n_loci, locus_label, False
+
+    variant_df, cs_df = result
+    safe_name = f"{locus['chr']}_{locus['center']}"
+    output_dir = ctx["output_dir"]
+    out_file = os.path.join(output_dir, f"{safe_name}_finemap.tsv.gz")
+    variant_df.to_csv(out_file, sep="\t", index=False, compression="gzip")
+    cs_file = os.path.join(output_dir, f"{safe_name}_locus_credible_sets.tsv")
+    cs_df.to_csv(cs_file, sep="\t", index=False)
+    return i, n_loci, locus_label, True
+
+
 def main():
     args = parse_args()
 
@@ -435,35 +525,41 @@ def main():
         _write_completion(args.completion_file, 0)
         return
 
+    worker_ctx = {
+        "gwas_dfs": gwas_dfs,
+        "ancestries": args.ancestries,
+        "sample_sizes": args.sample_sizes,
+        "thousand_genomes_dir": args.thousand_genomes_dir,
+        "max_causal": args.max_causal,
+        "coverage": args.coverage,
+        "min_abs_corr": args.min_abs_corr,
+        "output_dir": args.output_dir,
+    }
+    jobs = [(i + 1, len(loci), locus) for i, locus in enumerate(loci)]
+    max_workers = min(
+        calculate_parallelism(memory_per_worker_mb=6000),
+        len(loci),
+    )
+    print(f"Running up to {max_workers} loci in parallel...")
+
     n_success = 0
     n_fail = 0
 
-    for i, locus in enumerate(loci):
-        locus_label = f"chr{locus['chr']}:{locus['start']}-{locus['end']}"
-        print(f"  [{i+1}/{len(loci)}] Processing {locus_label}...")
-
-        result = run_multisusie_for_locus(
-            locus=locus,
-            gwas_dfs=gwas_dfs,
-            ancestries=args.ancestries,
-            sample_sizes=args.sample_sizes,
-            thousand_genomes_dir=args.thousand_genomes_dir,
-            max_causal=args.max_causal,
-            coverage=args.coverage,
-            min_abs_corr=args.min_abs_corr,
-        )
-
-        if result is not None and len(result[0]) > 0:
-            variant_df, cs_df = result
-            safe_name = f"{locus['chr']}_{locus['center']}"
-            out_file = os.path.join(args.output_dir, f"{safe_name}_finemap.tsv.gz")
-            variant_df.to_csv(out_file, sep="\t", index=False, compression="gzip")
-            cs_file = os.path.join(args.output_dir, f"{safe_name}_locus_credible_sets.tsv")
-            cs_df.to_csv(cs_file, sep="\t", index=False)
-            n_success += 1
-        else:
-            print(f"    Skipped {locus_label} (insufficient shared data or MultiSuSiE failure)")
-            n_fail += 1
+    with ProcessPoolExecutor(
+        max_workers=max_workers,
+        initializer=_init_worker,
+        initargs=(worker_ctx,),
+    ) as executor:
+        futures = [executor.submit(_run_locus_job, job) for job in jobs]
+        for future in as_completed(futures):
+            i, n_loci, locus_label, ok = future.result()
+            if ok:
+                n_success += 1
+                print(f"  [{i}/{n_loci}] Completed {locus_label}")
+            else:
+                n_fail += 1
+                print(f"  [{i}/{n_loci}] Skipped {locus_label} "
+                      f"(insufficient shared data or MultiSuSiE failure)")
 
     print(f"\nMultiSuSiE complete: {n_success} loci succeeded, {n_fail} skipped/failed.")
     _write_completion(args.completion_file, n_success)
