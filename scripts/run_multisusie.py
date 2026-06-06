@@ -487,6 +487,7 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
             min_abs_corr=min_abs_corr,
             variant_ids=final_rsids,
             low_memory_mode=False,
+            float_type=np.float64,
         )
     except Exception as e:
         print(f"  MultiSuSiE failed for locus chr{chrom}:{start}-{end}: {e}", file=sys.stderr)
