@@ -207,6 +207,125 @@ Useful flags: `--dry-run`, `--unlock`, `-n` (dry run), `-R <rule>` (rerun specif
 
 If you change Docker dependencies, note the new image tag in the PR description and confirm you have rebuilt (or that maintainers will publish) the matching `mrcieu/genehackman` image.
 
+## Cutting a release (maintainers)
+
+Releases tie together three versioned artefacts:
+
+| Artefact | Where | Format |
+|----------|--------|--------|
+| R package | `DESCRIPTION` → `Version:` | `1.2.0` (no `v` prefix) |
+| Docker / Apptainer image | Docker Hub `mrcieu/genehackman` | tag `1.2.0` (matches `Version:`) |
+| Git tag | GitHub | `v1.2.0` (`v` + same semver) |
+
+Users set **`DOCKER_VERSION=1.2.0`** in `.env`; Snakemake looks for `genehackman_1.2.0.sif` under `PIPELINE_DATA_DIR/genomic_data/pipeline/`.
+
+### Before you release
+
+1. Merge all intended changes to **`main`**.
+2. Confirm CI is green on `main` ([Actions](https://github.com/MRCIEU/GeneHackman/actions)).
+3. Run the full test suite on `main`:
+
+   ```bash
+   git checkout main && git pull
+   Rscript -e "devtools::check()"
+   ./tests/e2e_tests/run_test_pipelines.sh
+   ```
+
+4. Commit `tests/testing_complete.txt` on `main` if the e2e run updated it.
+
+### 1. Bump the version
+
+Edit **`Version:`** in [`DESCRIPTION`](DESCRIPTION) to the new semver (e.g. `1.2.0`).
+
+Update the example default in [`.env_example`](.env_example):
+
+```bash
+DOCKER_VERSION=1.2.0
+```
+
+Regenerate R docs if exports changed:
+
+```bash
+Rscript -e "devtools::document()"
+```
+
+Commit on `main` (or via PR):
+
+```bash
+git add DESCRIPTION .env_example
+git commit -m "Bump version to 1.2.0"
+git push origin main
+```
+
+### 2. Build and publish the Docker image
+
+From the repository root, on a machine with Docker Hub access to **`mrcieu`**:
+
+```bash
+VERSION=1.2.0
+
+docker build --platform linux/amd64 -f docker/Dockerfile \
+  -t mrcieu/genehackman:${VERSION} .
+
+docker push mrcieu/genehackman:${VERSION}
+```
+
+Optional: refresh the rolling **`develop`** tag used by CI (`mrcieu/genehackman:develop` in [`.github/workflows/main.yml`](.github/workflows/main.yml)):
+
+```bash
+docker tag mrcieu/genehackman:${VERSION} mrcieu/genehackman:develop
+docker push mrcieu/genehackman:develop
+```
+
+### 3. Tag the release in Git
+
+Create an annotated tag on `main` pointing at the version bump commit:
+
+```bash
+git checkout main && git pull
+git tag -a v1.2.0 -m "Release 1.2.0"
+git push origin v1.2.0
+```
+
+Tags use a **`v` prefix** (e.g. `v1.0.0`); Docker tags do **not** (`1.2.0`).
+
+### 4. Create the GitHub release
+
+Using the GitHub CLI:
+
+```bash
+gh release create v1.2.0 \
+  --title "1.2.0" \
+  --notes "$(cat <<'EOF'
+## Summary
+- …
+
+## Docker
+`docker pull mrcieu/genehackman:1.2.0`
+
+## Citation
+https://doi.org/10.5281/zenodo.10624713
+EOF
+)"
+```
+
+Or in the browser: **GitHub → Releases → Draft a new release** → choose tag `v1.2.0`, title `1.2.0`, and add release notes (changes since the previous tag, Docker pull command, any breaking changes).
+
+### 5. Zenodo archive
+
+The project is archived on Zenodo ([10.5281/zenodo.10624713](https://doi.org/10.5281/zenodo.10624713)). If the [Zenodo–GitHub integration](https://docs.github.com/en/repositories/archiving-a-github-repository/referencing-and-citing-content) is enabled for this repository, publishing the GitHub release should trigger a new Zenodo version automatically. Otherwise, upload the release manually on Zenodo and note the new version DOI in the GitHub release.
+
+### After release
+
+Tell users to:
+
+1. Set **`DOCKER_VERSION`** in `.env` to the new version.
+2. Pull or build the SIF, e.g. delete an old `genehackman_*.sif` and re-run `run_pipeline.sh` (it builds from `docker://mrcieu/genehackman:<version>` if the file is missing), or on HPC:
+
+   ```bash
+   singularity build genehackman_1.2.0.sif docker://mrcieu/genehackman:1.2.0
+   ```
+
 ## Getting help
 
 - Open a [GitHub issue](https://github.com/MRCIEU/GeneHackman/issues) for bugs or feature requests.

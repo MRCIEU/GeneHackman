@@ -147,14 +147,6 @@ There are 2 main components to the pipeline
 
 The pipeline can be run either on its own, or via your institutions HPC.  Each snakemake step spins up a singularity container inside an HPC job (ex. slurm).  Each step can specify different cpu/memory requirements.
 
-### Repository Organisation
-
-* `R` directory holds R package code that can also be called and reused by any step in the pipeline (accessed by a cli script)
-* `scripts` directory holds the scripts that can be easily called by snakemake (`Rscript example.R --input_ex example_input`)
-* `snakemake` directory: workflow `.smk` files, **`snakemake/profiles/`** (Snakemake `--profile`: local vs Slurm/HPC defaults), **`input_templates/`**, and shared **`util/`** code between pipelines
-* `docker` directory holds the information for creating the docker image that the pipeline runs
-* `tests` directory holds all R tests, and end to end pipeline tests
-
 ### Platform Setup
 
 **Running on macOS, Linux, Slurm, or PBS?** See **[PLATFORM_SETUP.md](PLATFORM_SETUP.md)** for platform-specific setup (Apptainer/Lima, SIF cache, Snakemake profiles under **`snakemake/profiles/`**, `qsub` template).
