@@ -11,6 +11,7 @@ pipeline_logs/
 .bashrc
 .DS_Store
 ieugwasr_oauth
+__pycache__/
 
 /.quarto/
 **/*.quarto_ipynb

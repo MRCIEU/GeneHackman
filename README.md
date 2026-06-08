@@ -37,8 +37,6 @@ There are **six** Snakemake pipelines (grouped as two tables of three). Each pip
 
 ## Onboarding
 
-**Running on macOS, Linux, Slurm, or PBS?** See **[PLATFORM_SETUP.md](PLATFORM_SETUP.md)** for platform-specific setup (Apptainer/Lima, SIF cache, Snakemake profiles under **`snakemake/profiles/`**, `qsub` template).
-
 ### 1. Clone the repository into your personal space on BlueCrystal 4
 `git clone git@github.com:MRCIEU/GeneHackman.git && cd GeneHackman`
 
@@ -52,26 +50,16 @@ or if you have already created the environment
 
 ### 3. Get reference data (Google Cloud Storage)
 
-Much of what the pipelines expect (LD references, LDSC masks, MetaBrain/QTL summaries, …) ships in two buckets. Copy them somewhere on your machine or HPC scratch space (**do not commit data to git**).
+The data to run the pipelines have been split into two buckets, the mandatory bucket, and QTL bucket (only needed if you want to run MR-QTL pipeline).  To download, [install gsutil](https://docs.cloud.google.com/storage/docs/gsutil_install)
 
-| Bucket | Typical use | Env var to set after download |
-|--------|--------------|-------------------------------|
-| Mandatory: `gs://genehackman` | Core pipeline bundle (e.g. 1000 Genomes LD panels, genomic assets, LDSC helpers under the layout expected under `PIPELINE_DATA_DIR`) | **`PIPELINE_DATA_DIR`** → absolute path of the folder that mirrors this bucket root (same internal directory names as on GCS). |
-| Optional: `gs://genehackman-qtl` | QTL summary statistic trees used by **`qtl_mr`** | **`QTL_DATA_DIR`** → absolute path of the folder containing that hierarchy. Needed for **`qtl_mr`**; ignored by other pipelines. |
-
-**Authenticate** (private buckets — use whichever applies): [install Google Cloud SDK](https://cloud.google.com/sdk/docs/install), then `gcloud auth login` so `gsutil` can read the buckets you’ve been granted.
-
-**Download with `gsutil`** (multipart copy; adjust local paths):
-
-```bash
-mkdir -p /path/to/my_pipeline_data /path/to/my_qtl_data
-gsutil -m rsync -r gs://genehackman/ /path/to/my_pipeline_data/
-gsutil -m rsync -r gs://genehackman-qtl/ /path/to/my_qtl_data/
-```
+* Mandatory: `gs://genehackman`
+  * `gsutil -m rsync -r gs://genehackman/ /path/to/my_pipeline_data/`
+  * Update `PIPELINE_DATA_DIR` to `/path/to/my_pipeline_data/` in the .env file
+* Optional: `gs://genehackman-qtl` 
+  * `gsutil -m rsync -r gs://genehackman-qtl/ /path/to/my_qtl_data/`
+  * Update `QTL_DATA_DIR` to `/path/to/my_qtl_data/` in the .env file
 
 To copy only selected prefixes instead of the QTL bucket, use `gsutil -m cp -r gs://genehackman-qtl/SOME_PREFIX/ ...` as needed.  For example, you may only be interested in cis, not trans data.
-
-**Download via web UI:** Open [Google Cloud Console → Cloud Storage](https://console.cloud.google.com/storage/browser), select the project/storage account you were given access to, open bucket **`genehackman`** or **`genehackman-qtl`**, and download files or folders in the browser (or use **“Activate Cloud Shell”** and run `gsutil` there, then drag files out if convenient).
 
 Then point your **`.env`** at those directories (trailing slashes are fine):
 
@@ -129,6 +117,12 @@ SNAKEMAKE_PROFILE=snakemake/profiles/local/
 
 ### 5. Run the pipeline
 
+To ensure you have configured everything correctly, you can run a test pipeline from `run_test_pipelines.sh`
+
+`./run_pipeline.sh snakemake/standardise_gwas.smk tests/testthat/data/snakemake_inputs/standardise_gwas.yaml`
+
+To run your pipeline:
+
 `./run_pipeline.sh snakemake/<specific_pipeline>.smk <optional_input_file.yaml>`
 
 Snakemake execution profiles (**`--profile`**) live under **`snakemake/profiles/`** (see also [PLATFORM_SETUP.md](PLATFORM_SETUP.md)).
@@ -159,36 +153,12 @@ The pipeline can be run either on its own, or via your institutions HPC.  Each s
 * `scripts` directory holds the scripts that can be easily called by snakemake (`Rscript example.R --input_ex example_input`)
 * `snakemake` directory: workflow `.smk` files, **`snakemake/profiles/`** (Snakemake `--profile`: local vs Slurm/HPC defaults), **`input_templates/`**, and shared **`util/`** code between pipelines
 * `docker` directory holds the information for creating the docker image that the pipeline runs
-* `tests` directory holds all R tests, and a end to end pipeline test script 
+* `tests` directory holds all R tests, and end to end pipeline tests
 
-### Docker image
+### Platform Setup
 
-Pipelines use the image **`mrcieu/genehackman`** (tag usually matches the **`Version:`** field in [`DESCRIPTION`](DESCRIPTION) and **`DOCKER_VERSION`** in `.env`; see [`snakemake/util/common.smk`](snakemake/util/common.smk)).
-
-**Build** (run from the **repository root** so paths in the Dockerfile resolve correctly):
-
-```bash
-docker build --platform linux/amd64 -f docker/Dockerfile -t mrcieu/genehackman:$(grep '^Version:' DESCRIPTION | awk '{print $2}') .
-```
-
-To tag a specific version explicitly (for example `1.1.0`):
-
-```bash
-docker build --platform linux/amd64 -f docker/Dockerfile -t mrcieu/genehackman:1.1.0 .
-```
-
-The image is **x86_64/amd64-only** (Posit R `.deb`, PLINK, Miniconda, etc.). Use **`--platform linux/amd64`** when building so it works on **ARM** laptops (e.g. Apple Silicon) as well as on amd64 Linux; on native amd64 machines the flag is optional but harmless.
-
-The image installs OS packages and tools in [`docker/Dockerfile`](docker/Dockerfile), R packages via [`docker/requirements.R`](docker/requirements.R), and Python packages via [`docker/requirements.txt`](docker/requirements.txt). After changing those files, rebuild the image before running pipelines that depend on the new dependencies.
-
-**Publish** (maintainers with access to the `mrcieu` organisation on Docker Hub):
-
-```bash
-docker push mrcieu/genehackman:<tag>
-```
-
-Use the same `<tag>` you built locally. HPC users without Docker can still obtain the image via Apptainer/Singularity (for example `singularity build genehackman_<tag>.sif docker://mrcieu/genehackman:<tag>`), as in [`run_pipeline.sh`](run_pipeline.sh).
+**Running on macOS, Linux, Slurm, or PBS?** See **[PLATFORM_SETUP.md](PLATFORM_SETUP.md)** for platform-specific setup (Apptainer/Lima, SIF cache, Snakemake profiles under **`snakemake/profiles/`**, `qsub` template).
 
 ### Making changes
 
-If you want to make any additions / changes please contact andrew.elmore@bristol.ac.uk, or open an issue in this repo.
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for development setup, Docker rebuilds, unit tests, and end-to-end tests. You can also contact open an issue in this repo.

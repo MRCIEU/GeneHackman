@@ -323,7 +323,7 @@ def build_multisusie_result_df(fit, final_rsids, ref_gwas, ancestries):
     if hasattr(fit, "coef") and fit.coef is not None:
         for k, ancestry in enumerate(ancestries):
             if fit.coef.shape[0] > k and len(fit.coef[k]) == n:
-                result_df[f"BETA_{ancestry}"] = fit.coef[k]
+                result_df[f"POSTERIOR_COEF_{ancestry}"] = fit.coef[k]
 
     return result_df
 
