@@ -15,9 +15,19 @@ coloc_analysis(
 )
 }
 \arguments{
-\item{first_gwas:}{first gwas to be run through coloc.  This is the gwas that results will be based off}
+\item{first_gwas}{first gwas to be run through coloc.  This is the gwas that results will be based off}
 
-\item{second_gwas:}{second gwas to be run through coloc}
+\item{second_gwas}{second gwas to be run through coloc}
+
+\item{exposure_name}{name of exposure to perform coloc on}
+
+\item{chr}{chromosome to perform coloc on}
+
+\item{bp}{base pair position to perform coloc on}
+
+\item{range}{range to filter in base pairs}
+
+\item{default_n}{default sample size}
 }
 \value{
 tibble of coloc results (h0 - h4)

@@ -1,9 +1,10 @@
 import csv
 import zipfile
 import gzip
-import json
+import yaml
 import os
 import re
+import subprocess
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from pathlib import Path
@@ -12,25 +13,38 @@ from types import SimpleNamespace
 include: "constants.smk"
 include: "log_results.smk"
 
+
+def dict_to_namespace(obj):
+    """Recursively convert dict/list from YAML to SimpleNamespace (same shapes as former JSON parsing)."""
+    if isinstance(obj, dict):
+        return SimpleNamespace(**{k: dict_to_namespace(v) for k, v in obj.items()})
+    if isinstance(obj, list):
+        return [dict_to_namespace(item) for item in obj]
+    return obj
+
+
 def get_docker_container():
-    version = DOCKER_VERSION if DOCKER_VERSION else None
-    with open("DESCRIPTION") as file:
-        for line in file:
-            match = re.match(r"^Version: ([\w\.]+)", line)
-            if match:
-                version = match.group(1)
-                break
-
-    sif_file = f"{PIPELINE_DATA_DIR}/genehackman_{version}.sif"
-    if os.path.isfile(sif_file):
-        return sif_file
-    elif version:
-        return f"{docker_repo}:{version}"
-    else:
-        return f"{docker_repo}:latest"
+    version = DOCKER_VERSION
+    if not version:
+        raise ValueError("Error: DOCKER_VERSION must be set in .env")
+    pipeline_genomic_dir = os.path.join(PIPELINE_DATA_DIR.rstrip("/"), "genomic_data", "pipeline")
+    sif_path = os.path.join(pipeline_genomic_dir, f"genehackman_{version}.sif")
+    if not os.path.isfile(sif_path):
+        raise ValueError(f"Error: SIF file not found: {sif_path}")
+    return sif_path
 
 
-def parse_pipeline_input(pipeline_includes_clumping=False):
+def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=False):
+    global input_file
+    env_in = os.environ.get("GENEHACKMAN_INPUT") or os.environ.get("GENEHACKMAN_INPUT_FILE")
+    try:
+        cfg_in = config.get("genehackman_input")
+    except NameError:
+        cfg_in = None
+    if cfg_in is not None and str(cfg_in).startswith("-"):
+        cfg_in = None
+    input_file = env_in or cfg_in or "input.yaml"
+
     if not os.path.isfile(".env"):
         raise ValueError("Error: .env file doesn't exist")
     if not os.path.isfile(input_file):
@@ -38,10 +52,15 @@ def parse_pipeline_input(pipeline_includes_clumping=False):
 
     with open(input_file) as pipeline_input:
         try:
-            pipeline = json.load(pipeline_input,object_hook=lambda data: SimpleNamespace(**data))
+            raw = yaml.safe_load(pipeline_input)
+            if raw is None:
+                raw = {}
+            pipeline = dict_to_namespace(raw)
         except Exception as e:
-            raise Exception('ERROR: There is an error with the JSON file, '
-                        + 'please ensure it is valid JSON: https://jsonlint.com/') from e
+            raise Exception(
+                "ERROR: There is an error with the pipeline YAML file, "
+                "please ensure it is valid YAML: https://www.yamllint.com/"
+            ) from e
 
     if not hasattr(pipeline, "is_test"): pipeline.is_test = False
     if not hasattr(pipeline, "output"): pipeline.output = default_output_options
@@ -52,15 +71,46 @@ def parse_pipeline_input(pipeline_includes_clumping=False):
 
         if not hasattr(pipeline.output, "columns"): pipeline.output.columns = default_output_options.columns
     if not hasattr(pipeline, "populate_rsid"): pipeline.populate_rsid = False
+    if not hasattr(pipeline, "populate_eaf"): pipeline.populate_eaf = False
+    if not hasattr(pipeline, "flip_alleles"): pipeline.flip_alleles = True
+
+    if not hasattr(pipeline, "finemap"):
+        pipeline.finemap = SimpleNamespace()
+    fm = pipeline.finemap
+    if not hasattr(fm, "window_kb"): fm.window_kb = 500
+    if not hasattr(fm, "max_causal"): fm.max_causal = 10
+    if not hasattr(fm, "coverage"): fm.coverage = 0.95
+    if not hasattr(fm, "min_abs_corr"): fm.min_abs_corr = 0.5
+
+    if not hasattr(pipeline, "coloc"):
+        pipeline.coloc = SimpleNamespace()
+    cl = pipeline.coloc
+    if not hasattr(cl, "overlap_kb"): cl.overlap_kb = 1000
+    if not hasattr(cl, "p1"): cl.p1 = 1e-4
+    if not hasattr(cl, "p2"): cl.p2 = 1e-4
+    if not hasattr(cl, "p12"): cl.p12 = 5e-6
 
     for g in pipeline.gwases:
         if not hasattr(g, "N"): g.N = 0
         if not hasattr(g, "columns"): g.columns = SimpleNamespace()
         if not hasattr(g, "remove_extra_columns"): g.remove_extra_columns = False
+        if not hasattr(g, "flip_alleles"): g.flip_alleles = getattr(pipeline, "flip_alleles", True)
         if not hasattr(g, "build"): g.build = "GRCh37"
+        if not hasattr(g, "study_type"): g.study_type = "continuous"
         if not hasattr(g, "populate_rsid"): g.populate_rsid = False
+        if not hasattr(g, "populate_eaf"): g.populate_eaf = False
         g.file = os.path.abspath(g.file)
         g.populate_rsid = resolve_rsid_population(pipeline_includes_clumping, g.populate_rsid or pipeline.populate_rsid)
+        g.populate_eaf = bool(g.populate_eaf or pipeline.populate_eaf)
+        if hasattr(g, "ancestry") and g.ancestry is not None and str(g.ancestry).strip():
+            g.ancestry = str(g.ancestry).strip()
+        else:
+            g.ancestry = ""
+        if g.populate_eaf and not g.ancestry:
+            raise ValueError(
+                'When populate_eaf is true, each GWAS must include "ancestry" in the input JSON '
+                '(same as compare_gwases: AFR, AMR, EAS, EUR, or SAS), e.g. "ancestry": "EUR".'
+            )
         g.standardised_memory = estimate_memory_needed_for_standardisation(g.file, g.populate_rsid)
         g.prefix = file_prefix(g.file)
         g.vcf_columns = get_columns_for_vcf_parsing(g.columns)
@@ -68,6 +118,13 @@ def parse_pipeline_input(pipeline_includes_clumping=False):
         g.output_columns = resolve_gwas_columns(g.file, pipeline.output.columns, check_input_columns=False)
         g.standardised_gwas = standardised_gwas_name(g.file)
         setattr(pipeline,g.prefix,g)
+    eaf_ancestries = [g.ancestry for g in pipeline.gwases if g.populate_eaf]
+    if eaf_ancestries:
+        validate_ancestries(eaf_ancestries)
+    if not allow_flip_false:
+        for g in pipeline.gwases:
+            if getattr(g, "flip_alleles", True) is False:
+                raise ValueError("flip_alleles = FALSE is only available for standardise_gwas.smk")
     return pipeline
 
 def resolve_rsid_population(pipeline_includes_clumping, populate_rsid):
@@ -198,14 +255,13 @@ def standardised_gwas_name(gwas_name):
         return DATA_DIR + "gwas/" + file_prefix(gwas_name) + "_std.tsv.gz"
 
 def cleanup_old_slurm_logs():
-    if not os.path.isdir(slurm_log_directory): return
+    if not os.path.isdir(pipeline_log_directory): return
 
     one_month_ago = datetime.now() - relativedelta(months=1)
-    files = [f for f in os.listdir(slurm_log_directory) if os.path.isfile(f)]
-    print("deleting old logs")
+    files = [f for f in os.listdir(pipeline_log_directory) if os.path.isfile(os.path.join(pipeline_log_directory, f))]
 
     for filename in files: 
-        file = os.path.join(slurm_log_directory, filename)
+        file = os.path.join(pipeline_log_directory, filename)
         file_timestamp = datetime.utcfromtimestamp(os.stat(file).st_mtime)
         if file_timestamp < one_month_ago: os.remove(file)
 
@@ -223,20 +279,6 @@ def turn_dict_into_cli_string(results_dict):
     return ','.join(['%s=%s' % (key, value) for (key, value) in results_dict.items()])
 
 
-def copy_data_to_rdfs(files_created):
-    if RDFS_DIR is not None:
-        for file_created in files_created:
-            rdfs_file = None
-            if file_created.startswith(DATA_DIR):
-                rdfs_file = file_created.replace(DATA_DIR, RDFS_DIR + "/data/")
-            elif file_created.startswith(RESULTS_DIR):
-                rdfs_file = file_created.replace(RESULTS_DIR, RDFS_DIR + "/results/")
-
-            if rdfs_file:
-                os.system(f"install -D {file_created} {rdfs_file}")
-        print(f"Files successfully copied to {RDFS_DIR}")
-
-
 def onsuccess(pipeline_name, files_created=list(), results_file=None, is_test=False):
     print("\nPipeline finished, no errors.  List of created files:")
     print(*files_created, sep='\n')
@@ -244,21 +286,33 @@ def onsuccess(pipeline_name, files_created=list(), results_file=None, is_test=Fa
     if results_file:
         print("\n---------------------")
         print("PLEASE VIEW THIS HTML FILE FOR A SUMMARY OF RESULTS:")
-        print(f"scp {user}@bc4login1.acrc.bris.ac.uk:{results_file} .")
+        print(f"{results_file}.")
         print(f"\n\n\033[1;35;40m Please do us a favour and cite this pipeline: https://doi.org/10.5281/zenodo.10624713 \033[0m\n")
-
-    copy_data_to_rdfs(files_created)
 
     update_google_sheet(pipeline_name, succeeded=True, is_test=is_test)
 
 
 def onerror_message(pipeline_name, is_test=False):
-    last_log = subprocess.check_output(f"ls -t {slurm_log_directory} | head -n1", shell=True, universal_newlines=True)
-    log_full_path = slurm_log_directory + last_log
     print("\n---------------------")
     print("There are some documented common errors here: https://github.com/MRCIEU/GeneHackman/wiki")
-    print("There was an error in the pipeline, please check the last written slurm log to see the error:")
-    print(log_full_path)
+    log_full_path = None
+    if os.path.isdir(pipeline_log_directory):
+        try:
+            entries = [
+                os.path.join(pipeline_log_directory, f)
+                for f in os.listdir(pipeline_log_directory)
+                if os.path.isfile(os.path.join(pipeline_log_directory, f))
+            ]
+            if entries:
+                log_full_path = max(entries, key=lambda p: os.stat(p).st_mtime)
+        except OSError:
+            pass
+    if log_full_path:
+        print("There was an error in the pipeline. If the job ran under Slurm, check the batch log:")
+        print(log_full_path)
+    else:
+        print("There was an error in the pipeline. Check the Snakemake output above,")
+        print(f"and logs under: {os.path.join(os.getcwd(), '.snakemake', 'log')}")
 
     update_google_sheet(pipeline_name, succeeded=False, error_file=log_full_path, is_test=is_test)
 

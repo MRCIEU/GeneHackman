@@ -1,0 +1,37 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+
+jobs:
+  devtools_check:
+    runs-on: ubuntu-latest
+    container:
+      image: mrcieu/genehackman:develop
+      env:
+        R_LIBS_SITE: /usr/lib/R/site-library
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run devtools::check()
+        run: Rscript -e "devtools::check()"
+  end_to_end_tests_run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check that end-to-end tests have been run successfully
+        env:
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+        run: |
+          if [ ! -f tests/testing_complete.txt ]; then
+            echo "Tests have not been run successfully, please run ./tests/e2e_tests/run_test_pipelines.sh and commit the results"
+            exit 1
+          fi
+          if [ "$BRANCH_NAME" != "main" ] && ! grep -q "$BRANCH_NAME" tests/testing_complete.txt; then
+            echo "Tests have not been run successfully for branch: $BRANCH_NAME, please run Rscript tests/testthat/run_tests.R and commit the results"
+            exit 1
+          fi

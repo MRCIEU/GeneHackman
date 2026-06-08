@@ -1,8 +1,8 @@
 mr_results <- tempfile(fileext = ".tsv")
 
 test_that("mr.perform_mr_on_pqtl_datasets runs cis only mr against a gwas", {
-  local_mock(
-    list.files = function(dir, pattern, full.names) {
+  local_mocked_bindings(
+    mr_list_files = function(dir, pattern, full.names) {
       return("data/some_eqtlgen_hits.tsv.gz")
     }
   )

@@ -9,12 +9,41 @@ def format_dir_string(directory):
     if not directory: return None
     return directory + "/" if not directory.endswith('/') else directory
 
+
+def _available_cpus():
+    """CPUs on the allocated Slurm node if Slurm sets them, else logical CPUs on this host."""
+    slurm = os.getenv("SLURM_CPUS_ON_NODE")
+    if slurm is not None and str(slurm).strip() != "":
+        return max(1, int(slurm))
+    n = os.cpu_count()
+    return max(1, n if n is not None else 1)
+
+
+def _strip_project_path(s):
+    return (s or "").strip().rstrip("/\\")
+
+
 load_dotenv()
 docker_repo = "docker://mrcieu/genehackman"
 user = os.getenv('USER')
-input_file = os.getenv('INPUT_FILE') or "input.json"
+input_file = "input.yaml"
 start_time = datetime.now()
-slurm_log_directory = f"/user/work/{user}/slurm_logs/"
+
+_project = _strip_project_path(os.getenv("PROJECT_DIR", ""))
+
+DATA_DIR = format_dir_string(os.path.join(_project, "data"))
+RESULTS_DIR = format_dir_string(os.path.join(_project, "results"))
+
+_pipeline_log_override = os.getenv("PIPELINE_LOG_DIR")
+_local_flag = os.getenv("GENEHACKMAN_LOCAL", "").strip().lower() in ("1", "true", "yes")
+if _pipeline_log_override:
+    pipeline_log_directory = format_dir_string(_pipeline_log_override)
+elif _local_flag or not (DATA_DIR and os.path.isdir(DATA_DIR)):
+    pipeline_log_directory = format_dir_string(os.path.join(os.getcwd(), "snakemake_logs"))
+else:
+    pipeline_log_directory = format_dir_string(f"{DATA_DIR}/snakemake_logs")
+
+slurm_log_directory = pipeline_log_directory
 
 default_clump_headers = "CHR F SNP BP P TOTAL NSIG S05 S01 S001 S0001 SP2"
 #TODO: this should be read from predefined_column_map.csv
@@ -43,21 +72,17 @@ default_output_options = SimpleNamespace(**{
     "columns": SimpleNamespace(**default_columns)
 })
 
-if not os.getenv("DATA_DIR") or not os.getenv("RESULTS_DIR"):
-    raise ValueError("Please populate DATA_DIR and RESULTS_DIR in the .env file provided")
-if not os.getenv("RDFS_DIR"):
-    print("Please populate RDFS_DIR in .env if you want the generated files to be automatically copied to RDFS")
-
 DOCKER_VERSION = os.getenv('DOCKER_VERSION')
-DATA_DIR = format_dir_string(os.getenv('DATA_DIR'))
-RESULTS_DIR = format_dir_string(os.getenv('RESULTS_DIR'))
-RDFS_DIR = format_dir_string(os.getenv('RDFS_DIR'))
-LDSC_DIR = format_dir_string(os.getenv('LDSC_DIR'))
-GENOMIC_DATA_DIR = format_dir_string(os.getenv('GENOMIC_DATA_DIR'))
-THOUSAND_GENOMES_DIR = format_dir_string(os.getenv('THOUSAND_GENOMES_DIR'))
-PIPELINE_DATA_DIR = GENOMIC_DATA_DIR + "/pipeline"
 
-if RDFS_DIR and not RDFS_DIR.endswith("working/"):
-    raise ValueError("Please ensure RDFS_DIR ends with working/ to ensure the data gets copied to the correct place")
-if DATA_DIR == RESULTS_DIR:
-    raise ValueError("DATA_DIR and RESULTS_DIR must be different directories")
+# Single Snakemake output path for successful finemap runs (written last by finemap_gwas).
+FINEMAP_COMPLETE_TXT_PATTERN = RESULTS_DIR + "finemap/{prefix}/finemap_complete.txt"
+
+PIPELINE_DATA_DIR = format_dir_string(os.getenv('PIPELINE_DATA_DIR'))
+QTL_DATA_DIR = os.getenv("QTL_DATA_DIR", "").strip()
+
+LDSC_DIR = format_dir_string(PIPELINE_DATA_DIR + "/LDSCORE/b37_dbsnp156")
+GENOMIC_DATA_DIR = format_dir_string(PIPELINE_DATA_DIR + "/genomic_data")
+THOUSAND_GENOMES_DIR = format_dir_string(GENOMIC_DATA_DIR + "1000genomes/b37_dbsnp156")
+QTL_DIRECTORY = format_dir_string(QTL_DATA_DIR)
+
+AVAILABLE_CPUS = _available_cpus()

@@ -8,7 +8,14 @@ and changes the supplied data frame's column names accordingly}
 change_column_names(gwas, columns = list(), remove_extra_columns = F)
 }
 \arguments{
-\item{:}{opposite_mapping logical flag on if we are mapping from key to value or vice verca}
+\item{gwas}{dataframe of gwas to standardise column names}
+
+\item{columns}{named list for}
+
+\item{remove_extra_columns}{logical flag on if we are removing extra columns}
+}
+\value{
+gwas with new column names
 }
 \description{
 change_column_names: private function that takes a named list of column names

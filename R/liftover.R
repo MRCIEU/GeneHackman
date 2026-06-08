@@ -7,10 +7,10 @@ available_liftover_conversions[[paste0(reference_builds$GRCh37, reference_builds
 
 #' convert_reference_build_via_liftover: Change reference build of BP marker from allow list of liftOver conversions
 #'
-#' @param gwas: GWAS (file or dataframe) of standardised GWAS
-#' @param input_reference_build: string reference build, found in reference_builds list
-#' @param output_reference_build: string reference build that GWAS is to change to, found in reference_builds list
-#' @param output_file: optional output file name to save to
+#' @param gwas GWAS (file or dataframe) of standardised GWAS
+#' @param input_reference_build string reference build, found in reference_builds list
+#' @param output_reference_build string reference build that GWAS is to change to, found in reference_builds list
+#' @param output_file optional output file name to save to
 #' @return gwas input is altered and returned
 #' @export
 convert_reference_build_via_liftover <- function(gwas,
@@ -26,7 +26,7 @@ convert_reference_build_via_liftover <- function(gwas,
 
   liftover_conversion <- available_liftover_conversions[[paste0(input_reference_build, output_reference_build)]]
   if (is.null(liftover_conversion)) {
-    stop(paste(c("Error: liftOver combination of", input_build, output_build, "not recocognised.",
+    stop(paste(c("Error: liftOver combination of", input_reference_build, output_reference_build, "not recocognised.",
                   "Reference builds must be one of:", reference_builds), collapse = " "))
   }
 
@@ -66,8 +66,8 @@ convert_reference_build_via_liftover <- function(gwas,
   return(gwas)
 }
 
-#' @import tibble
-#' @import vroom
+
+
 create_bed_file_from_gwas <- function(gwas, output_file) {
   gwas <- get_file_or_dataframe(gwas)
 
@@ -83,13 +83,22 @@ create_bed_file_from_gwas <- function(gwas, output_file) {
 }
 
 
-run_liftover <- function(bed_file_input, bed_file_output, input_build, output_build, unmapped) {
-  lifover_binary <- paste0(liftover_dir, "liftOver")
-  liftover_conversion <- available_liftover_conversions[[paste0(input_build, output_build)]]
+#' Thin wrapper so tests can mock via testthat::local_mocked_bindings().
+#' @keywords internal
+run_system <- function(command, wait = TRUE, intern = FALSE,
+                         ignore.stdout = FALSE, ignore.stderr = FALSE) {
+  base::system(command, wait = wait, intern = intern,
+               ignore.stdout = ignore.stdout, ignore.stderr = ignore.stderr)
+}
 
-  chain_file <- paste0(liftover_dir, liftover_conversion)
-  liftover_command <- paste(lifover_binary, bed_file_input, chain_file, bed_file_output, unmapped)
-  system(liftover_command, wait=T)
+run_liftover <- function(bed_file_input, bed_file_output, input_build, output_build, unmapped) {
+  liftover_conversion <- available_liftover_conversions[[paste0(input_build, output_build)]]
+  chain_file <- file.path(liftover_chain_dir, liftover_conversion)
+  liftover_command <- paste(liftover_binary, bed_file_input, chain_file, bed_file_output, unmapped)
+  status <- run_system(liftover_command, wait = TRUE)
+  if (!is.null(status) && status != 0) {
+    stop("liftOver failed (exit code ", status, "): ", liftover_command)
+  }
 }
 
 

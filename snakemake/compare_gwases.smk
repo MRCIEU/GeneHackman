@@ -16,8 +16,8 @@ validate_ancestries(ancestries)
 expected_vs_observed_results = RESULTS_DIR + "gwas_comparison/expected_vs_observed_outcomes.tsv"
 expected_vs_observed_variants = RESULTS_DIR + "gwas_comparison/expected_vs_observed_variants.tsv"
 heterogeneity_scores = RESULTS_DIR + "gwas_comparison/heterogeneity_scores.tsv"
-heterogeneity_plot = RESULTS_DIR + "plots/ancestry_heterogeneity_plot.png"
-heterogeneity_snp_comparison = RESULTS_DIR + "plots/ancestry_heterogeneity_snp_comparison.png"
+heterogeneity_plot = RESULTS_DIR + "plots/snp_heterogeneity_plot.png"
+heterogeneity_snp_comparison = RESULTS_DIR + "plots/snps_with_heterogeneity_forest_plot.png"
 results_file = RESULTS_DIR + "gwas_comparison/result_compare_gwases.html"
 
 std_file_pattern = standardised_gwas_name("{prefix}")

@@ -20,13 +20,22 @@ collider_bias_results <- data.frame(
 #'  * "Corrected Weighted Least Squares" (CWLS, or Dudbridge) Correction
 #'  * MR IVW
 #'
+#' @param incidence_gwas incidence GWAS
+#' @param subsequent_gwas subsequent GWAS
+#' @param clumped_snps_file clumped SNP list to run collider bias corrections against
+#' @param adjustment_type adjustment type to save the adjusted GWAS
+#' @param adjustment_pval adjustment pval to save the adjusted GWAS
+#' @param collider_bias_results_file file to save the collider bias results
+#' @param harmonised_effects_result_file file to save the harmonised effects
+#' @param adjusted_output_file file to save the adjusted GWAS
+#' @param p_value_thresholds p value thresholds to run corrections
 #' @return 2 plots: one manhattan plot and one QQ plot (with lambda included)
-#' @import dplyr
-#' @import SlopeHunter
-#' @import TwoSampleMR
-#' @import MendelianRandomization
-#' @import data.table
-#' @import vroom
+
+
+
+
+
+
 #' @export
 conduct_collider_bias_analysis <- function(incidence_gwas,
                                            subsequent_gwas,
@@ -239,16 +248,16 @@ conduct_collider_bias_analysis <- function(incidence_gwas,
 #'   This can be used in conjuction with weights calculated to account for collider bias.
 #'   Currently used to work on a GWAS result of Slopehunter.
 #'
-#' @param gwas: gwas that the new collider bias correction will be saved to.  Swaps out BETA, SE, and P
-#' @param harmonised_effects: a dataframe that includes BETA.incidence, BETA.prognosis, SE.incidence, SE.prognosis
-#' @param collider_bias_type: string name of adjustment (eg. slopehunter)
-#' @param beta: number, slope of the correction
-#' @param se: number, SE of the corrected slope
-#' @param output_file: name of file that the corrected GWAS will be saved to
-#' @import dplyr
-#' @import vroom
-#' @import stats
-#' @import R.utils
+#' @param gwas gwas that the new collider bias correction will be saved to.  Swaps out BETA, SE, and P
+#' @param harmonised_effects a dataframe that includes BETA.incidence, BETA.prognosis, SE.incidence, SE.prognosis
+#' @param collider_bias_type string name of adjustment (eg. slopehunter)
+#' @param beta number, slope of the correction
+#' @param se number, SE of the corrected slope
+#' @param output_file name of file that the corrected GWAS will be saved to
+
+
+
+
 #'
 adjust_gwas_data_from_weights_and_save <- function(gwas,
                                                    harmonised_effects,

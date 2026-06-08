@@ -16,17 +16,17 @@ adjust_gwas_data_from_weights_and_save(
 )
 }
 \arguments{
-\item{gwas:}{gwas that the new collider bias correction will be saved to.  Swaps out BETA, SE, and P}
+\item{gwas}{gwas that the new collider bias correction will be saved to.  Swaps out BETA, SE, and P}
 
-\item{harmonised_effects:}{a dataframe that includes BETA.incidence, BETA.prognosis, SE.incidence, SE.prognosis}
+\item{harmonised_effects}{a dataframe that includes BETA.incidence, BETA.prognosis, SE.incidence, SE.prognosis}
 
-\item{collider_bias_type:}{string name of adjustment (eg. slopehunter)}
+\item{collider_bias_type}{string name of adjustment (eg. slopehunter)}
 
-\item{beta:}{number, slope of the correction}
+\item{beta}{number, slope of the correction}
 
-\item{se:}{number, SE of the corrected slope}
+\item{se}{number, SE of the corrected slope}
 
-\item{output_file:}{name of file that the corrected GWAS will be saved to}
+\item{output_file}{name of file that the corrected GWAS will be saved to}
 }
 \description{
 adjust_gwas_data_from_weights: Apply a slope correction weight (and SE) to an existing GWAS and save result to disk.

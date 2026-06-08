@@ -7,6 +7,14 @@ NOTE: only works with data that has been standardised, through \code{standardise
 \usage{
 vroom_snps(gwas_file, snps = c())
 }
+\arguments{
+\item{gwas_file}{file of gwas to get SNPs from}
+
+\item{snps}{vector of SNP names to get}
+}
+\value{
+dataframe of SNPs
+}
 \description{
 vroom_snps: If you only need to get a handful of SNPs out of a whole GWAS, this saves time and memory
 NOTE: only works with data that has been standardised, through \code{standardise_gwas}, or at least a tsv

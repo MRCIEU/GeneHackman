@@ -1,0 +1,18 @@
+gwases:
+  - file: tests/testthat/data/some_eqtlgen_hits.tsv.gz
+    columns: {}
+  - file: tests/testthat/data/opengwas_example.vcf.gz
+    columns: opengwas
+  - file: tests/testthat/data/metal_output.txt
+    columns: metal
+  - file: tests/testthat/data/test_data_small_hg38.tsv.gz
+    columns: {}
+    build: GRCh38
+  - file: tests/testthat/data/test_data_small_hg38_no_eaf.tsv.gz
+    ancestry: EUR
+    populate_eaf: true
+    columns: {}
+    build: GRCh38
+
+populate_rsid: false
+is_test: true

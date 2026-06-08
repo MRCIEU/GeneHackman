@@ -1,18 +1,33 @@
 include: "util/common.smk"
-singularity: get_docker_container()
+container: get_docker_container()
 
 pipeline_name = "qtl_mr"
-pipeline = parse_pipeline_input()
+pipeline = parse_pipeline_input(pipeline_includes_clumping=True)
 gwas = pipeline.gwases[0]
 
 onstart:
     print("##### QTL MR Pipeline #####")
+
+ancestries = list([g.ancestry for g in pipeline.gwases])
+validate_ancestries(ancestries)
+
+finemap_opts = getattr(pipeline, "finemap", SimpleNamespace())
+finemap_window_kb = getattr(finemap_opts, "window_kb", 1000)
+finemap_max_causal = getattr(finemap_opts, "max_causal", 10)
+finemap_coverage = getattr(finemap_opts, "coverage", 0.95)
+finemap_min_abs_corr = getattr(finemap_opts, "min_abs_corr", 0.5)
+
+qtl_opts = getattr(pipeline, "qtl", SimpleNamespace())
+study_type = gwas.study_type
 
 qtl_name = pipeline.qtl.dataset + "_" + pipeline.qtl.subcategory
 if not hasattr(pipeline.qtl, "exposures"): pipeline.qtl.exposures = []
 exposures_string = " ".join(pipeline.qtl.exposures)
 
 gwas_prefix = file_prefix(gwas.file)
+gwas.finemap_dir = RESULTS_DIR + "finemap/" + gwas_prefix
+finemap_complete_file = expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=[gwas_prefix])[0]
+
 mr_results = RESULTS_DIR + "mr/" + gwas_prefix + "_" + qtl_name + ".tsv.gz"
 coloc_results = RESULTS_DIR + "mr/coloc_" + gwas_prefix + "_" + qtl_name + ".tsv"
 volcano_plot = RESULTS_DIR + "plots/volcano_plot_" + gwas_prefix  + "_" + qtl_name + ".png"
@@ -21,9 +36,17 @@ results_file = RESULTS_DIR + "mr/result_" + qtl_name + "_" + gwas_prefix  + ".ht
 
 std_file_pattern = standardised_gwas_name("{prefix}")
 rule all:
-    input: gwas.standardised_gwas, mr_results, volcano_plot, coloc_results, results_file
+    input:
+        gwas.standardised_gwas,
+        expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=[gwas_prefix]),
+        mr_results,
+        volcano_plot,
+        coloc_results,
+        results_file
 
 include: "rules/standardise_rule.smk"
+include: "rules/clumping_rule.smk"
+include: "rules/finemap_rule.smk"
 
 rule run_mr_against_qtl_datasets:
     threads: 4
@@ -64,24 +87,28 @@ rule run_coloc_analysis_of_significant_mr_results:
     resources:
         mem = "16G"
     input:
-        mr_results = mr_results
+        mr_results = mr_results,
+        finemap_complete = expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=[gwas_prefix])
     params:
-        gwas = gwas.standardised_gwas,
+        finemap_dir = gwas.finemap_dir,
         N = gwas.N,
+        study_type = study_type,
         exposures = f"--exposures {exposures_string}" if exposures_string else ""
     output: coloc_results
     shell:
         """
         Rscript coloc_of_mr_results.R \
             --mr_results_filename {input.mr_results} \
-            --gwas_filename {params.gwas} \
+            --finemap_dir {params.finemap_dir} \
             --N {params.N} \
+            --study_type {params.study_type} \
             --dataset {pipeline.qtl.dataset} {params.exposures} \
-            --output_file {output} 
+            --output_file {output}
         """
 
 files_created = {
     "gwas": gwas.standardised_gwas,
+    "finemap_complete": finemap_complete_file,
     "mr_results": mr_results,
     "volcano_plot": volcano_plot,
     "coloc_results": coloc_results

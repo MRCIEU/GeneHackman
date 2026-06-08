@@ -9,14 +9,14 @@ accepted input file types: txt, csv, tsv, zip, gz}
 get_file_or_dataframe(input, columns = NULL, snps = NULL)
 }
 \arguments{
-\item{input:}{either data frame or string input of file}
+\item{input}{either data frame or string input of file}
 
-\item{columns:}{vector of strings matching column names to filter columns}
+\item{columns}{vector of strings matching column names to filter columns}
 
-\item{snps:}{vector of SNP names matching SNPs to filter rows}
+\item{snps}{vector of SNP names matching SNPs to filter rows}
 }
 \value{
-output: data frame of GWAS
+output data frame of GWAS
 }
 \description{
 get_file_or_dataframe: function that takes either dataframe OR file name, and returns a subset of

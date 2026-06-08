@@ -6,7 +6,14 @@ environment.yml
 run_pipeline.sh
 scripts
 snakemake
-tests
 venv
 .idea
 .env_example
+.env
+.cache
+^\.github$
+^\.lintr$
+^PLATFORM_SETUP\.md$
+^\.git$
+^\.gitignore$
+^\.cursorrules$

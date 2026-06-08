@@ -115,6 +115,148 @@ test_that("gwas_formatting.standardise_gwas standardises an IEU ukb pipeline out
   expect_true(all(grep("\\d+:\\d+_\\w+_\\w+", result$SNP)))
 })
 
+test_that("standardise_gwas flip_alleles=FALSE preserves EA/OA order and effect direction", {
+  tmp <- tempfile(fileext = ".tsv.gz")
+  # Use G/C (not T/A): vroom reads bare "T" in a file as logical TRUE.
+  g <- tibble::tibble(
+    CHR = 1L,
+    BP = 100000L,
+    EA = "G",
+    OA = "C",
+    P = 0.05,
+    BETA = 0.15,
+    SE = 0.03,
+    EAF = 0.42
+  )
+  vroom::vroom_write(g, tmp)
+
+  out_no_flip <- standardise_gwas(
+    tmp,
+    tempfile(fileext = ".tsv.gz"),
+    input_reference_build = reference_builds$GRCh37,
+    output_reference_build = reference_builds$GRCh37,
+    flip_alleles = FALSE
+  )
+  expect_equal(out_no_flip$EA[1], "G")
+  expect_equal(out_no_flip$OA[1], "C")
+  expect_equal(out_no_flip$BETA[1], 0.15)
+  expect_equal(out_no_flip$EAF[1], 0.42)
+  expect_match(out_no_flip$SNP[1], "^1:100000_G_C$")
+
+  out_flip <- standardise_gwas(
+    tmp,
+    tempfile(fileext = ".tsv.gz"),
+    input_reference_build = reference_builds$GRCh37,
+    output_reference_build = reference_builds$GRCh37,
+    flip_alleles = TRUE
+  )
+  expect_equal(out_flip$EA[1], "C")
+  expect_equal(out_flip$OA[1], "G")
+  expect_equal(out_flip$BETA[1], -0.15)
+  expect_equal(out_flip$EAF[1], 1 - 0.42)
+  expect_match(out_flip$SNP[1], "^1:100000_C_G$")
+})
+
+test_that("standardise_gwas errors when populate_eaf is TRUE and ancestry is missing", {
+  expect_error(
+    standardise_gwas(
+      "data/test_data_tiny.tsv.gz",
+      tempfile(fileext = ".tsv.gz"),
+      populate_eaf = TRUE,
+      ancestry = NULL
+    ),
+    "populate_eaf is TRUE but ancestry is missing"
+  )
+  expect_error(
+    standardise_gwas(
+      "data/test_data_tiny.tsv.gz",
+      tempfile(fileext = ".tsv.gz"),
+      populate_eaf = TRUE,
+      ancestry = ""
+    ),
+    "populate_eaf is TRUE but ancestry is missing"
+  )
+})
+
+test_that("standardise_gwas flip_alleles=FALSE with partial RSID succeeds (internal flip handles it)", {
+  out <- standardise_gwas(
+    "data/test_data_tiny.tsv.gz",
+    tempfile(fileext = ".tsv.gz"),
+    input_columns = "SNP=MARKER,CHR=CHR,BP=BP,EA=A0,OA=A1,EAF=A0FREQ,P=P,BETA=BETA,SE=SE,OR=OR,OR_LB=OR_LB,OR_UB=OR_UB,RSID=RSID",
+    flip_alleles = FALSE,
+    populate_rsid_option = populate_rsid_options$partial
+  )
+  expect_equal(nrow(out), 12L)
+})
+
+test_that("standardise_gwas allows flip_alleles FALSE with populate_rsid none", {
+  out_none <- standardise_gwas(
+    "data/test_data_tiny.tsv.gz",
+    tempfile(fileext = ".tsv.gz"),
+    input_columns = "SNP=MARKER,CHR=CHR,BP=BP,EA=A0,OA=A1,EAF=A0FREQ,P=P,BETA=BETA,SE=SE,OR=OR,OR_LB=OR_LB,OR_UB=OR_UB,RSID=RSID",
+    flip_alleles = FALSE,
+    populate_rsid_option = populate_rsid_options$none
+  )
+  expect_equal(nrow(out_none), 12L)
+})
+
+test_that("standardise_alleles always flips and unflip_alleles restores original", {
+  g <- tibble::tibble(
+    CHR = 1L,
+    BP = 100L,
+    EA = "T",
+    OA = "A",
+    BETA = 0.2,
+    EAF = 0.1,
+    P = 0.5,
+    SE = 0.1
+  )
+  flipped <- GeneHackman:::standardise_alleles(g)
+  expect_equal(flipped$BETA, -0.2)
+  expect_equal(flipped$EA, "A")
+  expect_equal(flipped$OA, "T")
+  expect_equal(flipped$EAF, 1 - 0.1)
+  expect_true(flipped$.ALLELES_FLIPPED[1])
+
+  restored <- GeneHackman:::unflip_alleles(flipped)
+  expect_equal(restored$BETA, 0.2)
+  expect_equal(restored$EA, "T")
+  expect_equal(restored$OA, "A")
+  expect_equal(restored$EAF, 0.1)
+  expect_false(".ALLELES_FLIPPED" %in% names(restored))
+})
+
+test_that("filter_incomplete_rows stops when all rows are incomplete", {
+  bad <- tibble::tibble(
+    CHR = 1L,
+    BP = 100000L,
+    EA = NA_character_,
+    OA = "A",
+    P = 0.05,
+    BETA = 0.1,
+    SE = 0.02,
+    EAF = 0.3
+  )
+  tmp <- tempfile(fileext = ".tsv.gz")
+  vroom::vroom_write(bad, tmp)
+  expect_error(
+    standardise_gwas(
+      tmp,
+      tempfile(fileext = ".tsv.gz"),
+      input_reference_build = reference_builds$GRCh37,
+      output_reference_build = reference_builds$GRCh37
+    ),
+    "all rows have been filtered from GWAS"
+  )
+})
+
+test_that("resolve_column_map errors on unresolvable column_map value", {
+  expect_error(
+    GeneHackman:::resolve_column_map(1L),
+    "Error resolving column map"
+  )
+})
+
 test_that("gwas_formatting.convert_beta_to_or and back returns the same results", {
   original_gwas <- vroom::vroom("data/test_data_small.tsv.gz", show_col_types=F)
 

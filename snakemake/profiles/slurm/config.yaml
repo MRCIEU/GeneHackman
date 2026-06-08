@@ -1,0 +1,43 @@
+cluster:
+  export PARTITION="$SLURM_PARTITION" &&
+  export ACCOUNT_ID="$SLURM_ACCOUNT" &&
+  sbatch
+    --partition=$PARTITION
+    --account=$ACCOUNT_ID
+    --nodes={resources.nodes}
+    --ntasks-per-node={resources.ntasks_per_node}
+    --cpus-per-task={resources.ntasks_per_node}
+    --time={resources.time}
+    --cpus-per-task={threads}
+    --mem={resources.mem}
+    --job-name={rule}-{wildcards}
+    --output="$PIPELINE_LOG_DIR/{rule}_%j.out"
+default-resources:
+  - time='01:00:00'
+  - mem='1G'
+  - ntasks_per_node=1
+  - nodes=1
+restart-times: 0
+max-jobs-per-second: 10
+max-status-checks-per-second: 1
+local-cores: 1
+latency-wait: 10
+jobs: 10
+keep-going: True
+rerun-incomplete: True
+use-singularity: True
+singularity-args: >-
+  -B $(pwd)/R:/home/R
+  -B $(pwd)/scripts:/home/scripts
+  -B $(pwd)/inst:/home/inst
+  -B ${HOME}:${HOME}
+  ${WORK:+-B ${WORK}:${WORK}}
+  -B ${DATA_DIR}:${DATA_DIR}
+  -B ${RESULTS_DIR}:${RESULTS_DIR}
+  -B ${PIPELINE_DATA_DIR}:${PIPELINE_DATA_DIR}
+  ${GENEHACKMAN_EXTRA_SINGULARITY_BINDS}
+  -B /tmp:/tmp
+  --env-file .env
+  --pwd /home/scripts/
+printshellcmds: True
+scheduler: greedy

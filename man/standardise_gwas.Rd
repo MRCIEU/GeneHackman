@@ -13,32 +13,46 @@ standardise_gwas(
   output_reference_build = reference_builds$GRCh37,
   input_columns = "default",
   output_columns = "default",
-  remove_extra_columns = F
+  remove_extra_columns = F,
+  populate_eaf = FALSE,
+  ancestry = NULL,
+  flip_alleles = TRUE
 )
 }
 \arguments{
-\item{gwas:}{filename of gwas to standardise or dataframe of gwas}
+\item{gwas}{filename of gwas to standardise or dataframe of gwas}
 
-\item{output_file:}{file to save standardised gwas}
+\item{output_file}{file to save standardised gwas}
 
-\item{N:}{sample size of GWAS (if GWAS has defined N column, defaults to that value)}
+\item{N}{sample size of GWAS (if GWAS has defined N column, defaults to that value)}
 
-\item{populate_rsid_option:}{if you want RSID populated or not}
+\item{populate_rsid_option}{if you want RSID populated or not}
 
-\item{input_reference_build:}{reference build of CHR and BP of data.  Defaults to GRCh37}
+\item{input_reference_build}{reference build of CHR and BP of data.  Defaults to GRCh37}
 
-\item{output_reference_build:}{reference build of CHR and BP of data.  Defaults to GRCh37}
+\item{output_reference_build}{reference build of CHR and BP of data.  Defaults to GRCh37}
 
-\item{input_columns:}{column header map used for renaming GWAS:
+\item{input_columns}{column header map used for renaming GWAS:
 can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values}
 
-\item{output_columns:}{column header map used for renaming GWAS:
+\item{output_columns}{column header map used for renaming GWAS:
 can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values}
 
-\item{r:}{reference build of CHR and BP of data.  Defaults to GRCh37}
+\item{remove_extra_columns}{logical flag on if to remove extra columns}
+
+\item{populate_eaf}{If TRUE, fill missing \code{EAF} from the 1000 Genomes \code{.frq}
+file via RSID matching.  Requires \code{ancestry}.  A partial RSID population is
+performed automatically when RSIDs are not already present.}
+
+\item{ancestry}{Ancestry code (EUR, EAS, AFR, AMR, SAS) matching the reference panel prefix; required when \code{populate_eaf} is TRUE.}
+
+\item{flip_alleles}{If TRUE (default), keep EA/OA in alphabetical order with flipped
+BETA/EAF/Z in the output.  When FALSE the original allele order and effect direction
+are restored before saving; all internal steps still operate on the canonical
+(alphabetically flipped) representation.}
 }
 \value{
-modified gwas: saves new gwas in {output_file} if present
+modified gwas: saves new gwas in output_file if present
 }
 \description{
 standardise_gwas: takes an input gwas, changes headers, standardises allelic input, adds RSID, makes life easier

@@ -1,0 +1,21 @@
+gwases:
+  - file: ""
+    columns:
+      CHR: ""
+      BP: ""
+      EA: ""
+      OA: ""
+      EAF: ""
+      P: ""
+      BETA: ""
+      SE: ""
+    ancestry: EUR
+  - file: ""
+    columns: {}
+    ancestry: EAS
+plink_clump_arguments: "--clump-p2 0.001 --clump-r2 0.3 --clump-kb 500"
+populate_rsid: false
+output:
+  adjusted_gwas:
+    type: cwls
+    p_val: 0.001

@@ -15,11 +15,19 @@ miami_plot(
 )
 }
 \arguments{
-\item{gwas_dataframe:}{a dataframe that includes CHR, CP, P, and SNP}
+\item{first_gwas_filename}{filename of first GWAS}
 
-\item{name:}{name of plots to be saved (and named as a header in graph)}
+\item{second_gwas_filename}{filename of second GWAS}
 
-\item{save_dir:}{defaults to 'scratch/results'}
+\item{miami_plot_file}{file to save the miami plot}
+
+\item{title}{title of the plot}
+
+\item{chr}{chromosome to perform miami plot on}
+
+\item{bp}{base pair position to perform miami plot on}
+
+\item{range}{range to filter in base pairs}
 }
 \description{
 miami_plot: produce miami plot of GWAS data from two gwases

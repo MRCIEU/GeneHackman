@@ -1,20 +1,25 @@
 source("load.R")
 library(argparser, quietly = TRUE)
 
-parser <- arg_parser("Perform a coloc analysis (and create a miami plot) for the coloc analysis")
+parser <- arg_parser("Run BF-BF colocalization on significant MR results using finemapped GWAS data")
 
-parser <- add_argument(parser, "--mr_results_filename", help = "filename of first GWAS", type = "character" )
-parser <- add_argument(parser, "--gwas_filename",
-                       help = "filename of first GWAS",
+parser <- add_argument(parser, "--mr_results_filename", help = "MR results filename", type = "character")
+parser <- add_argument(parser, "--finemap_dir",
+                       help = "Directory containing finemapped GWAS locus files",
                        type = "character"
 )
 parser <- add_argument(parser, "--N",
-                       help = "Sample size of GWAS",
+                       help = "Default sample size for QTL data",
                        type = "numeric",
                        default = 0
 )
+parser <- add_argument(parser, "--study_type",
+                       help = "Study type for LBF conversion (continuous or categorical)",
+                       type = "character",
+                       default = "continuous"
+)
 parser <- add_argument(parser, "--exposures",
-                       help = "List of exposures to perform coloc on, if none provided, runs on exposures with lowest p-vals",
+                       help = "List of exposures to perform coloc on",
                        type = "character",
                        default = "",
                        nargs = Inf
@@ -25,7 +30,7 @@ parser <- add_argument(parser, "--dataset",
                        type = "character"
 )
 parser <- add_argument(parser, "--output_file",
-                       help = "filename of coloc analysis to save",
+                       help = "Output filename for coloc results",
                        type = "character"
 )
 
@@ -33,4 +38,12 @@ args <- parse_args(parser)
 create_dir_for_files(args$output_file, paste0(user_results_dir, "/plots"))
 exposures <- split_string_into_vector(args$exposures)
 
-run_coloc_on_qtl_mr_results(args$mr_results_filename, args$gwas_filename, args$dataset, exposures, output_file=args$output_file, default_n=args$N)
+run_coloc_on_qtl_mr_results(
+  mr_results_file = args$mr_results_filename,
+  finemap_dir = args$finemap_dir,
+  qtl_dataset = args$dataset,
+  study_type = args$study_type,
+  exposures = exposures,
+  default_n = args$N,
+  output_file = args$output_file
+)

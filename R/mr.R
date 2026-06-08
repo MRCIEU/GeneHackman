@@ -1,21 +1,26 @@
+#' @keywords internal
+mr_list_files <- function(dir, pattern, full.names = FALSE) {
+  list.files(dir, pattern = pattern, full.names = full.names)
+}
+
 #'
 perform_mr_on_metabrain_datasets <- function(gwas_filename, ancestry="EUR", subcategory=NULL, exposures=c(), results_output) {
   file_pattern <- paste0(tolower(subcategory), "_", tolower(ancestry))
-  metabrain_top_hits <- list.files(metabrain_top_hits_dir, pattern = file_pattern, full.names = T)
+  metabrain_top_hits <- mr_list_files(metabrain_top_hits_dir, pattern = file_pattern, full.names = T)
 
   run_mr_on_qtl_data(gwas_filename, qtl_files = metabrain_top_hits, results_output = results_output, exposures = exposures)
 }
 
 perform_mr_on_eqtlgen_datasets <- function(gwas_filename, subcategory=NULL, exposures=c(), results_output) {
   file_pattern <- tolower(subcategory)
-  eqtlgen_top_hits <- list.files(eqtlgen_top_hits_dir, pattern = file_pattern, full.names = T)
+  eqtlgen_top_hits <- mr_list_files(eqtlgen_top_hits_dir, pattern = file_pattern, full.names = T)
 
   run_mr_on_qtl_data(gwas_filename, results_output = results_output, qtl_files = eqtlgen_top_hits, exposures = exposures)
 }
 
-#' @import dplyr
-#' @import vroom
-#' @import TwoSampleMR
+
+
+
 run_mr_on_qtl_data <- function(gwas_filename, qtl_files, results_output, exposures=c()) {
   all_qtl_mr_results <- lapply(qtl_files, function(qtl_file) {
     qtl_exposure <- TwoSampleMR::read_exposure_data(qtl_file,
@@ -73,8 +78,8 @@ run_mr_on_qtl_data <- function(gwas_filename, qtl_files, results_output, exposur
 
 #'
 #'
-#' @import dplyr
-#' @import vroom
+
+
 compare_interesting_mr_results <- function(pqtl_mr_results, forest_plot_output_file) {
   interesting_pqtl_mr_results <- vroom::vroom(pqtl_mr_results, show_col_types=F) |>
     dplyr::filter(p.adjusted < 0.05) |>

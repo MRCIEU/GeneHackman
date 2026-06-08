@@ -12,13 +12,13 @@ compare_replication_across_all_gwas_permutations(
 )
 }
 \arguments{
-\item{gwas_filenames:}{list of filenames of gwases}
+\item{gwas_filenames}{list of filenames of gwases}
 
-\item{clumped_filenames:}{list of clumped list filesnames genetred from gwas, in same order as gwases}
+\item{clumped_filenames}{list of clumped list filesnames genetred from gwas, in same order as gwases}
 
-\item{result_output_file:}{data frame of all results of gwas comparisons concatenated}
+\item{result_output_file}{data frame of all results of gwas comparisons concatenated}
 
-\item{variants_output_file:}{data frame of every SNP comparison from clumped list concatenated}
+\item{variants_output_file}{data frame of every SNP comparison from clumped list concatenated}
 }
 \description{
 takes a vector of gwasse and associated clumps, then runs the expected vs. observed algorithm

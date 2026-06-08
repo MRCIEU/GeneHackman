@@ -7,27 +7,25 @@ for g in pipeline.gwases:
     g.clumped_file = g.clumped_snp_prefix + ".clumped"
     setattr(pipeline, g.prefix, g)
 
-rule clump_gwases:
+CLUMPED_FILE_PATTERN = clump_dir + "{prefix}.clumped"
+
+rule clump_gwas:
+    threads: 4
     resources:
-        mem = "4G"
+        mem = "8G"
     input:
-        gwases = [g.standardised_gwas for g in pipeline.gwases]
-    output: [g.clumped_file for g in pipeline.gwases]
+        gwas = lambda wildcards: getattr(pipeline, wildcards.prefix).standardised_gwas
     params:
-        clumped_snp_prefixes = list([g.clumped_snp_prefix for g in pipeline.gwases])
+        ancestry = lambda wildcards: getattr(pipeline, wildcards.prefix).ancestry,
+        out_prefix = lambda wildcards: getattr(pipeline, wildcards.prefix).clumped_snp_prefix
+    output:
+        clumped = CLUMPED_FILE_PATTERN
     shell:
         """
-        gwases=({input.gwases})
-        ancestries=({ancestries})
-        clumped_snp_prefixes=({params.clumped_snp_prefixes})
-
-        for i in "${{!gwases[@]}}"
-        do
-            ancestry=${{ancestries[$i]}}
-            plink1.9 --bfile {THOUSAND_GENOMES_DIR}/$ancestry \
-                --clump ${{gwases[$i]}} \
-                --clump-snp-field RSID \
-                {pipeline.plink_clump_arguments} \
-                --out ${{clumped_snp_prefixes[$i]}} || echo "{default_clump_headers}" > {output}
-        done
+        plink1.9 --bfile {THOUSAND_GENOMES_DIR}/{params.ancestry} \
+            --threads {AVAILABLE_CPUS} \
+            --clump {input.gwas} \
+            --clump-snp-field RSID \
+            {pipeline.plink_clump_arguments} \
+            --out {params.out_prefix} || echo "{default_clump_headers}" > {output.clumped}
         """

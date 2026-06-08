@@ -1,5 +1,27 @@
-#' @import ggplot2
-#' @import shiny
+# Compute dynamic plot dimensions (px) given the number of items on the y-axis.
+# Returns list(width, height) in pixels capped at ggplot2's max (49 in * dpi).
+dynamic_plot_dims <- function(n_items, dpi = 300,
+                              px_per_item = 35L,
+                              min_height_px = 800L,
+                              base_width_px = 2400L) {
+  max_dim_px <- floor(49 * dpi)
+  effective_px <- if (n_items <= 30) max(px_per_item, 80L)
+                  else if (n_items <= 60) max(px_per_item, 55L)
+                  else px_per_item
+  height <- min(max(min_height_px, as.integer(n_items) * effective_px), max_dim_px)
+  width <- min(base_width_px, max_dim_px)
+  list(width = width, height = height)
+}
+
+
+#' forest_plot: produce a forest plot from a GWAS file
+#' @param table dataframe with the following columns: BETA, SE
+#' @param title title of the plot
+#' @param output_file file to save the plot
+#' @param y_column column to use for the y-axis
+#' @return ggplot2 object
+
+
 #' @export
 forest_plot <- function(table, title, output_file, y_column=NA) {
   if (!all(c("BETA", "SE") %in% names(table))) {
@@ -27,7 +49,15 @@ forest_plot <- function(table, title, output_file, y_column=NA) {
   ggplot2::ggsave(output_file, limitsize = F)
 }
 
-#' @import ggplot2
+#' grouped_forest_plot: produce a grouped forest plot from a GWAS file
+#' @param table dataframe with the following columns: BETA, SE
+#' @param title title of the plot
+#' @param group_column column to use for the group
+#' @param output_file file to save the plot
+#' @param p_value_column column to use for the p-value
+#' @param q_stat_column column to use for the Q-statistic
+#' @return ggplot2 object
+
 #' @export
 grouped_forest_plot <- function(table, title, group_column, output_file, p_value_column = NA, q_stat_column = NA) {
   if (!("BETA" %in% names(table)) || !("SE" %in% names(table))) {
@@ -41,6 +71,8 @@ grouped_forest_plot <- function(table, title, group_column, output_file, p_value
   table$LL <- table$BETA - (1.96 * table$SE)
   table$UL <- table$BETA + (1.96 * table$SE)
 
+  n_groups <- length(unique(table[[group_column]]))
+
   plot_thing <- ggplot2::ggplot(table,
          ggplot2::aes(y = if(!is.na(q_stat_column)) paste0(.data[[first_column_name]], "\n Q-stat=", .data[[q_stat_column]]) else .data[[first_column_name]],
              x = BETA,
@@ -52,21 +84,37 @@ grouped_forest_plot <- function(table, title, group_column, output_file, p_value
     ggplot2::scale_colour_brewer(type="qual") +
     ggplot2::geom_vline(xintercept = 0) +
     ggplot2::geom_pointrange(cex = 1, fatten = 2, position=ggplot2::position_dodge(width = 0.5)) +
-    ggplot2::theme(legend.position = "bottom") +
     ggplot2::ggtitle(title) +
-    ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5))
+    ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5)) +
+    ggplot2::guides(colour = ggplot2::guide_legend(ncol = 1),
+                    fill = ggplot2::guide_legend(ncol = 1)) +
+    ggplot2::theme(legend.position = "right")
 
-  if (!is.na(p_value_column)) {
+  p <- if (!is.na(p_value_column)) {
     plot_thing + ggplot2::geom_text(ggplot2::aes(label = paste("P=", signif(.data[[p_value_column]]), digits=3), group = .data[[group_column]]), position = ggplot2::position_dodge(width = 0.5))
   } else if (!is.na(q_stat_column)) {
     plot_thing + ggplot2::geom_text(ggplot2::aes(x = 1.5, label = .data[[q_stat_column]]))
+  } else {
+    plot_thing
   }
 
-  forest_plot_height <- max(nrow(table)*50, 2000)
-  ggplot2::ggsave(output_file, width = 2000, units = "px", height = forest_plot_height)
+  n_unique_y <- length(unique(table[[first_column_name]]))
+  dpi <- 300
+  dims <- dynamic_plot_dims(n_unique_y, dpi = dpi, px_per_item = 40L, min_height_px = 800L,
+                            base_width_px = 2400L)
+
+  ggplot2::ggsave(
+    output_file,
+    plot = p,
+    width = dims$width,
+    height = dims$height,
+    units = "px",
+    dpi = dpi,
+    limitsize = FALSE
+  )
 }
 
-#' @import ggplot2
+
 grouped_bar_chart <- function(data, title, x_column, y_column, group_column, output_file) {
   ggplot2::ggplot(data, ggplot2::aes(x = .data[[x_column]], y = .data[[y_column]], fill = .data[[group_column]])) +
     ggplot2::ggtitle(title) +
@@ -81,13 +129,14 @@ grouped_bar_chart <- function(data, title, x_column, y_column, group_column, out
 
 #' manhattan_and_qq: produce manhattan and qq plot from a GWAS file
 #'
-#' @param gwas_filename: a file of a gwas that includes CHR, CP, P, and SNP
-#' @param name: name of plots to be saved (and named as a header in graph)
-#' @param save_dir: defaults to 'scratch/results'
+#' @param gwas_filename file of a gwas that includes CHR, CP, P, and SNP
+#' @param manhattan_filename file to save the manhattan plot
+#' @param qq_filename file to save the qq plot
+#' @param include_qq logical flag on if to include the qq plot
 #' @return 2 plots: one manhattan plot and one QQ plot (with lambda included)
-#' @import grDevices
-#' @import qqman
-#' @import graphics
+
+
+
 #' @export
 manhattan_and_qq <- function(gwas_filename, manhattan_filename, qq_filename, include_qq = T) {
   manhattan_columns <- c("SNP", "CHR", "BP", "P")
@@ -112,12 +161,16 @@ manhattan_and_qq <- function(gwas_filename, manhattan_filename, qq_filename, inc
 
 #' miami_plot: produce miami plot of GWAS data from two gwases
 #'
-#' @param gwas_dataframe: a dataframe that includes CHR, CP, P, and SNP
-#' @param name: name of plots to be saved (and named as a header in graph)
-#' @param save_dir: defaults to 'scratch/results'
-#' @import grDevices
-#' @import qqman
-#' @import graphics
+#' @param first_gwas_filename filename of first GWAS
+#' @param second_gwas_filename filename of second GWAS
+#' @param miami_plot_file file to save the miami plot
+#' @param title title of the plot
+#' @param chr chromosome to perform miami plot on
+#' @param bp base pair position to perform miami plot on
+#' @param range range to filter in base pairs
+
+
+
 #' @export
 miami_plot <- function(first_gwas_filename,
                        second_gwas_filename,
@@ -180,8 +233,16 @@ miami_plot <- function(first_gwas_filename,
   grDevices::dev.off()
 }
 
-#' @import ggplot2
-#' @import ggrepel
+#' volcano_plot: produce a volcano plot from a GWAS file
+#' @param results_file file to save the plot
+#' @param title title of the plot
+#' @param label column to use for the label (default "EXPOSURE")
+#' @param num_labels number of labels to include in the plot (default 30)
+#' @param output_file file to save the plot
+#' @param p_val column to use for the p-value (default "p.adjusted")
+#' @return ggplot2 object
+
+
 #' @export
 volcano_plot <- function(results_file, title="Volcano Plot of Results", label="EXPOSURE", num_labels=30, output_file, p_val="p.adjusted")  {
   table <- get_file_or_dataframe(results_file)
@@ -196,13 +257,27 @@ volcano_plot <- function(results_file, title="Volcano Plot of Results", label="E
     get({{p_val}}) < 0.05 & BETA > 0 ~ "Protective"
   ))
 
-  #filter label to only showing the more 'important' labels
-  important_labels <- dplyr::filter(table, get({{p_val}}) < 0.05) |>
-    dplyr::arrange(dplyr::desc(-log10(get({{p_val}}) * abs(BETA))))
-  important_labels <- head(important_labels, num_labels)[[label]]
-  table[[label]] <- ifelse(table[[label]] %in% important_labels, table[[label]], NA)
+  # One label per distinct exposure/method key: MR outputs often repeat the same EXPOSURE
+  # (e.g. IVW rows); label only the best-scoring row per label value to avoid duplicate tags.
+  table <- dplyr::mutate(table, .volcano_row_id = dplyr::row_number())
+  sig <- dplyr::filter(table, .data[[p_val]] < 0.05)
+  representatives <- sig |>
+    dplyr::group_by(.data[[label]]) |>
+    dplyr::slice_max(
+      order_by = (-log10(.data[[p_val]]) * abs(BETA)),
+      n = 1L,
+      with_ties = FALSE
+    ) |>
+    dplyr::ungroup() |>
+    dplyr::arrange(dplyr::desc(-log10(.data[[p_val]]) * abs(BETA))) |>
+    dplyr::slice_head(n = num_labels)
 
-  ggplot2::ggplot(data = table, ggplot2::aes(x = BETA , y = -log10(.data[[p_val]]), col = category, label = .data[[label]])) +
+  rep_ids <- representatives$.volcano_row_id
+  lab_chr <- as.character(table[[label]])
+  table$.volcano_plot_label <- ifelse(table$.volcano_row_id %in% rep_ids, lab_chr, NA_character_)
+  table$.volcano_row_id <- NULL
+
+  p <- ggplot2::ggplot(data = table, ggplot2::aes(x = BETA , y = -log10(.data[[p_val]]), col = category, label = .volcano_plot_label)) +
     ggplot2::geom_vline(xintercept = c(-0.1, 0.1), col = "gray", linetype = 'dashed') +
     ggplot2::geom_hline(yintercept = -log10(0.05), col = "tomato2", linetype = 'dashed') +
     ggplot2::geom_point(size = 1) +
@@ -213,20 +288,47 @@ volcano_plot <- function(results_file, title="Volcano Plot of Results", label="E
     ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5)) +
     ggrepel::geom_text_repel(max.overlaps = Inf, show.legend = F)
 
-  ggplot2::ggsave(output_file)
+  ggplot2::ggsave(output_file, plot = p)
 }
 
-#' @import ggplot2
+
 plot_heritability_contribution_per_ancestry <- function(heterogeneity_results_qj, output_file) {
-  graph_width <- max(1000, nrow(heterogeneity_results_qj) * 100)
-  plot <- tidyr::gather(as.data.frame(heterogeneity_results_qj), "key", "value", -SNP)
+  dpi <- 300
+  n_snps <- nrow(heterogeneity_results_qj)
+  dims <- dynamic_plot_dims(n_snps, dpi = dpi, px_per_item = 35L, min_height_px = 800L,
+                            base_width_px = 2400L)
 
-  ggplot2::ggplot(plot, ggplot2::aes(x=SNP, y=-log10(value))) +
-    ggplot2::geom_point(ggplot2::aes(colour=key)) +
-    ggplot2::scale_colour_brewer(type="qual") +
-    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.5, hjust=1)) +
-    ggplot2::ggtitle("Contribution to heterogeneity score broken down by population") +
-    ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5))
+  qj_df <- as.data.frame(heterogeneity_results_qj, check.names = TRUE)
+  snp_levels <- qj_df$SNP
+  plot_data <- tidyr::pivot_longer(qj_df, cols = -SNP, names_to = "key", values_to = "value")
+  plot_data$SNP <- factor(plot_data$SNP, levels = unique(snp_levels))
 
-  ggplot2::ggsave(output_file, width = graph_width, units = "px")
+  y_text_size <- if (n_snps > 80) ggplot2::rel(0.5)
+                 else if (n_snps > 40) ggplot2::rel(0.65)
+                 else ggplot2::rel(0.85)
+
+  p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = -log10(value), y = SNP)) +
+    ggplot2::geom_point(ggplot2::aes(colour = key), size = 0.35) +
+    ggplot2::scale_colour_brewer(type = "qual", name = "GWAS") +
+    ggplot2::guides(colour = ggplot2::guide_legend(ncol = 1)) +
+    ggplot2::labs(
+      x = expression(-log[10] * " (per-GWAS contribution p-value)"),
+      y = "SNP"
+    ) +
+    ggplot2::ggtitle("Contribution to heterogeneity score by GWAS") +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(hjust = 0.5),
+      axis.text.y = ggplot2::element_text(size = y_text_size),
+      legend.position = "right"
+    )
+
+  ggplot2::ggsave(
+    output_file,
+    plot = p,
+    width = dims$width,
+    height = dims$height,
+    units = "px",
+    dpi = dpi,
+    limitsize = FALSE
+  )
 }

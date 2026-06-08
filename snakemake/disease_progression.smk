@@ -1,5 +1,5 @@
 include: "util/common.smk"
-singularity: get_docker_container()
+container: get_docker_container()
 
 pipeline_name = "disease_progression"
 pipeline = parse_pipeline_input(pipeline_includes_clumping=True)
@@ -65,14 +65,14 @@ rule collider_bias_correction:
             --collider_bias_adjusted_output {output.adjusted_results}
         """
 
-rule unadjusted_miami_plot:
+rule incident_vs_adjusted_miami_plot:
     threads: 4
     resources:
         mem = "16G",
         time = "02:00:00"
     input:
         first_gwas = incident.standardised_gwas,
-        second_gwas = subsequent.standardised_gwas,
+        second_gwas = adjusted_results
     output: unadjusted_miami_plot
     shell:
         """
@@ -80,16 +80,16 @@ rule unadjusted_miami_plot:
             --first_gwas {input.first_gwas} \
             --second_gwas {input.second_gwas} \
             --miami_filename {output} \
-            --title "Comparing Incidence and Subsequent GWAS"
+            --title "Comparing Incident GWAS and Collider Bias Adjusted GWAS"
         """
 
-rule collider_bias_adjusted_miami_plot:
+rule subsequent_vs_adjusted_miami_plot:
     threads: 4
     resources:
         mem = "16G",
         time = "02:00:00"
     input:
-        first_gwas = incident.standardised_gwas,
+        first_gwas = subsequent.standardised_gwas,
         second_gwas = adjusted_results
     output: collider_bias_adjusted_miami_plot
     shell:
@@ -98,7 +98,7 @@ rule collider_bias_adjusted_miami_plot:
             --first_gwas {input.first_gwas} \
             --second_gwas {input.second_gwas} \
             --miami_filename {output} \
-            --title "Comparing Incidence and Collider Bias Adjusted Subsequent GWAS"
+            --title "Comparing Subsequent GWAS and Collider Bias Adjusted GWAS"
         """
 
 rule compare_original_observed_vs_expected_gwas:

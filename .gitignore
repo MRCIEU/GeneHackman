@@ -1,9 +1,17 @@
 .Rproj.user
+.cursorrules
 .snakemake/
+.genehackman/
+pipeline_logs/
 .cache/
 .ipynb_checkpoints/
+*input.yaml
 *input.json
 .env
 .bashrc
 .DS_Store
 ieugwasr_oauth
+__pycache__/
+
+/.quarto/
+**/*.quarto_ipynb

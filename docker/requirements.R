@@ -1,8 +1,22 @@
-install.packages(c("devtools", "argparser", "gmp", "corrplot", "broom", "conflicted", "nloptr", "Cairo"),
-                 repos = "http://cran.us.r-project.org")
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+.libPaths(c("/usr/lib/R/site-library", .libPaths()))
 
-#also needed: forestplot, data.table, devtools
-#install.packages('https://homepages.uni-regensburg.de/~wit59712/easyqc/EasyQC_23.8.tar.gz', repos = NULL, type = 'source')
-.libPaths( c( .libPaths(), "/usr/lib/R/site-library") )
+install.packages("remotes")
+pkgs <- c("argparser", "gmp", "corrplot", "broom", "conflicted", "nloptr", "Cairo", "Rfast", "susieR")
+install.packages(pkgs)
 
-devtools::install_github(c("MRCIEU/GeneHackman", "phenoscanner/phenoscanner", "suchestoncampbelllab/gwasurvivr"))
+install.packages("devtools")
+
+
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install(c("ensembldb", "EnsDb.Hsapiens.v75"), update = FALSE, ask = FALSE)
+
+install.packages(c("locuszoomr", "patchwork"))
+
+remotes::install_deps(
+  "docker",
+  dependencies = c("Depends", "Imports", "LinkingTo"),
+  upgrade = "never",
+  repos = BiocManager::repositories()
+)

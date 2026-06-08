@@ -41,16 +41,32 @@ parser <- add_argument(parser, "--populate_rsid",
                        type = "character",
                        default = "none"
 )
+parser <- add_argument(parser, "--populate_eaf",
+                       help = "If TRUE, fill missing EAF from LD reference panel (.bim + .frq under thousand genomes path)",
+                       type = "logical",
+                       default = FALSE
+)
+parser <- add_argument(parser, "--ancestry",
+                       help = "Ancestry code for EAF reference (EUR, EAS, AFR, AMR, SAS); required when --populate_eaf is true",
+                       type = "character",
+                       default = ""
+)
 parser <- add_argument(parser, "--remove_extra_columns",
 											 help = "Remove additional columns in GWAS that are not specified as an input column",
 											 type = "logical",
 											 default = FALSE
 )
+parser <- add_argument(parser, "--flip_alleles",
+											 help = "If TRUE, reorder EA/OA alphabetically and flip BETA/EAF/Z. Set FALSE to keep alleles as-is.",
+											 type = "logical",
+											 default = TRUE
+)
 
 args <- parse_args(parser)
 create_dir_for_files(args$output_gwas)
 
-standardise_gwas(gwas = args$input_gwas,
+invisible(standardise_gwas(
+                 gwas = args$input_gwas,
                  output_file = args$output_gwas,
                  N = args$N,
                  populate_rsid_option = args$populate_rsid,
@@ -58,5 +74,8 @@ standardise_gwas(gwas = args$input_gwas,
                  output_reference_build = args$output_build,
                  input_columns = args$input_columns,
                  output_columns = args$output_columns,
-								 remove_extra_columns = args$remove_extra_columns
-)
+								 remove_extra_columns = args$remove_extra_columns,
+                 populate_eaf = args$populate_eaf,
+                 ancestry = args$ancestry,
+                 flip_alleles = args$flip_alleles
+))
