@@ -202,7 +202,8 @@ def compute_ld_matrix(rsids, chrom, ancestry, thousand_genomes_dir):
             "--bfile", bfile,
             "--chr", str(chrom),
             "--extract", snp_file,
-            "--r", "square",
+            "--r", "square", "r-unphased",
+            "--keep-allele-order",
             "--out", out_prefix,
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)

@@ -26,7 +26,10 @@ def dict_to_namespace(obj):
 def get_docker_container():
     version = DOCKER_VERSION
     if not version:
-        raise ValueError("Error: DOCKER_VERSION must be set in .env")
+        raise ValueError(
+            "Error: could not determine Docker image version. "
+            "Set DOCKER_VERSION in .env or ensure DESCRIPTION contains Version:"
+        )
     pipeline_genomic_dir = os.path.join(PIPELINE_DATA_DIR.rstrip("/"), "genomic_data", "pipeline")
     sif_path = os.path.join(pipeline_genomic_dir, f"genehackman_{version}.sif")
     if not os.path.isfile(sif_path):

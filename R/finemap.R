@@ -250,11 +250,11 @@ compute_ld_matrix <- function(rsids, chr, ancestry) {
 
   cmd <- paste(
     "plink1.9",
-    "--threads", as.character(available_cpus()),
     "--bfile", bfile,
     "--chr", chr,
     "--extract", snp_file,
-    "--r square",
+    "--r square", "r-unphased",
+    "--keep-allele-order",
     "--out", out_prefix
   )
   exit_code <- run_system(cmd, wait = TRUE, ignore.stdout = TRUE, ignore.stderr = TRUE)

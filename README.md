@@ -85,13 +85,13 @@ Variables match [.env_example](.env_example):
 | Variable | Purpose |
 |----------|---------|
 | **`PROJECT_DIR`** | Root folder for this analysis. The pipeline uses **`PROJECT_DIR/data/`** for inputs (GWAS, clumps, …) and **`PROJECT_DIR/results/`** for outputs (finemap, coloc, plots, …). |
-| **`PIPELINE_DATA_DIR`** | Path where you unpacked the shared **`genehackman`** reference data (see §3). Also used for the Apptainer image: **`PIPELINE_DATA_DIR/genomic_data/pipeline/genehackman_<DOCKER_VERSION>.sif`**. If that SIF is missing and the directory is writable, `run_pipeline.sh` builds it from `docker://mrcieu/genehackman:<DOCKER_VERSION>`. |
-| **`DOCKER_VERSION`** | Docker/Apptainer image tag (e.g. `1.1.0` or `develop`). Must match the SIF filename and the image you intend to run. |
+| **`PIPELINE_DATA_DIR`** | Path where you unpacked the shared **`genehackman`** reference data (see §3). Also used for the Apptainer image: **`PIPELINE_DATA_DIR/genomic_data/pipeline/genehackman_<version>.sif`**, where `<version>` comes from **`DOCKER_VERSION`** or defaults to **`Version:`** in [`DESCRIPTION`](DESCRIPTION). If that SIF is missing and the directory is writable, `run_pipeline.sh` builds it from `docker://mrcieu/genehackman:<version>`. |
 
 **Optional**
 
 | Variable | Purpose |
 |----------|---------|
+| **`DOCKER_VERSION`** | Docker/Apptainer image tag (e.g. `1.1.0` or `develop`). Defaults to **`Version:`** in [`DESCRIPTION`](DESCRIPTION) when unset. Override when you need a different image than the checked-out package version. |
 | **`QTL_DATA_DIR`** | Path to **`genehackman-qtl`** data if you run **`qtl_mr`**. Leave empty for other pipelines. You can instead place QTL data under **`PIPELINE_DATA_DIR/qtl_datasets/`** (see [PLATFORM_SETUP.md](PLATFORM_SETUP.md)). |
 | **`SNAKEMAKE_PROFILE`** | Snakemake profile directory. Default in `.env_example`: **`snakemake/profiles/local/`** (local Apptainer). On HPC use e.g. **`snakemake/profiles/slurm/`**. |
 | **`APPTAINER_MODULE`** | Environment module name to load Apptainer/Singularity before running on HPC (only used when the profile is not `local`). |
@@ -103,7 +103,7 @@ Example `.env`:
 ```bash
 PROJECT_DIR=/path/to/my_project
 PIPELINE_DATA_DIR=/path/to/my_pipeline_data/
-DOCKER_VERSION=1.1.0
+# DOCKER_VERSION=1.1.0  # optional; defaults to Version: in DESCRIPTION
 QTL_DATA_DIR=/path/to/my_qtl_data/
 SNAKEMAKE_PROFILE=snakemake/profiles/local/
 ```

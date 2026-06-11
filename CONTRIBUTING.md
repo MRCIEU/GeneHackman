@@ -25,7 +25,8 @@ For running pipelines in production, see [README.md](README.md) and [PLATFORM_SE
 
    - **`PROJECT_DIR`** — absolute path where test outputs go (e.g. a scratch folder; the pipeline writes to `PROJECT_DIR/data/` and `PROJECT_DIR/results/`).
    - **`PIPELINE_DATA_DIR`** — absolute path to the reference data bundle from `gs://genehackman` (1000 Genomes LD panels, LDSC assets, etc.).
-   - **`DOCKER_VERSION`** — image tag to run (e.g. `1.1.0` or `develop`).
+
+   **`DOCKER_VERSION`** is optional; it defaults to **`Version:`** in [`DESCRIPTION`](DESCRIPTION). Set it in `.env` only when you need a different image tag (e.g. `develop`).
 
    Use **absolute paths** in `.env`. Relative paths (e.g. `QTL_DATA_DIR=hi`) break Apptainer bind mounts with errors like `destination must be an absolute path`.
 
@@ -112,9 +113,9 @@ After changing Python deps, edit `docker/requirements.txt` and rebuild.
 docker push mrcieu/genehackman:<tag>
 ```
 
-Bump **`Version:`** in `DESCRIPTION` and **`DOCKER_VERSION`** in `.env` together so the SIF name (`genehackman_<version>.sif`) matches the image tag.
+Bump **`Version:`** in `DESCRIPTION` when releasing; the pipeline defaults to that tag for the SIF name (`genehackman_<version>.sif`) and Docker pull. Set **`DOCKER_VERSION`** in `.env` only to override (e.g. `develop`).
 
-HPC users without Docker pull the same image via `run_pipeline.sh`, which builds or uses `$PIPELINE_DATA_DIR/genomic_data/pipeline/genehackman_<DOCKER_VERSION>.sif`.
+HPC users without Docker pull the same image via `run_pipeline.sh`, which builds or uses `$PIPELINE_DATA_DIR/genomic_data/pipeline/genehackman_<version>.sif`.
 
 ## Unit tests
 
@@ -217,7 +218,7 @@ Releases tie together three versioned artefacts:
 | Docker / Apptainer image | Docker Hub `mrcieu/genehackman` | tag `1.2.0` (matches `Version:`) |
 | Git tag | GitHub | `v1.2.0` (`v` + same semver) |
 
-Users set **`DOCKER_VERSION=1.2.0`** in `.env`; Snakemake looks for `genehackman_1.2.0.sif` under `PIPELINE_DATA_DIR/genomic_data/pipeline/`.
+Users on release **`1.2.0`** get image tag **`1.2.0`** from **`Version:`** in `DESCRIPTION` by default; Snakemake looks for `genehackman_1.2.0.sif` under `PIPELINE_DATA_DIR/genomic_data/pipeline/`. Override with **`DOCKER_VERSION=1.2.0`** (or another tag) in `.env` if needed.
 
 ### Before you release
 
@@ -235,12 +236,12 @@ Users set **`DOCKER_VERSION=1.2.0`** in `.env`; Snakemake looks for `genehackman
 
 ### 1. Bump the version
 
-Edit **`Version:`** in [`DESCRIPTION`](DESCRIPTION) to the new semver (e.g. `1.2.0`).
+Edit **`Version:`** in [`DESCRIPTION`](DESCRIPTION) to the new semver (e.g. `1.2.0`). The pipeline and `run_pipeline.sh` use that value for the Docker/Apptainer image tag unless **`DOCKER_VERSION`** is set in `.env`.
 
-Update the example default in [`.env_example`](.env_example):
+Optionally document an override example in [`.env_example`](.env_example):
 
 ```bash
-DOCKER_VERSION=1.2.0
+# DOCKER_VERSION=1.2.0
 ```
 
 Regenerate R docs if exports changed:
@@ -252,7 +253,7 @@ Rscript -e "devtools::document()"
 Commit on `main` (or via PR):
 
 ```bash
-git add DESCRIPTION .env_example
+git add DESCRIPTION
 git commit -m "Bump version to 1.2.0"
 git push origin main
 ```
@@ -319,7 +320,7 @@ The project is archived on Zenodo ([10.5281/zenodo.10624713](https://doi.org/10.
 
 Tell users to:
 
-1. Set **`DOCKER_VERSION`** in `.env` to the new version.
+1. Pull the new release (or check out a tag whose **`DESCRIPTION`** `Version:` matches the image you want). Set **`DOCKER_VERSION`** in `.env` only if you need a tag other than that default.
 2. Pull or build the SIF, e.g. delete an old `genehackman_*.sif` and re-run `run_pipeline.sh` (it builds from `docker://mrcieu/genehackman:<version>` if the file is missing), or on HPC:
 
    ```bash
