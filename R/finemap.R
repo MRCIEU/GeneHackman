@@ -253,16 +253,30 @@ compute_ld_matrix <- function(rsids, chr, ancestry) {
     "--bfile", bfile,
     "--chr", chr,
     "--extract", snp_file,
-    "--r square", "r-unphased",
+    "--r", "square", "r-unphased",
     "--keep-allele-order",
     "--out", out_prefix
   )
   exit_code <- run_system(cmd, wait = TRUE, ignore.stdout = TRUE, ignore.stderr = TRUE)
 
   ld_file <- paste0(out_prefix, ".ld")
-  snp_order_file <- paste0(out_prefix, ".nosex")
+  log_file <- paste0(out_prefix, ".log")
 
   if (exit_code != 0 || !file.exists(ld_file)) {
+    if (file.exists(log_file)) {
+      plink_log <- paste(readLines(log_file, warn = FALSE), collapse = "\n")
+      warning(
+        "PLINK LD matrix computation failed for chr ", chr, " (ancestry ", ancestry,
+        ", exit code ", exit_code, "). Command:\n", cmd, "\nPLINK log:\n", plink_log,
+        call. = FALSE, immediate. = TRUE
+      )
+    } else {
+      warning(
+        "PLINK LD matrix computation failed for chr ", chr, " (ancestry ", ancestry,
+        ", exit code ", exit_code, "). Command:\n", cmd,
+        call. = FALSE, immediate. = TRUE
+      )
+    }
     unlink(c(snp_file, paste0(out_prefix, c(".ld", ".nosex", ".log", ".bim", ".bed", ".fam"))),
            force = TRUE)
     return(NULL)
