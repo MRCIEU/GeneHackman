@@ -253,7 +253,7 @@ compute_ld_matrix <- function(rsids, chr, ancestry) {
     "--bfile", bfile,
     "--chr", chr,
     "--extract", snp_file,
-    "--r", "square", "r-unphased",
+    "--r", "square",
     "--keep-allele-order",
     "--out", out_prefix
   )

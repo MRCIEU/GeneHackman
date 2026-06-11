@@ -202,7 +202,7 @@ def compute_ld_matrix(rsids, chrom, ancestry, thousand_genomes_dir):
             "--bfile", bfile,
             "--chr", str(chrom),
             "--extract", snp_file,
-            "--r", "square", "r-unphased",
+            "--r", "square",
             "--keep-allele-order",
             "--out", out_prefix,
         ]
