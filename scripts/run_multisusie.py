@@ -278,98 +278,152 @@ def estimate_var_y(se, eaf, n):
     return float(var_y) if var_y > 0 else 1.0
 
 
+def _iter_credible_sets(sets, n_variants):
+    """Yield non-empty credible sets from a MultiSuSiE fit.sets tuple."""
+    if sets is None or not isinstance(sets, (list, tuple)) or len(sets) == 0:
+        return
+
+    cs_list = sets[0]
+    purity_list = sets[1] if len(sets) > 1 else [np.nan] * len(cs_list)
+    coverage_list = sets[2] if len(sets) > 2 else [np.nan] * len(cs_list)
+    pass_filter = sets[3] if len(sets) > 3 else [True] * len(cs_list)
+
+    cs_counter = 0
+    for ser_idx, indices in enumerate(cs_list):
+        if len(indices) == 0:
+            continue
+        indices = np.asarray(indices, dtype=int)
+        indices = indices[(indices >= 0) & (indices < n_variants)]
+        if len(indices) == 0:
+            continue
+        cs_counter += 1
+        yield {
+            "cs_id": cs_counter,
+            "ser_idx": ser_idx,
+            "indices": indices,
+            "purity": purity_list[ser_idx] if ser_idx < len(purity_list) else np.nan,
+            "coverage": coverage_list[ser_idx] if ser_idx < len(coverage_list) else np.nan,
+            "pass_filter": bool(pass_filter[ser_idx]) if ser_idx < len(pass_filter) else True,
+        }
+
+
 def assign_credible_set_columns(sets, n_variants):
     """Map MultiSuSiE credible sets to IN_CS and CS_ID per variant."""
     in_cs = np.zeros(n_variants, dtype=int)
     cs_id = np.full(n_variants, np.nan)
-    if sets is None or not isinstance(sets, (list, tuple)) or len(sets) == 0:
-        return in_cs, cs_id
-
-    cs_list = sets[0]
-    include_mask = sets[3] if len(sets) > 3 else [True] * len(cs_list)
-    cs_counter = 0
-    for l_idx, indices in enumerate(cs_list):
-        if l_idx >= len(include_mask) or not include_mask[l_idx] or len(indices) == 0:
-            continue
-        cs_counter += 1
-        for idx in np.asarray(indices, dtype=int):
-            if 0 <= idx < n_variants:
-                in_cs[idx] = 1
-                if np.isnan(cs_id[idx]):
-                    cs_id[idx] = cs_counter
+    for cs in _iter_credible_sets(sets, n_variants):
+        for idx in cs["indices"]:
+            in_cs[idx] = 1
+            if np.isnan(cs_id[idx]):
+                cs_id[idx] = cs["cs_id"]
     return in_cs, cs_id
 
 
-def build_multisusie_result_df(fit, final_rsids, ref_gwas, ancestries):
-    """Build per-variant output table from a MultiSuSiE fit."""
+def _fit_pip(fit, n_variants):
+    if hasattr(fit, "pip") and fit.pip is not None and len(fit.pip) == n_variants:
+        return np.asarray(fit.pip, dtype=float)
+    return np.full(n_variants, np.nan)
+
+
+def _fit_lbf(fit, n_sers):
+    if hasattr(fit, "lbf") and fit.lbf is not None:
+        return np.asarray(fit.lbf, dtype=float)
+    return np.full(n_sers, np.nan)
+
+
+def _append_ancestry_columns(result_df, fit, ancestry_gwas, ancestries, variant_indices):
+    """Add per-population GWAS stats and MultiSuSiE posterior effect estimates."""
+    for k, ancestry in enumerate(ancestries):
+        gwas_sub = ancestry_gwas[k]
+        result_df[f"BETA_{ancestry}"] = gwas_sub["BETA"].iloc[variant_indices].astype(float).values
+        result_df[f"SE_{ancestry}"] = gwas_sub["SE"].iloc[variant_indices].astype(float).values
+        if "P" in gwas_sub.columns:
+            result_df[f"P_{ancestry}"] = gwas_sub["P"].iloc[variant_indices].astype(float).values
+        else:
+            result_df[f"P_{ancestry}"] = np.nan
+
+        if hasattr(fit, "coef") and fit.coef is not None and fit.coef.shape[0] > k:
+            result_df[f"COEF_{ancestry}"] = fit.coef[k][variant_indices]
+        else:
+            result_df[f"COEF_{ancestry}"] = np.nan
+
+        if hasattr(fit, "coef_sd") and fit.coef_sd is not None and fit.coef_sd.shape[0] > k:
+            result_df[f"COEF_SD_{ancestry}"] = fit.coef_sd[k][variant_indices]
+        else:
+            result_df[f"COEF_SD_{ancestry}"] = np.nan
+
+
+def build_multisusie_result_df(fit, final_rsids, ref_gwas, ancestry_gwas, ancestries):
+    """Build per-variant finemap table for credible-set variants only."""
     n = len(final_rsids)
     result_df = pd.DataFrame({
         "SNP": ref_gwas["SNP"].values if "SNP" in ref_gwas.columns else final_rsids,
         "CHR": ref_gwas["CHR"].values,
         "BP": ref_gwas["BP"].values,
         "RSID": final_rsids,
+        "JOINT_PIP": _fit_pip(fit, n),
     })
 
-    if hasattr(fit, "pip") and fit.pip is not None and len(fit.pip) == n:
-        result_df["JOINT_PIP"] = fit.pip
-    else:
-        result_df["JOINT_PIP"] = np.nan
-
-    in_cs, cs_id = assign_credible_set_columns(
-        getattr(fit, "sets", None), n
-    )
-    result_df["IN_CS"] = in_cs
+    in_cs, cs_id = assign_credible_set_columns(getattr(fit, "sets", None), n)
     result_df["CS_ID"] = pd.array(cs_id, dtype="Int64")
+    _append_ancestry_columns(
+        result_df, fit, ancestry_gwas, ancestries, np.arange(n, dtype=int)
+    )
 
-    if hasattr(fit, "coef") and fit.coef is not None:
-        for k, ancestry in enumerate(ancestries):
-            if fit.coef.shape[0] > k and len(fit.coef[k]) == n:
-                result_df[f"POSTERIOR_COEF_{ancestry}"] = fit.coef[k]
-
-    return result_df
+    return result_df.loc[in_cs == 1].copy()
 
 
-def build_credible_sets_df(fit, final_rsids):
-    """Summarise each MultiSuSiE credible set for locus_credible_sets.tsv."""
+def build_credible_sets_df(fit, final_rsids, ref_gwas, ancestry_gwas, ancestries):
+    """One row per variant in each credible set for locus_credible_sets.tsv."""
     sets = getattr(fit, "sets", None)
-    columns = ["CS_ID", "CS_SIZE", "PURITY", "MAX_PIP_RSID", "MAX_PIP", "LBF"]
-    if sets is None or not isinstance(sets, (list, tuple)) or len(sets) == 0:
-        return pd.DataFrame(columns=columns)
-
-    cs_list = sets[0]
-    purity_list = sets[1] if len(sets) > 1 else [np.nan] * len(cs_list)
-    include_mask = sets[3] if len(sets) > 3 else [True] * len(cs_list)
-    pip = (
-        np.asarray(fit.pip, dtype=float)
-        if hasattr(fit, "pip") and fit.pip is not None
-        else np.full(len(final_rsids), np.nan)
+    n = len(final_rsids)
+    pip = _fit_pip(fit, n)
+    alpha = (
+        np.asarray(fit.alpha, dtype=float)
+        if hasattr(fit, "alpha") and fit.alpha is not None
+        else None
     )
-    lbf = (
-        np.asarray(fit.lbf, dtype=float)
-        if hasattr(fit, "lbf") and fit.lbf is not None
-        else np.full(len(cs_list), np.nan)
-    )
+    n_sers = len(sets[0]) if sets is not None and len(sets) > 0 else 0
+    lbf = _fit_lbf(fit, n_sers)
 
     rows = []
-    cs_counter = 0
-    for l_idx, indices in enumerate(cs_list):
-        if l_idx >= len(include_mask) or not include_mask[l_idx] or len(indices) == 0:
-            continue
-        cs_counter += 1
-        indices = np.asarray(indices, dtype=int)
-        cs_pip = pip[indices]
-        best_local = int(np.nanargmax(cs_pip))
-        best_idx = int(indices[best_local])
-        rows.append({
-            "CS_ID": cs_counter,
-            "CS_SIZE": len(indices),
-            "PURITY": purity_list[l_idx] if l_idx < len(purity_list) else np.nan,
-            "MAX_PIP_RSID": final_rsids[best_idx],
-            "MAX_PIP": float(cs_pip[best_local]),
-            "LBF": float(lbf[l_idx]) if l_idx < len(lbf) else np.nan,
-        })
+    for cs in _iter_credible_sets(sets, n):
+        cs_size = len(cs["indices"])
+        ser_lbf = float(lbf[cs["ser_idx"]]) if cs["ser_idx"] < len(lbf) else np.nan
+        for idx in cs["indices"]:
+            row = {
+                "CS_ID": cs["cs_id"],
+                "SER_IDX": cs["ser_idx"] + 1,
+                "CS_SIZE": cs_size,
+                "PURITY": cs["purity"],
+                "COVERAGE": cs["coverage"],
+                "PASS_FILTER": cs["pass_filter"],
+                "LBF": ser_lbf,
+                "RSID": final_rsids[idx],
+                "SNP": ref_gwas["SNP"].iloc[idx] if "SNP" in ref_gwas.columns else final_rsids[idx],
+                "CHR": ref_gwas["CHR"].iloc[idx],
+                "BP": ref_gwas["BP"].iloc[idx],
+                "JOINT_PIP": float(pip[idx]),
+                "_variant_idx": idx,
+            }
+            if alpha is not None and cs["ser_idx"] < alpha.shape[0]:
+                row["SER_ALPHA"] = float(alpha[cs["ser_idx"], idx])
+            else:
+                row["SER_ALPHA"] = np.nan
+            rows.append(row)
 
-    return pd.DataFrame(rows, columns=columns)
+    if not rows:
+        return pd.DataFrame()
+
+    cs_df = pd.DataFrame(rows)
+    _append_ancestry_columns(
+        cs_df,
+        fit,
+        ancestry_gwas,
+        ancestries,
+        cs_df["_variant_idx"].to_numpy(dtype=int),
+    )
+    return cs_df.drop(columns="_variant_idx")
 
 
 def extract_locus_data(gwas_df, chrom, start, end):
@@ -499,8 +553,17 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
     ref_gwas = ref_gwas.drop_duplicates(subset="RSID")
     ref_gwas = ref_gwas.set_index("RSID").loc[final_rsids].reset_index()
 
-    variant_df = build_multisusie_result_df(fit, final_rsids, ref_gwas, ancestries)
-    cs_df = build_credible_sets_df(fit, final_rsids)
+    ancestry_gwas = []
+    for entry in ancestry_ld:
+        gwas_sub = entry["gwas_sub"].set_index("RSID").reindex(final_rsids)
+        ancestry_gwas.append(gwas_sub.reset_index())
+
+    variant_df = build_multisusie_result_df(
+        fit, final_rsids, ref_gwas, ancestry_gwas, ancestries
+    )
+    cs_df = build_credible_sets_df(
+        fit, final_rsids, ref_gwas, ancestry_gwas, ancestries
+    )
     return variant_df, cs_df
 
 
@@ -529,10 +592,12 @@ def _run_locus_job(job):
         min_abs_corr=ctx["min_abs_corr"],
     )
 
-    if result is None or len(result[0]) == 0:
+    if result is None:
         return i, n_loci, locus_label, False
 
     variant_df, cs_df = result
+    if len(variant_df) == 0:
+        return i, n_loci, locus_label, False
     safe_name = f"{locus['chr']}_{locus['center']}"
     output_dir = ctx["output_dir"]
     out_file = os.path.join(output_dir, f"{safe_name}_finemap.tsv.gz")
