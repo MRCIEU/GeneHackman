@@ -77,60 +77,6 @@ standardise_gwas <- function(gwas,
   return(gwas)
 }
 
-#' change_snp_identifiers: changes the SNP identifiers of a GWAS to the output reference build
-#' @param gwas filename of gwas to standardise or dataframe of gwas
-#' @param output_file file to save standardised gwas
-#' @param populate_rsid_option if you want RSID populated or not
-#' @param input_reference_build reference build of CHR and BP of data.  Defaults to GRCh37
-#' @param output_reference_build reference build of CHR and BP of data.  Defaults to GRCh37
-#' @param input_columns column header map used for renaming GWAS:
-#'   can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values
-#' @return modified gwas: saves new gwas in output_file if present
-
-#' @export
-change_snp_identifiers <- function(gwas,
-                                   output_file,
-                                   populate_rsid_option=populate_rsid_options$none,
-                                   input_reference_build=reference_builds$GRCh37,
-                                   output_reference_build=reference_builds$GRCh37,
-                                   input_columns="default") {
-  input_gwas_columns <- resolve_column_map(input_columns)
-
-  # Load the original GWAS (can be a filename or a dataframe)
-  original_gwas <- get_file_or_dataframe(gwas)
-
-  # Track original row order so we can map new annotations back
-  original_gwas$row_number <- seq_len(nrow(original_gwas))
-
-  # Create an updated version with new coordinates / RSIDs, keeping row_number
-  updated_gwas <- original_gwas |>
-    change_column_names(input_gwas_columns) |>
-    convert_reference_build_via_liftover(input_reference_build, output_reference_build) |>
-    standardise_alleles() |>
-    populate_rsid(populate_rsid_option) |>
-    populate_gene_names()
-
-  # Map new RSID and BP (if present) back onto the original data using row_number
-  annotation_cols <- c("RSID", "BP")
-  annotation_cols <- annotation_cols[annotation_cols %in% colnames(updated_gwas)]
-
-  if (length(annotation_cols) > 0) {
-    updated_subset <- updated_gwas[, c("row_number", annotation_cols), drop = FALSE]
-    for (col in annotation_cols) {
-      original_gwas[[col]] <- updated_subset[[col]][match(original_gwas$row_number, updated_subset$row_number)]
-    }
-  }
-
-  # Remove helper row_number column
-  original_gwas$row_number <- NULL
-
-  if (!missing(output_file) && shiny::isTruthy(output_file)) {
-    vroom::vroom_write(original_gwas, output_file)
-  }
-
-  return(original_gwas)
-}
-
 #' harmonise_gwases: takes a list of gwases, get the SNPs in common
 #' across all datasets arranged to be in the same order
 #'
