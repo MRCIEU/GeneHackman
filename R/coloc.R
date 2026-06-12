@@ -47,7 +47,7 @@ run_coloc_on_list_of_datasets <- function(first_gwas_list=list(),
   return(coloc_results)
 }
 
-#' Run BF-BF colocalization on significant QTL MR results using finemapped data
+#' Run  colocalization on significant QTL MR results using finemapped data
 #'
 #' For each significant MR result, loads the finemapped GWAS locus that covers
 #' the MR hit, computes LBF scores for the QTL data via \code{convert_z_to_lbf},
@@ -148,7 +148,7 @@ load_qtl_gwas_for_mr_result <- function(mr_result, qtl_dataset) {
 }
 
 
-#' Run BF-BF coloc between a finemapped GWAS locus and QTL data
+#' Run  coloc between a finemapped GWAS locus and QTL data
 #'
 #' Finds the finemapped locus file covering the region around chr:bp,
 #' extracts the GWAS LBF matrix, computes QTL LBF via \code{convert_z_to_lbf},

@@ -1,7 +1,7 @@
 source("load.R")
 library(argparser, quietly = TRUE)
 
-parser <- arg_parser("Run BF-BF colocalization on significant MR results using finemapped GWAS data")
+parser <- arg_parser("Run  colocalization on significant MR results using finemapped GWAS data")
 
 parser <- add_argument(parser, "--mr_results_filename", help = "MR results filename", type = "character")
 parser <- add_argument(parser, "--finemap_dir",

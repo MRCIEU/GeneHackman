@@ -2,7 +2,7 @@
 
 This guide covers how to change code, update the Docker image, and run the test suite before opening a pull request.
 
-For running pipelines in production, see [README.md](README.md) and [PLATFORM_SETUP.md](PLATFORM_SETUP.md). For pipeline inputs and parameters, see [snakemake/PIPELINES.md](snakemake/PIPELINES.md).
+For running pipelines in production, see [README.md](README.md) and [PLATFORM_SETUP.md](PLATFORM_SETUP.md). For pipeline inputs and parameters, see [PIPELINES.md](PIPELINES.md).
 
 ## Development setup
 

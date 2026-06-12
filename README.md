@@ -13,7 +13,7 @@ Goals:
 
 ## Available Pipelines
 
-There are **six** Snakemake pipelines (grouped as two tables of three). Each pipeline is a `.smk` file under `snakemake/`; see [PIPELINES.md](snakemake/PIPELINES.md) for YAML inputs and parameters.
+There are **six** Snakemake pipelines (grouped as two tables of three). Each pipeline is a `.smk` file under `snakemake/`; see [PIPELINES.md](PIPELINES.md) for YAML inputs and parameters.
 
 ### Pipelines — table 1
 
@@ -32,8 +32,8 @@ There are **six** Snakemake pipelines (grouped as two tables of three). Each pip
 |----------------------------------------------------------------------------|----------------------------------------------------------------------------|---------------------------------------------------------------------------|
 | Runs **standardise_gwas**, clumping, and **SuSiE** fine-mapping on one outcome GWAS | Same **standardise** + **clump** + **SuSiE** path for **each** input GWAS (one or more) | Same **standardise** + **clump** + **SuSiE** for **≥2** GWASes (required for colocalization) |
 | Runs Mendelian randomization vs a chosen QTL panel (e.g. eQTLGen, MetaBrain) | Per-locus fine-mapping using summary stats and **ancestry-matched LD** (PLINK reference); outputs credible sets and LBF columns per locus | **Pairwise** `coloc::coloc.bf_bf` on overlapping finemapped signals (same chr, leads within ±`overlap_kb` kb) across all trait pairs |
-| Volcano plot of MR results; **BF-BF coloc** for exposures that pass MR FDR | Finemap-only: no MR or coloc between traits (use when you only need SuSiE outputs) | Full coloc table + **HTML report** (`result_coloc.html`), including a disclaimer when ancestries differ between GWASes |
-| Requires **QTL_DATA_DIR** (see `.env_example`) for QTL files              | Each GWAS must declare **ancestry** (for LD)                                | Configurable `finemap` and `coloc` priors/overlap; see [PIPELINES.md](snakemake/PIPELINES.md) |
+| Volcano plot of MR results; ** coloc** for exposures that pass MR FDR | Finemap-only: no MR or coloc between traits (use when you only need SuSiE outputs) | Full coloc table + **HTML report** (`result_coloc.html`), including a disclaimer when ancestries differ between GWASes |
+| Requires **QTL_DATA_DIR** (see `.env_example`) for QTL files              | Each GWAS must declare **ancestry** (for LD)                                | Configurable `finemap` and `coloc` priors/overlap; see [PIPELINES.md](PIPELINES.md) |
 
 ## Onboarding
 
@@ -112,7 +112,7 @@ SNAKEMAKE_PROFILE=snakemake/profiles/local/
 
 * Example: `cp snakemake/input_templates/compare_gwases.yaml input.yaml`
 * Each pipeline has its own shape; examples live under [`snakemake/input_templates/`](snakemake/input_templates/).
-* See [PIPELINES.md](snakemake/PIPELINES.md) for all fields.
+* See [PIPELINES.md](PIPELINES.md) for all fields.
 * Pass the input YAML as the **second** argument to `run_pipeline.sh`, or rely on **`input.yaml`** in the working directory. To call **`snakemake`** yourself without the wrapper, set **`PROJECT_DIR`** in **`.env`** and export **`DATA_DIR="${PROJECT_DIR%/}/data"`** and **`RESULTS_DIR="${PROJECT_DIR%/}/results"`** (or load the same paths Snakemake uses) so shell rules and profile bind mounts resolve; also pass **`--config genehackman_input=/path/to/file.yaml`**.
 
 ### 5. Run the pipeline

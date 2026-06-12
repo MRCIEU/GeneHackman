@@ -1,4 +1,4 @@
-#' Run pairwise BF-BF colocalization on finemapped GWAS results
+#' Run pairwise  colocalization on finemapped GWAS results
 #'
 #' For each pair of GWAS datasets, identifies overlapping finemapped signals
 #' (lead SNPs within ±\code{overlap_kb} kb), then runs \code{coloc::coloc.bf_bf}
@@ -73,7 +73,7 @@ run_bf_bf_coloc <- function(finemap_dirs,
   if (nrow(combined) == 0) {
     message("No overlapping finemapped signals found across trait pairs.")
   } else {
-    message(paste("BF-BF colocalization complete:", nrow(combined), "signal pair(s) tested."))
+    message(paste(" colocalization complete:", nrow(combined), "signal pair(s) tested."))
   }
 
   if (!is.null(output_file)) {
