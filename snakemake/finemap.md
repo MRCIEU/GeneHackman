@@ -82,8 +82,8 @@ Snakemake `rule all` tracks completion markers only; additional per-locus files 
 | Path | Description |
 | ---- | ----------- |
 | `finemap/multi_ancestry/finemap_complete.txt` | **Snakemake target.** One line = number of successfully fine-mapped loci. |
-| `finemap/multi_ancestry/<CHR>_<center>_finemap.tsv.gz` | Credible-set variants only; joint PIP; per-ancestry `BETA`, `SE`, `P`, `COEF`, `COEF_SD`. |
-| `finemap/multi_ancestry/<CHR>_<center>_locus_credible_sets.tsv` | One row per variant per credible set (purity, coverage, pass filter, cross-population stats). |
+| `finemap/multi_ancestry/<CHR>_<center>_locus_credible_sets.tsv` | One row per credible set: size, top variant PIP/LBF, per-ancestry purity, coverage. |
+| `finemap/multi_ancestry/<CHR>_<center>_locus_credible_set_variants.tsv` | One row per variant in any credible set: coordinates, alleles, global PIP, per-ancestry `COEF`/`COEF_SD`, and input `BETA`/`SE`/`P`. |
 
 Locus names use the clump window centre (`<CHR>_<center>`).
 
