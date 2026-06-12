@@ -63,6 +63,9 @@ Mixed duplicates (e.g. two EUR + one EAS) **fail at startup**.
 
 Snakemake `rule all` tracks completion markers only; additional per-locus files are written alongside them.
 
+Note that the pipeline does not filter out any credible sets based on criteria.  It merely runs finemapping, and lets the user decide
+what should be kept.
+
 ### Data (`data/`)
 
 | Path | Description |

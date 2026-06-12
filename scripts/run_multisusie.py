@@ -434,11 +434,11 @@ def build_locus_credible_set_variants_df(
         variants_df["_variant_idx"].to_numpy(dtype=int),
     )
     variants_df = variants_df.drop(columns="_variant_idx")
-    ancestry_cols = []
-    for ancestry in ancestries:
-        ancestry_cols.extend(
-            [f"COEF_{ancestry}", f"COEF_SD_{ancestry}", f"BETA_{ancestry}", f"SE_{ancestry}", f"P_{ancestry}"]
-        )
+    coef_cols = [f"COEF_{ancestry}" for ancestry in ancestries]
+    coef_sd_cols = [f"COEF_SD_{ancestry}" for ancestry in ancestries]
+    beta_cols = [f"BETA_{ancestry}" for ancestry in ancestries]
+    se_cols = [f"SE_{ancestry}" for ancestry in ancestries]
+    p_cols = [f"P_{ancestry}" for ancestry in ancestries]
     return variants_df[
         [
             "CS_ID",
@@ -448,7 +448,11 @@ def build_locus_credible_set_variants_df(
             "ALLELE_A1",
             "ALLELE_A2",
             "GLOBAL_PIP",
-            *ancestry_cols,
+            *coef_cols,
+            *coef_sd_cols,
+            *beta_cols,
+            *se_cols,
+            *p_cols,
         ]
     ]
 
