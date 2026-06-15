@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import zipfile
 import gzip
 import yaml
@@ -276,6 +277,26 @@ def file_prefix(filename):
     prefix = stem.split('.')[0]
     prefix = re.sub("_std", "", prefix)
     return prefix
+
+
+def gwas_run_label(gwases):
+    """Stable label from GWAS file prefixes for run-specific completion sentinels."""
+    labels = sorted({g.prefix for g in gwases})
+    label = "_".join(labels)
+    if len(label) > 180:
+        digest = hashlib.sha1(label.encode("utf-8")).hexdigest()[:12]
+        label = f"{len(labels)}gwases_{digest}"
+    return label
+
+
+def multi_finemap_complete_file(gwases):
+    label = gwas_run_label(gwases)
+    return RESULTS_DIR + f"finemap/multi_ancestry/finemap_complete_{label}.txt"
+
+
+def locus_zoom_complete_file(gwases):
+    label = gwas_run_label(gwases)
+    return RESULTS_DIR + f"coloc/locus_zoom/locus_zoom_complete_{label}.txt"
 
 
 def turn_dict_into_cli_string(results_dict):

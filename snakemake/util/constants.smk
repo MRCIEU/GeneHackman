@@ -88,7 +88,7 @@ _docker_version_env = (os.getenv("DOCKER_VERSION") or "").strip()
 DOCKER_VERSION = _docker_version_env or _genehackman_package_version()
 
 # Single Snakemake output path for successful finemap runs (written last by finemap_gwas).
-FINEMAP_COMPLETE_TXT_PATTERN = RESULTS_DIR + "finemap/{prefix}/finemap_complete.txt"
+FINEMAP_COMPLETE_TXT_PATTERN = RESULTS_DIR + "finemap/{prefix}/finemap_complete_{prefix}.txt"
 
 PIPELINE_DATA_DIR = format_dir_string(os.getenv('PIPELINE_DATA_DIR'))
 QTL_DATA_DIR = os.getenv("QTL_DATA_DIR", "").strip()

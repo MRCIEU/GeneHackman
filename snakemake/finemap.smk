@@ -29,7 +29,7 @@ std_file_pattern = standardised_gwas_name("{prefix}")
 for g in pipeline.gwases:
     g.finemap_dir = RESULTS_DIR + "finemap/" + g.prefix
 
-MULTI_FINEMAP_COMPLETE = RESULTS_DIR + "finemap/multi_ancestry/finemap_complete.txt"
+MULTI_FINEMAP_COMPLETE = multi_finemap_complete_file(pipeline.gwases)
 
 if is_multi_ancestry:
     rule all:

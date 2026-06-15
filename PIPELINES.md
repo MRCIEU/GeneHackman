@@ -124,8 +124,8 @@ Fine-mapping completion markers:
 
 | Path | Description |
 | ---- | ----------- |
-| `results/finemap/<prefix>/finemap_complete.txt` | Single-ancestry SuSiE done (one line = locus count). |
-| `results/finemap/multi_ancestry/finemap_complete.txt` | Multi-ancestry MultiSuSiE done. |
+| `results/finemap/<prefix>/finemap_complete_<prefix>.txt` | Single-ancestry SuSiE done (one line = locus count). |
+| `results/finemap/multi_ancestry/finemap_complete_<gwas_prefixes>.txt` | Multi-ancestry MultiSuSiE done; label is sorted GWAS prefixes joined with `_`. |
 
 ---
 

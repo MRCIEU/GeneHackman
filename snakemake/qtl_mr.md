@@ -74,7 +74,7 @@ Let `<prefix>` = outcome GWAS file prefix, `<qtl>` = `{dataset}_{subcategory}`.
 
 | Path | Description |
 | ---- | ----------- |
-| `finemap/<prefix>/finemap_complete.txt` | Fine-mapping completion marker. |
+| `finemap/<prefix>/finemap_complete_<prefix>.txt` | Fine-mapping completion marker. |
 | `finemap/<prefix>/<CHR>_<BP>_finemap.tsv.gz` | Per-locus SuSiE output. |
 | `mr/<prefix>_<qtl>.tsv.gz` | MR results vs QTL panel. |
 | `mr/coloc_<prefix>_<qtl>.tsv` |  coloc for significant MR hits. |

@@ -66,12 +66,12 @@ Standardise, clump, and fine-map **≥2** GWAS (single ancestry only), then run 
 
 | Path | Description |
 | ---- | ----------- |
-| `finemap/<prefix>/finemap_complete.txt` | Fine-mapping completion marker per GWAS. |
+| `finemap/<prefix>/finemap_complete_<prefix>.txt` | Fine-mapping completion marker per GWAS. |
 | `finemap/<prefix>/<CHR>_<BP>_finemap.tsv.gz` | Per-locus SuSiE output with LBF columns. |
 | `coloc/coloc_results.tsv` | Pairwise coloc results (sorted by PP.H4 in the HTML report). |
 | `coloc/result_coloc.html` | Summary HTML report. |
 | `coloc/locus_zoom/` | Locus zoom plot outputs. |
-| `coloc/locus_zoom/locus_zoom_complete.txt` | Snakemake completion marker for locus zoom step. |
+| `coloc/locus_zoom/locus_zoom_complete_<gwas_prefixes>.txt` | Snakemake completion marker for locus zoom step. |
 
 ## Notes
 

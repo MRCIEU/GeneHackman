@@ -14,7 +14,7 @@
 #'   \verb{<CHR>_<BP>_finemap.tsv.gz} per clumped locus.
 #' @param completion_file path to a sentinel file written on successful completion
 #'   (one line: expected lead count). If NULL, defaults to
-#'   \verb{<output_finemap_dir>/finemap_complete.txt}.
+#'   \verb{<output_finemap_dir>/finemap_complete_<dir_basename>.txt}.
 #' @param window_kb half-width of the fine-mapping window in kb (default 1000 = ±1 Mb)
 #' @param max_causal maximum number of causal signals per locus (SuSiE L, default 10)
 #' @param coverage credible set coverage (default 0.95)
@@ -52,7 +52,7 @@ finemap_gwas <- function(gwas,
   }
 
   if (is.null(completion_file)) {
-    completion_file <- file.path(output_finemap_dir, "finemap_complete.txt")
+    completion_file <- finemap_completion_file(output_finemap_dir)
   }
 
   lead_snps <- data.table::fread(clumped_file, select = c("SNP", "CHR", "BP"))
@@ -223,7 +223,7 @@ write_finemap_complete_marker <- function(completion_file, n_loci, output_finema
     if (is.null(output_finemap_dir) || length(output_finemap_dir) != 1L || !nzchar(output_finemap_dir)) {
       stop("completion_file is NULL; provide output_finemap_dir or an explicit completion_file path")
     }
-    completion_file <- file.path(output_finemap_dir, "finemap_complete.txt")
+    completion_file <- finemap_completion_file(output_finemap_dir)
   }
   if (!is.character(completion_file) || length(completion_file) != 1L || !nzchar(completion_file)) {
     stop("completion_file must be a non-empty character path")
@@ -231,6 +231,17 @@ write_finemap_complete_marker <- function(completion_file, n_loci, output_finema
   dir_path <- dirname(completion_file)
   if (!dir.exists(dir_path)) dir.create(dir_path, recursive = TRUE)
   writeLines(as.character(as.integer(n_loci)), completion_file)
+}
+
+
+#' Default finemap completion sentinel path from the output directory name.
+#' @keywords internal
+finemap_completion_file <- function(output_finemap_dir, completion_file = NULL) {
+  if (!is.null(completion_file)) {
+    return(completion_file)
+  }
+  label <- basename(normalizePath(output_finemap_dir, winslash = "/"))
+  file.path(output_finemap_dir, paste0("finemap_complete_", label, ".txt"))
 }
 
 

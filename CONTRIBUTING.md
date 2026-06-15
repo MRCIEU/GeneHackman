@@ -80,6 +80,111 @@ Snakemake profiles bind-mount `R/`, `scripts/`, and `inst/` from the repo into t
 - **Finemap** (`finemap.smk`): ancestries must be either all the same (single-ancestry SuSiE) or all distinct (multi-ancestry MultiSuSiE). Mixed duplicates fail at startup.
 - **Coloc** (`coloc.smk`): all GWAS inputs must share the same ancestry.
 
+## Adding a new pipeline
+
+Use this checklist when you add a new top-level workflow under `snakemake/` (a new `.smk` that runs a distinct analysis end-to-end).
+
+### 1. Create the workflow file
+
+Add `snakemake/<pipeline_name>.smk` and `snakemake/<pipeline_name.md>` documentation at the repo root of the Snakemake tree (not under `rules/`). Follow the pattern used by existing workflows:
+
+```python
+include: "util/common.smk"
+singularity: get_docker_container()
+
+pipeline_name = "my_pipeline"
+pipeline = parse_pipeline_input(pipeline_includes_clumping=True)  # if the workflow clumps
+
+onstart:
+    print("##### My Pipeline #####")
+
+rule all:
+    input: ...  # every final output Snakemake must build
+
+include: "rules/standardise_rule.smk"   # reuse where appropriate
+# include: "rules/clumping_rule.smk"
+# include: "rules/finemap_rule.smk"
+
+onsuccess:
+    onsuccess(pipeline_name, files_created, results_file, is_test=pipeline.is_test)
+
+onerror:
+    onerror_message(pipeline_name, is_test=pipeline.is_test)
+```
+
+**Shared building blocks**
+
+| Include | When to use |
+|---------|-------------|
+| `rules/standardise_rule.smk` | Almost always — harmonises each GWAS to `data/gwas/<prefix>_std.tsv.gz`. |
+| `rules/clumping_rule.smk` | When PLINK clumping is required (`pipeline_includes_clumping=True` in `parse_pipeline_input`). |
+| `rules/finemap_rule.smk` / `rules/finemap_multi_ancestry_rule.smk` | When SuSiE or MultiSuSiE fine-mapping is part of the workflow. |
+
+Put logic that might be reused across workflows in `snakemake/rules/`. Keep pipeline-specific rules in the main `.smk` or a dedicated `rules/<pipeline>_rule.smk` included from there.
+
+Call **`parse_pipeline_input()`** early. It loads the YAML path from `GENEHACKMAN_INPUT` / `--config genehackman_input=…`, validates `.env`, and attaches per-GWAS fields (`prefix`, `standardised_gwas`, `clumped_file`, column maps, etc.) on `pipeline.gwases`.
+
+### 2. Add CLI entry points
+
+Snakemake rules should call thin wrappers, not inline R/Python:
+
+- **R:** add `scripts/my_step.R` that `source("load.R")`, parses args with **argparser**, and calls a function in `R/`.
+- **Python:** add `scripts/my_step.py` and list any new packages in `docker/requirements.txt`.
+
+Export new R functions from the package (`NAMESPACE`) and run `devtools::document()` when you add roxygen.
+
+### 3. Define inputs and outputs
+
+**YAML input**
+
+- Add `snakemake/input_templates/<pipeline>.yaml` with sensible defaults and comments.
+- Add a tiny fixture under `tests/testthat/data/snakemake_inputs/` for e2e runs (`is_test: true` is fine).
+- If the pipeline needs new root-level YAML keys, extend `parse_pipeline_input()` in `snakemake/util/common.smk` (defaults, validation, and error messages belong there).
+
+**Outputs**
+
+- Write under **`PROJECT_DIR/results/`** (`RESULTS_DIR`) or **`PROJECT_DIR/data/`** (`DATA_DIR`) — do not hard-code user-specific paths.
+- Register every deliverable in `rule all` so Snakemake knows when the run is complete.
+- For **completion sentinel files** (`*_complete*.txt`), name them after the GWAS run (see `gwas_run_label()`, `FINEMAP_COMPLETE_TXT_PATTERN`, and `multi_finemap_complete_file()` in `snakemake/util/common.smk`). A generic `finemap_complete.txt` in a shared folder will block reruns when users reuse the same results directory for different inputs.
+
+**Wildcards**
+
+- Per-GWAS outputs usually key off `wildcards.prefix`, set from `file_prefix(g.file)` during YAML parsing.
+- Use helpers in `common.smk` (`standardised_gwas_name()`, etc.) rather than duplicating path logic.
+
+### 4. Document the pipeline
+
+1. Add **`snakemake/<pipeline_name>.md`** next to the `.smk` with **Input** and **Output** sections (see existing files such as [`snakemake/finemap.md`](snakemake/finemap.md)).
+2. Add a row to the pipeline table in [`PIPELINES.md`](PIPELINES.md) linking to the new doc.
+3. Optionally add a one-line summary to the pipeline tables in [`README.md`](README.md).
+
+### 5. Test
+
+**Unit tests** — mock external tools (PLINK, SuSiE, liftover) and test R/Python logic in `tests/testthat/`.
+
+**Dry run**
+
+```bash
+./run_pipeline.sh snakemake/my_pipeline.smk tests/testthat/data/snakemake_inputs/my_pipeline.yaml -n
+```
+
+**End-to-end** — append a line to [`tests/e2e_tests/run_test_pipelines.sh`](tests/e2e_tests/run_test_pipelines.sh):
+
+```bash
+./run_pipeline.sh snakemake/my_pipeline.smk tests/testthat/data/snakemake_inputs/my_pipeline.yaml -F
+```
+
+Run the full e2e script before opening a PR and commit the updated **`tests/testing_complete.txt`**.
+
+### 6. Review checklist before opening a PR
+
+- [ ] `rule all` lists every required output; no orphan rules.
+- [ ] Example YAML and [`PIPELINES.md`](PIPELINES.md) / `snakemake/<pipeline>.md` updated.
+- [ ] New R exports documented; `devtools::test()` passes.
+- [ ] E2e entry added (unless the pipeline needs data you cannot ship in the repo — document why).
+- [ ] New Python deps added to `docker/requirements.txt`; note in the PR if a new Docker image is required.
+- [ ] Completion markers and other Snakemake targets are **run-specific** when outputs share a directory across analyses.
+
 ## Docker changes
 
 The pipeline runs inside **`mrcieu/genehackman`** (Apptainer/Singularity on HPC, Docker locally).
