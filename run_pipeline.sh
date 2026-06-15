@@ -23,12 +23,19 @@ if [[ $# -lt 1 || "$1" =~ "help" ]] ; then
   exit 1
 fi
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 if [ -f .env ]
 then
   export $(grep -vE '^[[:space:]]*#' .env | xargs)
 else
   echo "Error: .env file missing"
   exit 1
+fi
+
+if [[ -z "${DOCKER_VERSION:-}" ]]; then
+  DOCKER_VERSION="$(grep -E '^Version:' "${REPO_ROOT}/DESCRIPTION" 2>/dev/null | awk '{print $2}' | head -n1)"
+  export DOCKER_VERSION
 fi
 
 # GWAS working dirs: always PROJECT_DIR/data and PROJECT_DIR/results (exported as DATA_DIR / RESULTS_DIR for shell rules and Singularity binds).
@@ -89,11 +96,11 @@ if [[ "${PROFILE}" != snakemake/profiles/local/* ]] && [[ "${PROFILE}" != snakem
   module load ${APPTAINER_MODULE}
 fi
 
-# Image tag: default GENEHACKMAN_VERSION from DOCKER_VERSION so pull and SIF basename stay aligned.
+# Image tag: DOCKER_VERSION defaults to DESCRIPTION Version:; override in .env if needed.
 GENEHACKMAN_VERSION="${GENEHACKMAN_VERSION:-${DOCKER_VERSION:-}}"
 SIF_VERSION="${DOCKER_VERSION:-${GENEHACKMAN_VERSION:-}}"
 if [[ -z "${SIF_VERSION}" ]]; then
-  echo "Error: Set DOCKER_VERSION in .env (e.g. 1.1.0) so the SIF name matches the Docker image tag."
+  echo "Error: could not determine Docker image version. Set DOCKER_VERSION in .env or ensure DESCRIPTION contains Version:."
   exit 1
 fi
 

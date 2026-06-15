@@ -49,7 +49,7 @@ if (length(traits_v) > 0L && identical(length(traits_v), length(ancestries_v))) 
 
 ### Colocalization priors & overlap
 
-Shows the prior probabilities and overlap window used to define signal pairs for BF-BF colocalization testing.
+Shows the prior probabilities and overlap window used to define signal pairs for  colocalization testing.
 
 Overlapping finemapped signals were defined within ± **`r params$overlap_kb`** kb (pairs of credible-set leads on the same chromosome with lead positions within this window).
 
@@ -92,7 +92,7 @@ if (!cross_ancestry && length(uniq_anc) == 1L) {
 
 ### Colocalization results
 
-Pairwise BF-BF colocalization results for overlapping finemapped signals — PP.H4.abf > 0.8 indicates strong evidence that two traits share the same causal variant at that locus.
+Pairwise  colocalization results for overlapping finemapped signals — PP.H4.abf > 0.8 indicates strong evidence that two traits share the same causal variant at that locus.
 
 ```{r echo = FALSE}
 if (!is.null(coloc_tbl) && nrow(coloc_tbl) > 0L) {

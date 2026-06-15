@@ -2,7 +2,7 @@
 % Please edit documentation in R/coloc.R
 \name{run_coloc_on_qtl_mr_results}
 \alias{run_coloc_on_qtl_mr_results}
-\title{Run BF-BF colocalization on significant QTL MR results using finemapped data}
+\title{Run  colocalization on significant QTL MR results using finemapped data}
 \usage{
 run_coloc_on_qtl_mr_results(
   mr_results_file,

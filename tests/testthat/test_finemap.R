@@ -58,6 +58,7 @@ test_that("finemap.finemap_gwas writes no locus files when clump has no rows", {
 
   out_dir <- tempfile("finemap_")
   dir.create(out_dir)
+  complete_file <- file.path(out_dir, paste0("finemap_complete_", basename(out_dir), ".txt"))
 
   res <- finemap_gwas(
     gwas_file,
@@ -69,8 +70,8 @@ test_that("finemap.finemap_gwas writes no locus files when clump has no rows", {
 
   expect_equal(nrow(res), 0)
   expect_equal(length(list.files(out_dir, pattern = "_finemap\\.tsv\\.gz$")), 0)
-  expect_true(file.exists(file.path(out_dir, "finemap_complete.txt")))
-  expect_identical(readLines(file.path(out_dir, "finemap_complete.txt")), "0")
+  expect_true(file.exists(complete_file))
+  expect_identical(readLines(complete_file), "0")
 })
 
 test_that("finemap.compute_ld_matrix returns NULL when plink fails", {
@@ -151,6 +152,7 @@ test_that("finemap.finemap_gwas runs end-to-end with mocked LD and SuSiE", {
 
   out_dir <- tempfile("finemap_")
   dir.create(out_dir)
+  complete_file <- file.path(out_dir, paste0("finemap_complete_", basename(out_dir), ".txt"))
 
   res <- finemap_gwas(
     gwas_file,
@@ -172,8 +174,8 @@ test_that("finemap.finemap_gwas runs end-to-end with mocked LD and SuSiE", {
   expect_true("LBF_1" %in% names(locus_read))
   expect_setequal(locus_read$SNP, gwas$SNP)
   expect_false(any(grepl("^LEAD_", names(locus_read))))
-  expect_true(file.exists(file.path(out_dir, "finemap_complete.txt")))
-  expect_identical(readLines(file.path(out_dir, "finemap_complete.txt")), "1")
+  expect_true(file.exists(complete_file))
+  expect_identical(readLines(complete_file), "1")
 })
 
 test_that("finemap.run_susie_for_locus returns empty tibble when SuSiE errors", {

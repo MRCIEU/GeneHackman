@@ -1,0 +1,99 @@
+# finemap
+
+Standardise, clump, and fine-map GWAS loci with **SuSiE** (single ancestry) or **MultiSuSiE** (multi-ancestry). No trait-trait colocalisation or MR.
+
+**Workflow file:** [`finemap.smk`](finemap.smk)  
+**Example input:** [`input_templates/finemap.yaml`](input_templates/finemap.yaml)  
+**Multi-ancestry test input:** [`tests/testthat/data/snakemake_inputs/finemap_multi_ancestry.yaml`](../tests/testthat/data/snakemake_inputs/finemap_multi_ancestry.yaml)
+
+## Run
+
+```bash
+./run_pipeline.sh snakemake/finemap.smk path/to/input.yaml
+```
+
+## Input
+
+### GWAS count
+
+- **One or more** GWAS under `gwases:`.
+
+### Ancestry rules
+
+| Mode | Condition |
+| ---- | --------- |
+| **Single-ancestry SuSiE** | All GWAS share the same `ancestry`, **or** only one GWAS. |
+| **Multi-ancestry MultiSuSiE** | Each GWAS has a **distinct** `ancestry` (no duplicates). Requires **≥2** ancestries. |
+
+Mixed duplicates (e.g. two EUR + one EAS) **fail at startup**.
+
+### Per-GWAS fields
+
+| Field | Required | Notes |
+| ----- | -------- | ----- |
+| `file` | Yes | Input summary-statistics file. |
+| `ancestry` | **Yes** | LD reference for clumping and fine-mapping. |
+| `N` | Recommended | Sample size passed to SuSiE / MultiSuSiE. |
+| `columns` | No | Column map or preset. |
+| `build` | No | Default `GRCh37`. |
+| `populate_rsid` / `populate_eaf` | No | See [PIPELINES.md](../PIPELINES.md#shared-yaml-schema). |
+
+### Root-level fields
+
+| Field | Required | Notes |
+| ----- | -------- | ----- |
+| `plink_clump_arguments` | **Yes** | PLINK clump settings. |
+| `finemap.window_kb` | No | Half-width of fine-mapping window around each lead (kb). Default **500** in parser; templates often use **1000**. |
+| `finemap.max_causal` | No | Max causal signals per locus (`L`). Default `10`. |
+| `finemap.coverage` | No | Credible set coverage. Default `0.95`. |
+| `finemap.min_abs_corr` | No | Minimum \|r\| for credible-set purity. Default `0.5`. |
+| `populate_rsid` / `populate_eaf` | No | Default `false`. |
+
+`flip_alleles: false` is **not** allowed.
+
+## Workflow
+
+1. Standardise each GWAS
+2. PLINK clump per GWAS
+3. Fine-map:
+   - **Single ancestry:** `run_finemap.R` → SuSiE RSS per GWAS
+   - **Multi ancestry:** `run_multisusie.py` → MultiSuSiE across all GWAS jointly
+
+## Output
+
+Snakemake `rule all` tracks completion markers only; additional per-locus files are written alongside them.
+
+Note that the pipeline does not filter out any credible sets based on criteria.  It merely runs finemapping, and lets the user decide
+what should be kept.
+
+### Data (`data/`)
+
+| Path | Description |
+| ---- | ----------- |
+| `gwas/<prefix>_std.tsv.gz` | Standardised GWAS. |
+| `clumped_snps/<prefix>.clumped` | Clumped leads per GWAS. |
+
+### Results — single-ancestry SuSiE (`results/finemap/<prefix>/`)
+
+| Path | Description |
+| ---- | ----------- |
+| `finemap/<prefix>/finemap_complete_<prefix>.txt` | **Snakemake target.** One line = number of clumped loci processed. |
+| `finemap/<prefix>/<CHR>_<BP>_finemap.tsv.gz` | Per-locus fine-mapping table (LBF columns, credible-set membership, posterior effects). |
+
+### Results — multi-ancestry MultiSuSiE (`results/finemap/multi_ancestry/`)
+
+Full documentation for interpreting MultiSuSiE results can be [found here](https://deepwiki.com/jordanero/MultiSuSiE/4.3-interpreting-results)
+
+| Path | Description |
+| ---- | ----------- |
+| `finemap/multi_ancestry/finemap_complete_<gwas_prefixes>.txt` | **Snakemake target.** One line = number of successfully fine-mapped loci. `<gwas_prefixes>` is sorted input GWAS file prefixes joined with `_`. |
+| `finemap/multi_ancestry/<CHR>_<center>_locus_credible_sets.tsv` | One row per credible set: size, top variant PIP/LBF, per-ancestry purity, coverage. |
+| `finemap/multi_ancestry/<CHR>_<center>_locus_credible_set_variants.tsv` | One row per variant in any credible set: coordinates, alleles, global PIP, per-ancestry `COEF`/`COEF_SD`, and input `BETA`/`SE`/`P`. |
+
+Locus names use the clump window centre (`<CHR>_<center>`).
+
+## Notes
+
+- For pairwise colocalisation between traits, use [`coloc.smk`](coloc.smk) instead.
+- Multi-ancestry mode does **not** produce per-trait LBF columns suitable for `coloc::coloc.bf_bf` on individual GWAS directories.
+- LD matrices use ancestry-matched 1000 Genomes panels under `PIPELINE_DATA_DIR/genomic_data/1000genomes/b37_dbsnp156/`.

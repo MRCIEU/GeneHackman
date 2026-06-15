@@ -14,7 +14,7 @@
 #'   \verb{<CHR>_<BP>_finemap.tsv.gz} per clumped locus.
 #' @param completion_file path to a sentinel file written on successful completion
 #'   (one line: expected lead count). If NULL, defaults to
-#'   \verb{<output_finemap_dir>/finemap_complete.txt}.
+#'   \verb{<output_finemap_dir>/finemap_complete_<dir_basename>.txt}.
 #' @param window_kb half-width of the fine-mapping window in kb (default 1000 = ±1 Mb)
 #' @param max_causal maximum number of causal signals per locus (SuSiE L, default 10)
 #' @param coverage credible set coverage (default 0.95)
@@ -52,7 +52,7 @@ finemap_gwas <- function(gwas,
   }
 
   if (is.null(completion_file)) {
-    completion_file <- file.path(output_finemap_dir, "finemap_complete.txt")
+    completion_file <- finemap_completion_file(output_finemap_dir)
   }
 
   lead_snps <- data.table::fread(clumped_file, select = c("SNP", "CHR", "BP"))
@@ -223,7 +223,7 @@ write_finemap_complete_marker <- function(completion_file, n_loci, output_finema
     if (is.null(output_finemap_dir) || length(output_finemap_dir) != 1L || !nzchar(output_finemap_dir)) {
       stop("completion_file is NULL; provide output_finemap_dir or an explicit completion_file path")
     }
-    completion_file <- file.path(output_finemap_dir, "finemap_complete.txt")
+    completion_file <- finemap_completion_file(output_finemap_dir)
   }
   if (!is.character(completion_file) || length(completion_file) != 1L || !nzchar(completion_file)) {
     stop("completion_file must be a non-empty character path")
@@ -231,6 +231,17 @@ write_finemap_complete_marker <- function(completion_file, n_loci, output_finema
   dir_path <- dirname(completion_file)
   if (!dir.exists(dir_path)) dir.create(dir_path, recursive = TRUE)
   writeLines(as.character(as.integer(n_loci)), completion_file)
+}
+
+
+#' Default finemap completion sentinel path from the output directory name.
+#' @keywords internal
+finemap_completion_file <- function(output_finemap_dir, completion_file = NULL) {
+  if (!is.null(completion_file)) {
+    return(completion_file)
+  }
+  label <- basename(normalizePath(output_finemap_dir, winslash = "/"))
+  file.path(output_finemap_dir, paste0("finemap_complete_", label, ".txt"))
 }
 
 
@@ -250,19 +261,33 @@ compute_ld_matrix <- function(rsids, chr, ancestry) {
 
   cmd <- paste(
     "plink1.9",
-    "--threads", as.character(available_cpus()),
     "--bfile", bfile,
     "--chr", chr,
     "--extract", snp_file,
-    "--r square",
+    "--r", "square",
+    "--keep-allele-order",
     "--out", out_prefix
   )
   exit_code <- run_system(cmd, wait = TRUE, ignore.stdout = TRUE, ignore.stderr = TRUE)
 
   ld_file <- paste0(out_prefix, ".ld")
-  snp_order_file <- paste0(out_prefix, ".nosex")
+  log_file <- paste0(out_prefix, ".log")
 
   if (exit_code != 0 || !file.exists(ld_file)) {
+    if (file.exists(log_file)) {
+      plink_log <- paste(readLines(log_file, warn = FALSE), collapse = "\n")
+      warning(
+        "PLINK LD matrix computation failed for chr ", chr, " (ancestry ", ancestry,
+        ", exit code ", exit_code, "). Command:\n", cmd, "\nPLINK log:\n", plink_log,
+        call. = FALSE, immediate. = TRUE
+      )
+    } else {
+      warning(
+        "PLINK LD matrix computation failed for chr ", chr, " (ancestry ", ancestry,
+        ", exit code ", exit_code, "). Command:\n", cmd,
+        call. = FALSE, immediate. = TRUE
+      )
+    }
     unlink(c(snp_file, paste0(out_prefix, c(".ld", ".nosex", ".log", ".bim", ".bed", ".fam"))),
            force = TRUE)
     return(NULL)

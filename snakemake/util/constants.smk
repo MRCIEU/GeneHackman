@@ -1,5 +1,6 @@
 from datetime import datetime
 from dotenv import load_dotenv
+from pathlib import Path
 from types import SimpleNamespace
 from enum import Enum
 import os
@@ -72,10 +73,22 @@ default_output_options = SimpleNamespace(**{
     "columns": SimpleNamespace(**default_columns)
 })
 
-DOCKER_VERSION = os.getenv('DOCKER_VERSION')
+def _genehackman_package_version():
+    description = Path(__file__).resolve().parent.parent.parent / "DESCRIPTION"
+    if not description.is_file():
+        return None
+    for line in description.read_text(encoding="utf-8").splitlines():
+        if line.startswith("Version:"):
+            version = line.split(":", 1)[1].strip()
+            return version or None
+    return None
+
+
+_docker_version_env = (os.getenv("DOCKER_VERSION") or "").strip()
+DOCKER_VERSION = _docker_version_env or _genehackman_package_version()
 
 # Single Snakemake output path for successful finemap runs (written last by finemap_gwas).
-FINEMAP_COMPLETE_TXT_PATTERN = RESULTS_DIR + "finemap/{prefix}/finemap_complete.txt"
+FINEMAP_COMPLETE_TXT_PATTERN = RESULTS_DIR + "finemap/{prefix}/finemap_complete_{prefix}.txt"
 
 PIPELINE_DATA_DIR = format_dir_string(os.getenv('PIPELINE_DATA_DIR'))
 QTL_DATA_DIR = os.getenv("QTL_DATA_DIR", "").strip()

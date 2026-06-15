@@ -136,12 +136,10 @@ create_html_from_rmd <- function(rmd_file, params = list(), output_file) {
 
 get_docker_image_tag <- function() {
   docker_version <- get_env_var("DOCKER_VERSION")
-  if (is.null(docker_version)) {
-    return("latest")
-  } else {
+  if (!is.null(docker_version) && nzchar(docker_version)) {
     return(docker_version)
   }
-  #return(packageVersion("GeneHackman"))
+  as.character(utils::packageVersion("GeneHackman"))
 }
 
 #' Generate log Bayes Factor from Z-score

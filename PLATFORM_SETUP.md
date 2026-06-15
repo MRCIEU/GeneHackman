@@ -6,7 +6,7 @@ General prerequisites:
 
 1. **Conda env:** `conda env create -f environment.yml` then `conda activate genehackman`
 2. **`.env`:** copy from `.env_example` and set **`PROJECT_DIR`** (the pipeline uses **`PROJECT_DIR/data/`** and **`PROJECT_DIR/results/`**) and **`PIPELINE_DATA_DIR`** (and paths your pipeline needs for genomic / 1000G data). Optionally set **`QTL_DATA_DIR`** when large QTL mirrors live on another volume or object-store mount; if omitted, `run_pipeline.sh` defaults it to `PIPELINE_DATA_DIR/qtl_datasets`.
-3. **Input YAML:** see `snakemake/input_templates/` and `snakemake/PIPELINES.md`.
+3. **Input YAML:** see `snakemake/input_templates/` and [PIPELINES.md](PIPELINES.md).
 
 **`./run_pipeline.sh`** loads `.env`, picks a **profile** (**`SNAKEMAKE_PROFILE`**, default `snakemake/profiles/local/`), then runs Snakemake. Pass the **`.smk` workflow first**, then optional input YAML, for example:
 
@@ -43,7 +43,7 @@ mounts:
 If the workflow pulls a `docker://` image, Snakemake caches the `.sif` under **`--singularity-prefix`** (default: `.snakemake/singularity` in the repo). On **macOS + Lima**, paths under **`/Users/...`** are often VM mounts where **creating large SIF files fails** with errors like **read-only file system**.
 
 - Set **`SINGULARITY_DIR`** in `.env` to a **writable** location **inside the Linux VM** (commonly a path under that VM’s **`/tmp`**, e.g. `/tmp/genehackman_snakemake_singularity`), or to native VM disk — not only a bind-mounted folder that cannot handle the build.
-- Alternatively, place a pre-built **`$PIPELINE_DATA_DIR/genehackman_<version>.sif`** (underscore; see `DESCRIPTION` / `DOCKER_VERSION`) so Snakemake does not need to build on a problematic mount.
+- Alternatively, place a pre-built **`$PIPELINE_DATA_DIR/genomic_data/pipeline/genehackman_<version>.sif`** (underscore; `<version>` defaults to **`Version:`** in `DESCRIPTION`, overridable via **`DOCKER_VERSION`**) so Snakemake does not need to build on a problematic mount.
 - Avoid **colons** in host-side SIF filenames (`genehackman:1.1.0.sif`); macOS can reject them. The repo’s Snakemake helper uses **`genehackman_<version>.sif`**.
 
 ### Apple Silicon (arm64)
@@ -124,7 +124,7 @@ Copy `snakemake/slurm_singularity/config.yaml` as a template, replace the **`clu
 | **`SLURM_ACCOUNT`** | Optional (**`profiles/slurm`**). Sets **`sbatch --account`**; omitted ⇒ existing **`sacctmgr`** derivation in `config.yaml` |
 | **`SLURM_PARTITION`** | Optional (**`profiles/slurm`**). Overrides **`sinfo`** default-partition detection in **`run_pipeline.sh`** (see **`sinfo`** `*` suffix); ultimate fallback **`compute`** |
 
-The **pipeline YAML path** is not configured via `.env`. Use **`./run_pipeline.sh <workflow>.smk [path/to/input.yaml]`** (defaults to **`input.yaml`**) or run **`snakemake`** with **`--config genehackman_input=path/to/input.yaml`** (see `snakemake/PIPELINES.md`).
+The **pipeline YAML path** is not configured via `.env`. Use **`./run_pipeline.sh <workflow>.smk [path/to/input.yaml]`** (defaults to **`input.yaml`**) or run **`snakemake`** with **`--config genehackman_input=path/to/input.yaml`** (see [PIPELINES.md](PIPELINES.md)).
 
 Use **`.env`** for values you want loaded every time `./run_pipeline.sh` runs (`export $(cat .env | xargs)`).
 
@@ -132,7 +132,7 @@ Use **`.env`** for values you want loaded every time `./run_pipeline.sh` runs (`
 
 ## Further reading
 
-- Pipeline input schema: [`snakemake/PIPELINES.md`](snakemake/PIPELINES.md)
+- Pipeline input schema: [PIPELINES.md](PIPELINES.md)
 - Main readme: [`README.md`](README.md)
 - Snakemake profiles: [documentation](https://snakemake.readthedocs.io/en/stable/executing/cli.html#profiles)
 - Snakemake cluster execution: [docs](https://snakemake.readthedocs.io/en/stable/executing/cluster.html)

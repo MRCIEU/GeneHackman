@@ -1,7 +1,7 @@
 source("load.R")
 library(argparser, quietly = TRUE)
 
-parser <- arg_parser("Run BF-BF colocalization on finemapped GWAS results")
+parser <- arg_parser("Run  colocalization on finemapped GWAS results")
 
 parser <- add_argument(parser, "--finemap_dirs",
                        help = "Space-separated list of finemap output directories",

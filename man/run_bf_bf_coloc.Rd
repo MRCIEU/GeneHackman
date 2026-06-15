@@ -2,7 +2,7 @@
 % Please edit documentation in R/coloc_bf.R
 \name{run_bf_bf_coloc}
 \alias{run_bf_bf_coloc}
-\title{Run pairwise BF-BF colocalization on finemapped GWAS results}
+\title{Run pairwise  colocalization on finemapped GWAS results}
 \usage{
 run_bf_bf_coloc(
   finemap_dirs,

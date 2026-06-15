@@ -13,7 +13,7 @@ Goals:
 
 ## Available Pipelines
 
-There are **six** Snakemake pipelines (grouped as two tables of three). Each pipeline is a `.smk` file under `snakemake/`; see [PIPELINES.md](snakemake/PIPELINES.md) for YAML inputs and parameters.
+There are **six** Snakemake pipelines (grouped as two tables of three). Each pipeline is a `.smk` file under `snakemake/`; see [PIPELINES.md](PIPELINES.md) for YAML inputs and parameters.
 
 ### Pipelines — table 1
 
@@ -32,8 +32,8 @@ There are **six** Snakemake pipelines (grouped as two tables of three). Each pip
 |----------------------------------------------------------------------------|----------------------------------------------------------------------------|---------------------------------------------------------------------------|
 | Runs **standardise_gwas**, clumping, and **SuSiE** fine-mapping on one outcome GWAS | Same **standardise** + **clump** + **SuSiE** path for **each** input GWAS (one or more) | Same **standardise** + **clump** + **SuSiE** for **≥2** GWASes (required for colocalization) |
 | Runs Mendelian randomization vs a chosen QTL panel (e.g. eQTLGen, MetaBrain) | Per-locus fine-mapping using summary stats and **ancestry-matched LD** (PLINK reference); outputs credible sets and LBF columns per locus | **Pairwise** `coloc::coloc.bf_bf` on overlapping finemapped signals (same chr, leads within ±`overlap_kb` kb) across all trait pairs |
-| Volcano plot of MR results; **BF-BF coloc** for exposures that pass MR FDR | Finemap-only: no MR or coloc between traits (use when you only need SuSiE outputs) | Full coloc table + **HTML report** (`result_coloc.html`), including a disclaimer when ancestries differ between GWASes |
-| Requires **QTL_DATA_DIR** (see `.env_example`) for QTL files              | Each GWAS must declare **ancestry** (for LD)                                | Configurable `finemap` and `coloc` priors/overlap; see [PIPELINES.md](snakemake/PIPELINES.md) |
+| Volcano plot of MR results; ** coloc** for exposures that pass MR FDR | Finemap-only: no MR or coloc between traits (use when you only need SuSiE outputs) | Full coloc table + **HTML report** (`result_coloc.html`), including a disclaimer when ancestries differ between GWASes |
+| Requires **QTL_DATA_DIR** (see `.env_example`) for QTL files              | Each GWAS must declare **ancestry** (for LD)                                | Configurable `finemap` and `coloc` priors/overlap; see [PIPELINES.md](PIPELINES.md) |
 
 ## Onboarding
 
@@ -85,13 +85,13 @@ Variables match [.env_example](.env_example):
 | Variable | Purpose |
 |----------|---------|
 | **`PROJECT_DIR`** | Root folder for this analysis. The pipeline uses **`PROJECT_DIR/data/`** for inputs (GWAS, clumps, …) and **`PROJECT_DIR/results/`** for outputs (finemap, coloc, plots, …). |
-| **`PIPELINE_DATA_DIR`** | Path where you unpacked the shared **`genehackman`** reference data (see §3). Also used for the Apptainer image: **`PIPELINE_DATA_DIR/genomic_data/pipeline/genehackman_<DOCKER_VERSION>.sif`**. If that SIF is missing and the directory is writable, `run_pipeline.sh` builds it from `docker://mrcieu/genehackman:<DOCKER_VERSION>`. |
-| **`DOCKER_VERSION`** | Docker/Apptainer image tag (e.g. `1.1.0` or `develop`). Must match the SIF filename and the image you intend to run. |
+| **`PIPELINE_DATA_DIR`** | Path where you unpacked the shared **`genehackman`** reference data (see §3). Also used for the Apptainer image: **`PIPELINE_DATA_DIR/genomic_data/pipeline/genehackman_<version>.sif`**, where `<version>` comes from **`DOCKER_VERSION`** or defaults to **`Version:`** in [`DESCRIPTION`](DESCRIPTION). If that SIF is missing and the directory is writable, `run_pipeline.sh` builds it from `docker://mrcieu/genehackman:<version>`. |
 
 **Optional**
 
 | Variable | Purpose |
 |----------|---------|
+| **`DOCKER_VERSION`** | Docker/Apptainer image tag (e.g. `1.1.0` or `develop`). Defaults to **`Version:`** in [`DESCRIPTION`](DESCRIPTION) when unset. Override when you need a different image than the checked-out package version. |
 | **`QTL_DATA_DIR`** | Path to **`genehackman-qtl`** data if you run **`qtl_mr`**. Leave empty for other pipelines. You can instead place QTL data under **`PIPELINE_DATA_DIR/qtl_datasets/`** (see [PLATFORM_SETUP.md](PLATFORM_SETUP.md)). |
 | **`SNAKEMAKE_PROFILE`** | Snakemake profile directory. Default in `.env_example`: **`snakemake/profiles/local/`** (local Apptainer). On HPC use e.g. **`snakemake/profiles/slurm/`**. |
 | **`APPTAINER_MODULE`** | Environment module name to load Apptainer/Singularity before running on HPC (only used when the profile is not `local`). |
@@ -103,7 +103,7 @@ Example `.env`:
 ```bash
 PROJECT_DIR=/path/to/my_project
 PIPELINE_DATA_DIR=/path/to/my_pipeline_data/
-DOCKER_VERSION=1.1.0
+# DOCKER_VERSION=1.1.0  # optional; defaults to Version: in DESCRIPTION
 QTL_DATA_DIR=/path/to/my_qtl_data/
 SNAKEMAKE_PROFILE=snakemake/profiles/local/
 ```
@@ -112,7 +112,7 @@ SNAKEMAKE_PROFILE=snakemake/profiles/local/
 
 * Example: `cp snakemake/input_templates/compare_gwases.yaml input.yaml`
 * Each pipeline has its own shape; examples live under [`snakemake/input_templates/`](snakemake/input_templates/).
-* See [PIPELINES.md](snakemake/PIPELINES.md) for all fields.
+* See [PIPELINES.md](PIPELINES.md) for all fields.
 * Pass the input YAML as the **second** argument to `run_pipeline.sh`, or rely on **`input.yaml`** in the working directory. To call **`snakemake`** yourself without the wrapper, set **`PROJECT_DIR`** in **`.env`** and export **`DATA_DIR="${PROJECT_DIR%/}/data"`** and **`RESULTS_DIR="${PROJECT_DIR%/}/results"`** (or load the same paths Snakemake uses) so shell rules and profile bind mounts resolve; also pass **`--config genehackman_input=/path/to/file.yaml`**.
 
 ### 5. Run the pipeline

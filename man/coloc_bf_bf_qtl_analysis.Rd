@@ -2,7 +2,7 @@
 % Please edit documentation in R/coloc.R
 \name{coloc_bf_bf_qtl_analysis}
 \alias{coloc_bf_bf_qtl_analysis}
-\title{Run BF-BF coloc between a finemapped GWAS locus and QTL data}
+\title{Run  coloc between a finemapped GWAS locus and QTL data}
 \usage{
 coloc_bf_bf_qtl_analysis(
   finemap_dir,
