@@ -1,15 +1,22 @@
-# GeneHackman 
+# GeneHackman
 
 ![CI Tests](https://github.com/MRCIEU/GeneHackman/actions/workflows/main.yml/badge.svg)
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10624713.svg)](https://doi.org/10.5281/zenodo.10624713)
+## Introduction
 
-A pipeline for performing common genetic epidemiology tasks at the University of Bristol.
+GeneHackman is a reproducible workflow suite for genetic epidemiology from GWAS summary statistics. It harmonises heterogeneous summary-statistic files, runs common downstream analyses (clumping, fine-mapping, colocalisation, Mendelian randomisation, and cross-cohort comparison), and writes structured outputs with HTML reports.
 
-Goals:
-* Implement comment steps in GWAS investigations to create reproducible, more efficient research
-* Reusable pipelines that can be utilised on different projects
-* Shared code and steps that can be updated according to the latest knowledge and practices
+The workflows are implemented in [Snakemake](https://snakemake.readthedocs.io/) and executed inside a pinned [Docker / Apptainer image](https://hub.docker.com/repository/docker/mrcieu/genehackman/general) so that the same steps can run on a laptop, a Linux server, or a batch scheduler (Slurm, PBS). Analysis logic lives in an R package and companion scripts; reference panels (1000 Genomes LD, liftover chains, LDSC weights) and optional QTL panels are fetched separately.
+
+GeneHackman accompanies an application note: each pipeline corresponds to a distinct analysis scenario, with YAML configuration, documented inputs and outputs, and end-to-end tests on small public example data.
+
+**Why use it**
+
+- **Data Harmonisation** — map arbitrary GWAS column layouts to a shared schema, optional liftover, RSID population, EAF population, and alphabetically ordered effect alleles.
+- **Reproducible pipelines** — standardise only, or chain standardisation with clumping, SuSiE / MultiSuSiE fine-mapping, BF-BF colocalisation, LDSC, or QTL MR.
+- **Reproducible by default** — containerised runtime, versioned reference data, and explicit completion markers per analysis run.
+
+If you use GeneHackman in published work, please cite the [Zenodo record](https://doi.org/10.5281/zenodo.10624713) and the application note (when available).
 
 ## Available Pipelines
 
@@ -32,45 +39,55 @@ There are **six** Snakemake pipelines (grouped as two tables of three). Each pip
 |----------------------------------------------------------------------------|----------------------------------------------------------------------------|---------------------------------------------------------------------------|
 | Runs **standardise_gwas**, clumping, and **SuSiE** fine-mapping on one outcome GWAS | Same **standardise** + **clump** + **SuSiE** path for **each** input GWAS (one or more) | Same **standardise** + **clump** + **SuSiE** for **≥2** GWASes (required for colocalization) |
 | Runs Mendelian randomization vs a chosen QTL panel (e.g. eQTLGen, MetaBrain) | Per-locus fine-mapping using summary stats and **ancestry-matched LD** (PLINK reference); outputs credible sets and LBF columns per locus | **Pairwise** `coloc::coloc.bf_bf` on overlapping finemapped signals (same chr, leads within ±`overlap_kb` kb) across all trait pairs |
-| Volcano plot of MR results; ** coloc** for exposures that pass MR FDR | Finemap-only: no MR or coloc between traits (use when you only need SuSiE outputs) | Full coloc table + **HTML report** (`result_coloc.html`), including a disclaimer when ancestries differ between GWASes |
+| Volcano plot of MR results; BF-BF coloc for exposures that pass MR FDR | Finemap-only: no MR or coloc between traits (use when you only need SuSiE outputs) | Full coloc table + **HTML report** (`result_coloc.html`) |
 | Requires **QTL_DATA_DIR** (see `.env_example`) for QTL files              | Each GWAS must declare **ancestry** (for LD)                                | Configurable `finemap` and `coloc` priors/overlap; see [PIPELINES.md](PIPELINES.md) |
 
-## Onboarding
+## Quick start
 
-### 1. Clone the repository into your personal space on BlueCrystal 4
-`git clone git@github.com:MRCIEU/GeneHackman.git && cd GeneHackman`
+### 1. Clone the repository
 
-### 2. Ensure you [have conda installed and initialised before activating](https://www.anaconda.com/docs/getting-started/miniconda/install/overview)
+```bash
+git clone https://github.com/MRCIEU/GeneHackman.git
+cd GeneHackman
+```
 
-```conda env create --file environment.yml```
+### 2. Create the conda environment
 
-or if you have already created the environment
+Ensure you [have conda installed and initialised](https://www.anaconda.com/docs/getting-started/miniconda/install/overview), then:
 
-```conda activate genehackman```
+```bash
+conda env create -f environment.yml
+conda activate genehackman
+```
 
-### 3. Get reference data (Google Cloud Storage)
+### 3. Download reference data
 
-The data to run the pipelines have been split into two buckets, the mandatory bucket, and QTL bucket (only needed if you want to run MR-QTL pipeline).  To download, [install gsutil](https://docs.cloud.google.com/storage/docs/gsutil_install)
+Reference files (1000 Genomes LD panels, liftover chains, LDSC weights, and the pipeline container cache location) are hosted on Google Cloud Storage. [Install gsutil](https://docs.cloud.google.com/storage/docs/gsutil_install) if needed.
 
-* Mandatory: `gs://genehackman`
-  * `gsutil -m rsync -r gs://genehackman/ /path/to/my_pipeline_data/`
-  * Update `PIPELINE_DATA_DIR` to `/path/to/my_pipeline_data/` in the .env file
-* Optional: `gs://genehackman-qtl` 
-  * `gsutil -m rsync -r gs://genehackman-qtl/ /path/to/my_qtl_data/`
-  * Update `QTL_DATA_DIR` to `/path/to/my_qtl_data/` in the .env file
+**Required for most pipelines**
 
-To copy only selected prefixes instead of the QTL bucket, use `gsutil -m cp -r gs://genehackman-qtl/SOME_PREFIX/ ...` as needed.  For example, you may only be interested in cis, not trans data.
+```bash
+gsutil -m rsync -r gs://genehackman/ /path/to/my_pipeline_data/
+```
 
-Then point your **`.env`** at those directories (trailing slashes are fine):
+Set `PIPELINE_DATA_DIR=/path/to/my_pipeline_data/` in `.env`.
+
+**Optional — QTL MR pipeline only**
+
+```bash
+gsutil -m rsync -r gs://genehackman-qtl/ /path/to/my_qtl_data/
+```
+
+Set `QTL_DATA_DIR=/path/to/my_qtl_data/`, or place QTL data under `PIPELINE_DATA_DIR/qtl_datasets/` (see [PLATFORM_SETUP.md](PLATFORM_SETUP.md)).
+
+Example `.env` paths:
 
 ```bash
 PIPELINE_DATA_DIR=/path/to/my_pipeline_data/
 QTL_DATA_DIR=/path/to/my_qtl_data/
 ```
 
-Alternatives if you don’t set **`QTL_DATA_DIR`** directly: keep the same directory layout under **`PIPELINE_DATA_DIR/qtl_datasets/`**, or follow [PLATFORM_SETUP.md](PLATFORM_SETUP.md) (bind mounts and defaulting **`QTL_DATA_DIR`** to **`PIPELINE_DATA_DIR/qtl_datasets`**).
-
-### 4. Populate `.env` and `input.yaml` files
+### 4. Configure `.env` and input YAML
 
 Copy the template and edit paths for your machine:
 
@@ -80,23 +97,23 @@ cp .env_example .env
 
 Variables match [.env_example](.env_example):
 
-**Mandatory**
+**Required**
 
 | Variable | Purpose |
 |----------|---------|
-| **`PROJECT_DIR`** | Root folder for this analysis. The pipeline uses **`PROJECT_DIR/data/`** for inputs (GWAS, clumps, …) and **`PROJECT_DIR/results/`** for outputs (finemap, coloc, plots, …). |
-| **`PIPELINE_DATA_DIR`** | Path where you unpacked the shared **`genehackman`** reference data (see §3). Also used for the Apptainer image: **`PIPELINE_DATA_DIR/genomic_data/pipeline/genehackman_<version>.sif`**, where `<version>` comes from **`DOCKER_VERSION`** or defaults to **`Version:`** in [`DESCRIPTION`](DESCRIPTION). If that SIF is missing and the directory is writable, `run_pipeline.sh` builds it from `docker://mrcieu/genehackman:<version>`. |
+| **`PROJECT_DIR`** | Root folder for this analysis. The pipeline writes inputs under **`PROJECT_DIR/data/`** and results under **`PROJECT_DIR/results/`**. |
+| **`PIPELINE_DATA_DIR`** | Directory containing the **`genehackman`** reference bundle (step 3). Also used for the Apptainer image cache: **`PIPELINE_DATA_DIR/genomic_data/pipeline/genehackman_<version>.sif`**, where `<version>` comes from **`DOCKER_VERSION`** or defaults to **`Version:`** in [`DESCRIPTION`](DESCRIPTION). If the SIF is missing and the directory is writable, `run_pipeline.sh` builds it from `docker://mrcieu/genehackman:<version>`. |
 
 **Optional**
 
 | Variable | Purpose |
 |----------|---------|
-| **`DOCKER_VERSION`** | Docker/Apptainer image tag (e.g. `1.1.0` or `develop`). Defaults to **`Version:`** in [`DESCRIPTION`](DESCRIPTION) when unset. Override when you need a different image than the checked-out package version. |
-| **`QTL_DATA_DIR`** | Path to **`genehackman-qtl`** data if you run **`qtl_mr`**. Leave empty for other pipelines. You can instead place QTL data under **`PIPELINE_DATA_DIR/qtl_datasets/`** (see [PLATFORM_SETUP.md](PLATFORM_SETUP.md)). |
-| **`SNAKEMAKE_PROFILE`** | Snakemake profile directory. Default in `.env_example`: **`snakemake/profiles/local/`** (local Apptainer). On HPC use e.g. **`snakemake/profiles/slurm/`**. |
-| **`APPTAINER_MODULE`** | Environment module name to load Apptainer/Singularity before running on HPC (only used when the profile is not `local`). |
-| **`SLURM_PARTITION`** | Slurm partition for cluster jobs. If unset, `run_pipeline.sh` tries to detect one from `sinfo`, else uses **`compute`**. |
-| **`SLURM_ACCOUNT`** | Slurm account for cluster jobs. If unset, `run_pipeline.sh` tries to infer it from `sacctmgr`. |
+| **`DOCKER_VERSION`** | Docker/Apptainer image tag (e.g. `1.1.0` or `develop`). Defaults to **`Version:`** in [`DESCRIPTION`](DESCRIPTION) when unset. |
+| **`QTL_DATA_DIR`** | Path to **`genehackman-qtl`** data for **`qtl_mr`**. Leave empty for other pipelines. |
+| **`SNAKEMAKE_PROFILE`** | Snakemake profile directory. Default: **`snakemake/profiles/local/`** (local Apptainer). On a cluster, use e.g. **`snakemake/profiles/slurm/`**. |
+| **`APPTAINER_MODULE`** | Environment module to load Apptainer/Singularity on HPC (when not using the `local` profile). |
+| **`SLURM_PARTITION`** | Slurm partition. If unset, `run_pipeline.sh` tries `sinfo`, else **`compute`**. |
+| **`SLURM_ACCOUNT`** | Slurm account. If unset, `run_pipeline.sh` tries to infer from `sacctmgr`. |
 
 Example `.env`:
 
@@ -108,49 +125,54 @@ QTL_DATA_DIR=/path/to/my_qtl_data/
 SNAKEMAKE_PROFILE=snakemake/profiles/local/
 ```
 
-**`input.yaml`**
+**Input YAML**
 
-* Example: `cp snakemake/input_templates/compare_gwases.yaml input.yaml`
-* Each pipeline has its own shape; examples live under [`snakemake/input_templates/`](snakemake/input_templates/).
-* See [PIPELINES.md](PIPELINES.md) for all fields.
-* Pass the input YAML as the **second** argument to `run_pipeline.sh`, or rely on **`input.yaml`** in the working directory. To call **`snakemake`** yourself without the wrapper, set **`PROJECT_DIR`** in **`.env`** and export **`DATA_DIR="${PROJECT_DIR%/}/data"`** and **`RESULTS_DIR="${PROJECT_DIR%/}/results"`** (or load the same paths Snakemake uses) so shell rules and profile bind mounts resolve; also pass **`--config genehackman_input=/path/to/file.yaml`**.
+* Copy a template: `cp snakemake/input_templates/compare_gwases.yaml input.yaml`
+* Examples for every pipeline: [`snakemake/input_templates/`](snakemake/input_templates/)
+* Field reference: [PIPELINES.md](PIPELINES.md)
+* Pass the YAML as the second argument to `run_pipeline.sh`, or use **`input.yaml`** in the working directory. When calling **`snakemake`** directly, pass **`--config genehackman_input=/path/to/file.yaml`** and ensure **`PROJECT_DIR`** is set in **`.env`**.
 
-### 5. Run the pipeline
+### 5. Run a pipeline
 
-To ensure you have configured everything correctly, you can run a test pipeline from `run_test_pipelines.sh`
+Smoke test with bundled example input:
 
-`./run_pipeline.sh snakemake/standardise_gwas.smk tests/testthat/data/snakemake_inputs/standardise_gwas.yaml`
+```bash
+./run_pipeline.sh snakemake/standardise_gwas.smk tests/testthat/data/snakemake_inputs/standardise_gwas.yaml
+```
 
-To run your pipeline:
+Run your analysis:
 
-`./run_pipeline.sh snakemake/<specific_pipeline>.smk <optional_input_file.yaml>`
+```bash
+./run_pipeline.sh snakemake/<pipeline>.smk [path/to/input.yaml]
+```
 
-Snakemake execution profiles (**`--profile`**) live under **`snakemake/profiles/`** (see also [PLATFORM_SETUP.md](PLATFORM_SETUP.md)).
+Snakemake profiles live under **`snakemake/profiles/`** — see [PLATFORM_SETUP.md](PLATFORM_SETUP.md) for local, Slurm, and PBS setups.
 
-* By default `run_pipeline.sh` uses **`SNAKEMAKE_PROFILE=snakemake/profiles/local/`** (local Apptainer). On HPC, set e.g. **`SNAKEMAKE_PROFILE=snakemake/profiles/slurm/`** (generic Slurm) or add a site-specific directory beside **`snakemake/profiles/local/`** and **`snakemake/profiles/slurm/`**.
-* `run_pipeline.sh` is just a convience wrapper around the `snakemake` command, if you want to do anything out of the ordinary, [please read up on snakemake](https://snakemake.readthedocs.io/en/v7.26.0/)
-* If there are errors while running the pipeline, you can find error messages either directly on the screen, or in slurm log file that is outputted on error
-* It is recommended that you run the your pipeline [inside a tmux session](https://github.com/MRCIEU/GeneHackman/wiki/Common-Errors#ssh-disconnection-while-pipeline-is-running).
+- Default: **`SNAKEMAKE_PROFILE=snakemake/profiles/local/`** (Apptainer on the current machine).
+- On a cluster: e.g. **`SNAKEMAKE_PROFILE=snakemake/profiles/slurm/`**, or add a site-specific profile beside the bundled ones.
+- `run_pipeline.sh` is a convenience wrapper around **`snakemake`**; see the [Snakemake documentation](https://snakemake.readthedocs.io/) for advanced options.
+- Long jobs: consider a terminal multiplexer (e.g. `tmux`) so SSH disconnects do not kill the run.
 
-## How it works:
+## How it works
 
-The standard column naming for GWASes are:
+Harmonised GWAS columns use this schema by default:
 
 | CHR | BP  | EA  | OA  | BETA | SE  | P   | EAF | SNP | RSID |
-|-----|-----|-----|-----|------|-----|-----|-----|-----|:-----|
+|-----|-----|-----|-----|------|-----|-----|-----|-----|------|
 
-A full list of names and default values [can be found here](inst/extdata/predefined_column_maps.csv)
+Preset column maps and aliases: [`inst/extdata/predefined_column_maps.csv`](inst/extdata/predefined_column_maps.csv).
 
-There are 2 main components to the pipeline
-1. Snakemake to define the steps to complete for each pipeline.
-2. Docker / Singularity container with installed languages (R and python), packages, os libraries, and code
+Two components run every workflow:
 
-The pipeline can be run either on its own, or via your institutions HPC.  Each snakemake step spins up a singularity container inside an HPC job (ex. slurm).  Each step can specify different cpu/memory requirements.
+1. **Snakemake** — defines steps, dependencies, and resource requests per rule.
+2. **Container image** (`mrcieu/genehackman`) — pinned R/Python packages, PLINK, liftOver, LDSC, and pipeline code.
 
-### Platform Setup
+On a cluster, each Snakemake job typically launches Apptainer/Singularity inside the scheduler allocation; rules can request different CPU and memory limits.
 
-**Running on macOS, Linux, Slurm, or PBS?** See **[PLATFORM_SETUP.md](PLATFORM_SETUP.md)** for platform-specific setup (Apptainer/Lima, SIF cache, Snakemake profiles under **`snakemake/profiles/`**, `qsub` template).
+### Platform setup
 
-### Making changes
+**macOS, Linux, Slurm, or PBS:** see **[PLATFORM_SETUP.md](PLATFORM_SETUP.md)** for Apptainer/Lima, SIF cache layout, profiles, and cluster templates.
 
-See **[CONTRIBUTING.md](CONTRIBUTING.md)** for development setup, Docker rebuilds, unit tests, and end-to-end tests. You can also contact open an issue in this repo.
+### Contributing
+
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for development setup, Docker rebuilds, tests, and adding new pipelines. Bug reports and feature requests: [GitHub issues](https://github.com/MRCIEU/GeneHackman/issues).
