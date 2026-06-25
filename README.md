@@ -6,7 +6,7 @@
 
 GeneHackman is a reproducible workflow suite for genetic epidemiology from GWAS summary statistics. It harmonises heterogeneous summary-statistic files, runs common downstream analyses (clumping, fine-mapping, colocalisation, Mendelian randomisation, and cross-cohort comparison), and writes structured outputs with HTML reports.
 
-The workflows are implemented in [Snakemake](https://snakemake.readthedocs.io/) and executed inside a pinned [Docker / Apptainer image](https://hub.docker.com/repository/docker/mrcieu/genehackman/general) so that the same steps can run on a laptop, a Linux server, or a batch scheduler (Slurm, PBS). Analysis logic lives in an R package and companion scripts; reference panels (1000 Genomes LD, liftover chains, LDSC weights) and optional QTL panels are fetched separately.
+The workflows are implemented in [Snakemake](https://snakemake.readthedocs.io/) and executed inside a pinned [Docker / Apptainer image](https://hub.docker.com/repository/docker/mrcieu/genehackman/general) so that the same steps can run on a Linux server or a batch scheduler (ex. Slurm). Analysis logic lives in an R package and companion scripts; reference panels (1000 Genomes LD, liftover chains, LDSC weights) and optional QTL panels are fetched separately.
 
 GeneHackman accompanies an application note: each pipeline corresponds to a distinct analysis scenario, with YAML configuration, documented inputs and outputs, and end-to-end tests on small public example data.
 
@@ -62,12 +62,12 @@ conda activate genehackman
 
 ### 3. Download reference data
 
-Reference files (1000 Genomes LD panels, liftover chains, LDSC weights, and the pipeline container cache location) are hosted on Google Cloud Storage. [Install gsutil](https://docs.cloud.google.com/storage/docs/gsutil_install) if needed.
+Reference files (1000 Genomes LD panels, liftover chains, LDSC weights) are hosted on Google Cloud Storage under a **version prefix** that matches the pipeline release, e.g. `gs://genehackman/1.1.0. [Install gsutil](https://docs.cloud.google.com/storage/docs/gsutil_install) if needed.
 
 **Required for most pipelines**
 
 ```bash
-gsutil -m rsync -r gs://genehackman/ /path/to/my_pipeline_data/
+gsutil -m rsync -r "gs://genehackman/1.1.0/" /path/to/my_pipeline_data/
 ```
 
 Set `PIPELINE_DATA_DIR=/path/to/my_pipeline_data/` in `.env`.
@@ -75,7 +75,7 @@ Set `PIPELINE_DATA_DIR=/path/to/my_pipeline_data/` in `.env`.
 **Optional — QTL MR pipeline only**
 
 ```bash
-gsutil -m rsync -r gs://genehackman-qtl/ /path/to/my_qtl_data/
+gsutil -m rsync -r "gs://genehackman-qtl/1.1.0/" /path/to/my_qtl_data/
 ```
 
 Set `QTL_DATA_DIR=/path/to/my_qtl_data/`, or place QTL data under `PIPELINE_DATA_DIR/qtl_datasets/` (see [PLATFORM_SETUP.md](PLATFORM_SETUP.md)).
@@ -102,7 +102,7 @@ Variables match [.env_example](.env_example):
 | Variable | Purpose |
 |----------|---------|
 | **`PROJECT_DIR`** | Root folder for this analysis. The pipeline writes inputs under **`PROJECT_DIR/data/`** and results under **`PROJECT_DIR/results/`**. |
-| **`PIPELINE_DATA_DIR`** | Directory containing the **`genehackman`** reference bundle (step 3). Also used for the Apptainer image cache: **`PIPELINE_DATA_DIR/genomic_data/pipeline/genehackman_<version>.sif`**, where `<version>` comes from **`DOCKER_VERSION`** or defaults to **`Version:`** in [`DESCRIPTION`](DESCRIPTION). If the SIF is missing and the directory is writable, `run_pipeline.sh` builds it from `docker://mrcieu/genehackman:<version>`. |
+| **`PIPELINE_DATA_DIR`** | Directory containing **`genomic_data/`** and **`LDSCORE/`** (from step 3). Also used for the Apptainer image cache: **`PIPELINE_DATA_DIR/genomic_data/pipeline/genehackman_<version>.sif`**, where `<version>` comes from **`DOCKER_VERSION`** or defaults to **`Version:`** in [`DESCRIPTION`](DESCRIPTION). Download reference data from **`gs://genehackman/1.1.0/`** with the same version string. If the SIF is missing and the directory is writable, `run_pipeline.sh` builds it from `docker://mrcieu/genehackman:<version>`. |
 
 **Optional**
 
