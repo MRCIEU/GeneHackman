@@ -1,0 +1,17 @@
+# Local Docker profile.
+#
+# run_pipeline.sh launches Snakemake inside the Docker image for this profile,
+# so rules should execute directly in that container rather than via
+# per-rule Apptainer/Singularity containers.
+shell-prefix: "cd /home/scripts; "
+
+jobs: 1
+default-resources:
+  - mem_mb=16000
+  - threads=8
+local-cores: 1
+latency-wait: 10
+keep-going: True
+rerun-incomplete: True
+printshellcmds: True
+scheduler: greedy

@@ -1,18 +1,62 @@
 # Running GeneHackman by platform
 
-Snakemake orchestrates steps; each step usually runs inside an **Apptainer/Singularity** image (`docker://mrcieu/genehackman` or a local `.sif`). Snakemake **profiles** live under **`snakemake/profiles/`** (each profile is a directory containing `config.yaml`). They choose how jobs run (local cores vs cluster scheduler) and which host paths are **bind-mounted** into the container.
+Snakemake orchestrates steps; container execution is selected by **`SNAKEMAKE_PROFILE`**. Local runs can use either **Docker** (`snakemake/profiles/docker/`) or **Apptainer/Singularity** (`snakemake/profiles/apptainer/`). Cluster runs use Apptainer/Singularity profiles such as `snakemake/profiles/slurm/`. Profiles live under **`snakemake/profiles/`** and define how jobs run plus which host paths are bind-mounted into the container.
 
 General prerequisites:
 
-1. **Conda env:** `conda env create -f environment.yml` then `conda activate genehackman`
-2. **`.env`:** copy from `.env_example` and set **`PROJECT_DIR`** (the pipeline uses **`PROJECT_DIR/data/`** and **`PROJECT_DIR/results/`**) and **`PIPELINE_DATA_DIR`** (and paths your pipeline needs for genomic / 1000G data). Optionally set **`QTL_DATA_DIR`** when large QTL mirrors live on another volume or object-store mount; if omitted, `run_pipeline.sh` defaults it to `PIPELINE_DATA_DIR/qtl_datasets`.
-3. **Input YAML:** see `snakemake/input_templates/` and [PIPELINES.md](PIPELINES.md).
+1. **Conda env:** `conda env create -f environment.yml` then `conda activate genehackman`. The conda env provides Snakemake for Apptainer profiles and the wrapper utilities for all profiles.
+2. **Reference data:** download the current release data from **`gs://genehackman/1.1.0/`** into **`PIPELINE_DATA_DIR`** so `genomic_data/` and `LDSCORE/` sit directly under that directory:
 
-**`./run_pipeline.sh`** loads `.env`, picks a **profile** (**`SNAKEMAKE_PROFILE`**, default `snakemake/profiles/local/`), then runs Snakemake. Pass the **`.smk` workflow first**, then optional input YAML, for example:
+   ```bash
+   gsutil -m rsync -r gs://genehackman/1.1.0/ /path/to/my_pipeline_data/
+   ```
+
+   If a future release updates code and reference data together, use the matching bucket prefix (for example `gs://genehackman/1.2.0/`) and update the docs accordingly.
+
+3. **`.env`:** copy from `.env_example` and set **`PROJECT_DIR`** (the pipeline uses **`PROJECT_DIR/data/`** and **`PROJECT_DIR/results/`**) and **`PIPELINE_DATA_DIR`** (path from step 2). Optionally set **`QTL_DATA_DIR`** when large QTL mirrors live on another volume or object-store mount; if omitted, `run_pipeline.sh` defaults it to `PIPELINE_DATA_DIR/qtl_datasets`.
+4. **Input YAML:** see `snakemake/input_templates/` and [PIPELINES.md](PIPELINES.md).
+
+**`./run_pipeline.sh`** loads `.env`, picks a **profile** (**`SNAKEMAKE_PROFILE`**, default `snakemake/profiles/apptainer/`), then runs Snakemake. Pass the **`.smk` workflow first**, then optional input YAML, for example:
 
 ```bash
 ./run_pipeline.sh snakemake/standardise_gwas.smk path/to/input.yaml
 ```
+
+---
+
+## Choosing a Runtime
+
+| Profile | Runtime | Use case |
+|---------|---------|----------|
+| `snakemake/profiles/docker/` | Local Docker | Workstations where Docker is available and you do not want to build/use a SIF. |
+| `snakemake/profiles/apptainer/` | Local Apptainer/Singularity | Workstations or servers with Apptainer/Singularity. This remains the default. |
+| `snakemake/profiles/slurm/` | Slurm + Apptainer/Singularity | Cluster execution; no Docker-on-Slurm support is provided. |
+| `snakemake/profiles/uob-bp1/` | Site-specific Slurm + Apptainer/Singularity | Example site profile; edit for your own cluster. |
+
+Set the profile in `.env`:
+
+```bash
+SNAKEMAKE_PROFILE=snakemake/profiles/docker/
+```
+
+`run_pipeline.sh` only builds or uses `genehackman_<version>.sif` for Apptainer/Singularity profiles. With the Docker profile it runs Snakemake inside `mrcieu/genehackman:<version>` directly.
+
+---
+
+## Local Docker
+
+Use this when Docker is installed and you want a standalone local run without Apptainer/Singularity:
+
+```bash
+SNAKEMAKE_PROFILE=snakemake/profiles/docker/
+./run_pipeline.sh snakemake/compare_gwases.smk path/to/input.yaml
+```
+
+The wrapper mounts the repository, `PROJECT_DIR` outputs, `PIPELINE_DATA_DIR`, optional `QTL_DATA_DIR`, and then runs Snakemake inside `mrcieu/genehackman:<version>`. It uses **`DOCKER_VERSION`** if set, otherwise **`Version:`** in `DESCRIPTION`.
+
+On Apple Silicon, the wrapper defaults to `--platform linux/amd64` because the published image is amd64. Override with **`GENEHACKMAN_DOCKER_PLATFORM`** only if a multi-architecture image is published later.
+
+This is local-only Docker support. The Slurm profiles continue to use Apptainer/Singularity.
 
 ---
 
@@ -54,16 +98,20 @@ The published image may be **linux/amd64**. Use Lima with **Rosetta / x86 Linux*
 
 ## Linux (workstation or single server)
 
+For Docker, use `snakemake/profiles/docker/` as described above.
+
+For Apptainer/Singularity:
+
 1. Install **Apptainer** or **SingularityCE** (distribution packages or upstream instructions).
 2. Ensure **`singularity`** or **`apptainer`** is on `PATH` (some sites symlink `singularity` → `apptainer`).
-3. Use **`snakemake/profiles/local/`** for local execution (same as default in `run_pipeline.sh`):
+3. Use **`snakemake/profiles/apptainer/`** for local execution (same as default in `run_pipeline.sh`):
 
    ```bash
-   export SNAKEMAKE_PROFILE=snakemake/profiles/local/
+   export SNAKEMAKE_PROFILE=snakemake/profiles/apptainer/
    ./run_pipeline.sh snakemake/compare_gwases.smk
    ```
 
-4. Adjust **`snakemake/profiles/local/config.yaml`** `singularity-args` if your data live outside **`PROJECT_DIR`** (or **`PIPELINE_DATA_DIR`** / **`QTL_DATA_DIR`**); profiles bind **`DATA_DIR`** and **`RESULTS_DIR`** (derived from **`PROJECT_DIR`**). Add more `-B host:host` pairs if needed.
+4. Adjust **`snakemake/profiles/apptainer/config.yaml`** `singularity-args` if your data live outside **`PROJECT_DIR`** (or **`PIPELINE_DATA_DIR`** / **`QTL_DATA_DIR`**); profiles bind **`DATA_DIR`** and **`RESULTS_DIR`** (derived from **`PROJECT_DIR`**). Add more `-B host:host` pairs if needed.
 
 ---
 
@@ -73,8 +121,9 @@ The repo ships Slurm-oriented profiles (paths and partitions are **Bristol / MRC
 
 | Profile directory | Notes |
 |-------------------|--------|
-| `snakemake/profiles/slurm/` | Slurm + Apptainer: Make sure that slurm `account` and `partition` are set correctly for your HPC |
-| `snakemake/profiles/local/` | Runs apptainer locally, no job invocation |
+| `snakemake/profiles/slurm/` | Slurm + Apptainer: make sure Slurm `account` and `partition` are set correctly for your HPC |
+| `snakemake/profiles/apptainer/` | Runs Apptainer locally, no job invocation |
+| `snakemake/profiles/docker/` | Runs Docker locally, no job invocation and no SIF build |
 | `snakemake/profiles/uob-bp1/` | Specific example for UoB BP1 HPC |
 
 **Typical usage:**
@@ -84,7 +133,7 @@ export SNAKEMAKE_PROFILE=snakemake/profiles/slurm/
 ./run_pipeline.sh snakemake/compare_gwases.smk
 ```
 
-`run_pipeline.sh` runs **`module load ${APPTAINER_MODULE}`** when the profile is **not** `snakemake/profiles/local/*` (or legacy `snakemake/local/*`) — set **`APPTAINER_MODULE`** in `.env` to match your cluster.
+`run_pipeline.sh` runs **`module load ${APPTAINER_MODULE}`** for non-local Apptainer profiles — set **`APPTAINER_MODULE`** in `.env` to match your cluster. The Docker profile is local only and does not load Apptainer modules.
 
 **Customize** each profile under **`snakemake/profiles/`** (each directory has a **`config.yaml`**) as needed:
 
@@ -120,7 +169,7 @@ Copy `snakemake/slurm_singularity/config.yaml` as a template, replace the **`clu
 
 | Variable | Purpose |
 |----------|---------|
-| **`SNAKEMAKE_PROFILE`** | Snakemake profile path (default `snakemake/profiles/local/`). Example HPC: `snakemake/profiles/slurm/` |
+| **`SNAKEMAKE_PROFILE`** | Snakemake profile path (default `snakemake/profiles/apptainer/`). Local Docker: `snakemake/profiles/docker/`. Example HPC: `snakemake/profiles/slurm/` |
 | **`SLURM_ACCOUNT`** | Optional (**`profiles/slurm`**). Sets **`sbatch --account`**; omitted ⇒ existing **`sacctmgr`** derivation in `config.yaml` |
 | **`SLURM_PARTITION`** | Optional (**`profiles/slurm`**). Overrides **`sinfo`** default-partition detection in **`run_pipeline.sh`** (see **`sinfo`** `*` suffix); ultimate fallback **`compute`** |
 

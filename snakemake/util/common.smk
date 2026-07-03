@@ -31,6 +31,8 @@ def get_docker_container():
             "Error: could not determine Docker image version. "
             "Set DOCKER_VERSION in .env or ensure DESCRIPTION contains Version:"
         )
+    if os.getenv("GENEHACKMAN_CONTAINER_RUNTIME", "").strip().lower() == "docker":
+        return f"{docker_repo}:{version}"
     pipeline_genomic_dir = os.path.join(PIPELINE_DATA_DIR.rstrip("/"), "genomic_data", "pipeline")
     sif_path = os.path.join(pipeline_genomic_dir, f"genehackman_{version}.sif")
     if not os.path.isfile(sif_path):

@@ -1,5 +1,3 @@
-# Local profile: Snakemake 7 expects a `singularity` executable; Apptainer provides `apptainer`.
-# run_pipeline.sh prepends a tiny shim when only apptainer exists.
 use-singularity: True
 singularity-args: >-
   -B $(pwd)/R:/home/R

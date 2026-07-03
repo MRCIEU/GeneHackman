@@ -42,13 +42,13 @@ For running pipelines in production, see [README.md](README.md) and [PLATFORM_SE
 |------|------|
 | `R/` | R package functions used by pipeline steps |
 | `scripts/` | CLI entry points called from Snakemake (`Rscript …`, `python …`) |
-| `snakemake/` | Workflow `.smk` files, `profiles/`, `input_templates/`, shared `util/` |
+| `snakemake/` | Workflow `.smk` files, execution `profiles/` (`apptainer`, `docker`, `slurm`), `input_templates/`, shared `util/` |
 | `docker/` | `Dockerfile`, `requirements.R`, `requirements.txt` |
 | `tests/testthat/` | Unit tests and small test GWAS files |
 | `tests/e2e_tests/` | End-to-end Snakemake test runner |
 | `inst/` | Package data (e.g. column maps) |
 
-Snakemake profiles bind-mount `R/`, `scripts/`, and `inst/` from the repo into the container, so **changes to R and script code take effect without rebuilding the image** on the next pipeline run. New R or Python **dependencies** still require a Docker rebuild.
+Snakemake profiles bind-mount `R/`, `scripts/`, and `inst/` from the repo into the container, so **changes to R and script code take effect without rebuilding the image** on the next pipeline run. This applies to both local Docker (`snakemake/profiles/docker/`) and Apptainer/Singularity profiles. New R or Python **dependencies** still require a Docker rebuild.
 
 ## Making code changes
 
@@ -72,7 +72,7 @@ Snakemake profiles bind-mount `R/`, `scripts/`, and `inst/` from the repo into t
 
 - Shared helpers live in `snakemake/util/` (`common.smk`, `constants.smk`, rules under `snakemake/rules/`).
 - Add or update an example input under `snakemake/input_templates/` when you change required YAML fields.
-- Site-specific cluster settings belong in new profiles under `snakemake/profiles/` (copy `local/` or `slurm/` as a template).
+- Site-specific cluster settings belong in new profiles under `snakemake/profiles/` (copy `apptainer/`, `docker/`, or `slurm/` as a template depending on runtime).
 
 ### Conventions
 
