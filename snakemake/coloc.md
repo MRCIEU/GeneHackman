@@ -1,9 +1,8 @@
 # coloc
 
-Standardise, clump, and fine-map **≥2** GWAS (single ancestry only), then run **pairwise**  colocalisation (`coloc::coloc.bf_bf`) on overlapping finemapped signals and generate locus zoom plots.
+Standardise, clump, and fine-map **≥2** GWAS (single ancestry only), then run **pairwise** colocalisation (`coloc::coloc.bf_bf`) on overlapping finemapped signals and generate locus zoom plots.
 
-**Workflow file:** [`coloc.smk`](coloc.smk)  
-**Example input:** [`input_templates/coloc.yaml`](input_templates/coloc.yaml)
+**Workflow file:** [`coloc.smk`](coloc.smk)
 
 ## Run
 
@@ -13,34 +12,80 @@ Standardise, clump, and fine-map **≥2** GWAS (single ancestry only), then run 
 
 ## Input
 
-### GWAS count
+**GWAS count:** at least two under `gwases:`.
 
-- **At least two** GWAS under `gwases:`.
+**Ancestry:** all GWAS must share the same `ancestry`. Multi-ancestry coloc is **not** supported (use [`finemap.smk`](finemap.smk) with MultiSuSiE for cross-population fine-mapping).
 
-### Ancestry rules
+Copy from [`input_templates/coloc.yaml`](input_templates/coloc.yaml).
 
-- **All GWAS must share the same `ancestry`.** Multi-ancestry coloc is **not** supported (use [`finemap.smk`](finemap.smk) with MultiSuSiE for cross-population fine-mapping).
+### Example YAML
 
-### Per-GWAS fields
+```yaml
+gwases:
+  - file: /path/to/trait1.tsv.gz
+    columns: {}
+    N: 100000
+    ancestry: EUR
+  - file: /path/to/trait2.tsv.gz
+    columns: {}
+    N: 80000
+    ancestry: EUR
+plink_clump_arguments: "--clump-p1 5e-8 --clump-r2 0.01 --clump-kb 1000"
+finemap:
+  window_kb: 1000
+  max_causal: 10
+  coverage: 0.95
+  min_abs_corr: 0.5
+coloc:
+  overlap_kb: 1000
+  p1: 1e-4
+  p2: 1e-4
+  p12: 5e-6
+populate_rsid: false
+```
+
+### `gwases[]`
 
 | Field | Required | Notes |
 | ----- | -------- | ----- |
-| `file` | Yes | Input summary-statistics file. |
-| `ancestry` | **Yes** | Must be identical across all GWAS. |
+| `file` | **Yes** | Input summary-statistics file. |
+| `ancestry` | **Yes** | Must be **identical** across all GWAS. |
 | `N` | Recommended | Sample size for fine-mapping. |
 | `columns` | No | Column map or preset. |
-| `populate_rsid` / `populate_eaf` | No | See [PIPELINES.md](../PIPELINES.md#shared-yaml-schema). |
+| `build` | No | Input build. Default `GRCh37`. |
+| `populate_rsid` | No | Per-GWAS override; default inherits root `false`. |
+| `populate_eaf` | No | Fill missing `EAF` from 1000 Genomes (requires `ancestry`). |
 
-### Root-level fields
+### `plink_clump_arguments`
 
 | Field | Required | Notes |
 | ----- | -------- | ----- |
-| `plink_clump_arguments` | **Yes** | PLINK clump settings. |
-| `finemap.*` | No | Same keys as [finemap.md](finemap.md#root-level-fields). |
+| `plink_clump_arguments` | **Yes** | Passed to `plink1.9 --clump`. |
+
+### `finemap`
+
+| Field | Required | Notes |
+| ----- | -------- | ----- |
+| `finemap.window_kb` | No | Half-width of fine-mapping window around each lead (kb). Default `500`. |
+| `finemap.max_causal` | No | Max causal signals per locus. Default `10`. |
+| `finemap.coverage` | No | Credible set coverage. Default `0.95`. |
+| `finemap.min_abs_corr` | No | Minimum \|r\| for credible-set purity. Default `0.5`. |
+
+### `coloc`
+
+| Field | Required | Notes |
+| ----- | -------- | ----- |
 | `coloc.overlap_kb` | No | Two signals “overlap” if lead positions are within this distance (kb). Default `1000`. |
 | `coloc.p1` | No | Prior: SNP associated with trait 1. Default `1e-4`. |
 | `coloc.p2` | No | Prior: SNP associated with trait 2. Default `1e-4`. |
 | `coloc.p12` | No | Prior: SNP associated with both traits. Default `5e-6`. |
+
+### Root fields
+
+| Field | Required | Notes |
+| ----- | -------- | ----- |
+| `populate_rsid` | No | Default `false`. |
+| `populate_eaf` | No | Default `false`. |
 
 `flip_alleles: false` is **not** allowed.
 
@@ -49,7 +94,7 @@ Standardise, clump, and fine-map **≥2** GWAS (single ancestry only), then run 
 1. Standardise each GWAS
 2. PLINK clump per GWAS
 3. SuSiE RSS fine-mapping per GWAS (`run_finemap.R`)
-4. Pairwise  coloc on overlapping loci (`run_coloc.R`)
+4. Pairwise coloc on overlapping loci (`run_coloc.R`)
 5. Locus zoom plots for coloc hits (`run_locus_zoom.R`)
 6. HTML report
 

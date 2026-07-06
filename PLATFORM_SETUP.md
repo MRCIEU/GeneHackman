@@ -1,138 +1,124 @@
 # Running GeneHackman by platform
 
-Snakemake orchestrates steps; each step usually runs inside an **Apptainer/Singularity** image (`docker://mrcieu/genehackman` or a local `.sif`). Snakemake **profiles** live under **`snakemake/profiles/`** (each profile is a directory containing `config.yaml`). They choose how jobs run (local cores vs cluster scheduler) and which host paths are **bind-mounted** into the container.
+GeneHackman is developed and tested on **Linux** and **HPC (Slurm)**. Those are the supported platforms.
 
-General prerequisites:
+Before following the platform setup, please follow the general prerequisites and setup process in the [README.md](README.md).
+---
 
-1. **Conda env:** `conda env create -f environment.yml` then `conda activate genehackman`
-2. **`.env`:** copy from `.env_example` and set **`PROJECT_DIR`** (the pipeline uses **`PROJECT_DIR/data/`** and **`PROJECT_DIR/results/`**) and **`PIPELINE_DATA_DIR`** (and paths your pipeline needs for genomic / 1000G data). Optionally set **`QTL_DATA_DIR`** when large QTL mirrors live on another volume or object-store mount; if omitted, `run_pipeline.sh` defaults it to `PIPELINE_DATA_DIR/qtl_datasets`.
-3. **Input YAML:** see `snakemake/input_templates/` and [PIPELINES.md](PIPELINES.md).
+## Linux
 
-**`./run_pipeline.sh`** loads `.env`, picks a **profile** (**`SNAKEMAKE_PROFILE`**, default `snakemake/profiles/local/`), then runs Snakemake. Pass the **`.smk` workflow first**, then optional input YAML, for example:
+Use this for a workstation or single Linux server.
+
+1. Install **Apptainer** or **SingularityCE** (distribution packages or upstream instructions).
+2. Ensure **`singularity`** or **`apptainer`** is on `PATH` (some sites symlink `singularity` → `apptainer`).
+3. Set the local profile in `.env` (this is the default):
+
+   ```bash
+   SNAKEMAKE_PROFILE=snakemake/profiles/local/
+   ./run_pipeline.sh snakemake/compare_gwases.smk path/to/input.yaml
+   ```
+
+4. Adjust **`snakemake/profiles/local/config.yaml`** `singularity-args` if data live outside **`PROJECT_DIR`**, **`PIPELINE_DATA_DIR`**, or **`QTL_DATA_DIR`**. Profiles bind  **`PROJECT_DIR`**. Add more `-B host:host` pairs if needed.
+
+On first run, `run_pipeline.sh` builds or uses **`$PIPELINE_DATA_DIR/genomic_data/pipeline/genehackman_<version>.sif`** (or caches under `.snakemake/singularity/` if that directory is not writable).
+
+---
+
+## HPC (Slurm)
+
+Use this on a shared cluster with Slurm and Apptainer/Singularity.
+
+The repo ships Slurm-oriented profiles. Paths and partitions in the bundled examples are **site-specific** — copy and edit them for your cluster.
+
+| Profile directory | Notes |
+| ----------------- | ----- |
+| `snakemake/profiles/slurm/` | Generic Slurm + Apptainer |
+| `snakemake/profiles/local/` | Local Apptainer only (no scheduler) |
+
+**Typical usage:**
 
 ```bash
-./run_pipeline.sh snakemake/standardise_gwas.smk path/to/input.yaml
+SNAKEMAKE_PROFILE=snakemake/profiles/slurm/
+./run_pipeline.sh snakemake/compare_gwases.smk path/to/input.yaml
 ```
+
+For non-local profiles, `run_pipeline.sh` runs **`module load ${APPTAINER_MODULE}`** — set **`APPTAINER_MODULE`** in `.env` to match your cluster.
+
+**Customize** each profile’s **`config.yaml`** as needed:
+
+- **`SLURM_ACCOUNT`** in `.env` sets **`sbatch --account`**. If unset, the Slurm profile falls back to **`sacctmgr`** output.
+- **`SLURM_PARTITION`**, if unset, is inferred by `run_pipeline.sh` from **`sinfo`** (partition marked with `*`); fallback **`compute`**.
+- **`cluster:`** block: `sbatch` options (partition, account, walltime, memory, log paths).
+- **`singularity-args`:** binds repo code, **`$HOME`**, **`DATA_DIR`**, **`RESULTS_DIR`**, **`PIPELINE_DATA_DIR`**, **`/tmp`**, and **`QTL_DATA_DIR`** when set (via **`GENEHACKMAN_EXTRA_SINGULARITY_BINDS`** in `run_pipeline.sh`). Add `-B host:host` pairs for shared reference data on your site.
+
+**Snakemake version:** `environment.yml` pins **Snakemake 7.x**. Migrating to **Snakemake 8+** changes cluster syntax; bundled profiles target v7 unless you have updated them.
+
+### PBS / Torque / OpenPBS
+
+There is **no PBS profile** in this repository — we do not have access to a PBS cluster to develop or test one. If you use PBS, please **contribute** a profile under `snakemake/profiles/` (copy `snakemake/profiles/slurm/config.yaml` as a starting point and replace the **`cluster:`** block with your `qsub` invocation). See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
 ## macOS
 
-### Apptainer and Snakemake
+**macOS is not officially supported.** We do not test GeneHackman on Mac, and Apptainer/Singularity behaviour on macOS is fragile compared with Linux.
 
-Snakemake looks for an executable named **`singularity`** on `PATH`. Many installs only provide **`apptainer`**. Shell **aliases** in `~/.zshrc` (e.g. `alias singularity='limactl shell apptainer'`) are **not** visible to `run_pipeline.sh` because it uses **bash** and does not load your zsh aliases.
+Running on a Mac **is possible** if you accept extra setup and troubleshooting. Common approaches:
+
+### Apptainer via Lima (or similar)
+
+Snakemake looks for an executable named **`singularity`** on `PATH`. Shell **aliases** in `~/.zshrc` (e.g. `alias singularity='limactl shell apptainer'`) are **not** visible to `run_pipeline.sh` because it uses **bash** and does not load zsh aliases.
 
 Typical setups:
 
-- **Lima VM** with Apptainer (e.g. `limactl shell apptainer`) — run the pipeline from an environment where **`apptainer`** or **`singularity`** is a real binary on `PATH`, or use a small **`~/bin/singularity`** wrapper that calls `limactl shell <vm> -- apptainer "$@"`.
+- **Lima VM** with Apptainer — run from an environment where **`apptainer`** or **`singularity`** is a real binary on `PATH`, or add a **`~/bin/singularity`** wrapper that calls `limactl shell <vm> -- apptainer "$@"`.
 - **Homebrew Apptainer** (if available for your OS version).
 
-Customising Lima VM for macOS
-```
+Example Lima mount config (adjust for your VM):
+
+```yaml
 mountType: virtiofs
 mounts:
-- location: ~
-  mountPoint: ~
--location /tmp/lima
-  mountPOint: /tmp/lima
+  - location: ~
+    mountPoint: ~
+  - location: /tmp/lima
+    mountPoint: /tmp/lima
 ```
 
+Use **`SNAKEMAKE_PROFILE=snakemake/profiles/local/`** as on Linux.
 
 ### SIF cache and `/Users` mounts
 
-If the workflow pulls a `docker://` image, Snakemake caches the `.sif` under **`--singularity-prefix`** (default: `.snakemake/singularity` in the repo). On **macOS + Lima**, paths under **`/Users/...`** are often VM mounts where **creating large SIF files fails** with errors like **read-only file system**.
+Snakemake caches pulled images under **`.snakemake/singularity/`** (or **`--singularity-prefix`**). On **macOS + Lima**, paths under **`/Users/...`** are often VM mounts where **creating large `.sif` files fails** (e.g. read-only file system).
 
-- Set **`SINGULARITY_DIR`** in `.env` to a **writable** location **inside the Linux VM** (commonly a path under that VM’s **`/tmp`**, e.g. `/tmp/genehackman_snakemake_singularity`), or to native VM disk — not only a bind-mounted folder that cannot handle the build.
-- Alternatively, place a pre-built **`$PIPELINE_DATA_DIR/genomic_data/pipeline/genehackman_<version>.sif`** (underscore; `<version>` defaults to **`Version:`** in `DESCRIPTION`, overridable via **`DOCKER_VERSION`**) so Snakemake does not need to build on a problematic mount.
-- Avoid **colons** in host-side SIF filenames (`genehackman:1.1.0.sif`); macOS can reject them. The repo’s Snakemake helper uses **`genehackman_<version>.sif`**.
+- Set **`SINGULARITY_DIR`** in `.env` to a **writable path inside the Linux VM** (e.g. `/tmp/genehackman_snakemake_singularity`), not only a bind mount that cannot hold the build.
+- Or place a pre-built **`$PIPELINE_DATA_DIR/genomic_data/pipeline/genehackman_<version>.sif`** so Snakemake does not build on a problematic mount.
+- Avoid **colons** in SIF filenames on macOS; the repo uses **`genehackman_<version>.sif`**.
 
 ### Apple Silicon (arm64)
 
-The published image may be **linux/amd64**. Use Lima with **Rosetta / x86 Linux** (or run on an amd64 Linux machine / HPC) if pulls or runs fail with architecture warnings.
+The published image is **linux/amd64**. Use Lima with **Rosetta / x86 Linux**, or run on amd64 Linux / HPC, if pulls or runs fail with architecture errors.
+
+For a supported experience, use **Linux** or **HPC** instead of macOS.
 
 ---
-
-## Linux (workstation or single server)
-
-1. Install **Apptainer** or **SingularityCE** (distribution packages or upstream instructions).
-2. Ensure **`singularity`** or **`apptainer`** is on `PATH` (some sites symlink `singularity` → `apptainer`).
-3. Use **`snakemake/profiles/local/`** for local execution (same as default in `run_pipeline.sh`):
-
-   ```bash
-   export SNAKEMAKE_PROFILE=snakemake/profiles/local/
-   ./run_pipeline.sh snakemake/compare_gwases.smk
-   ```
-
-4. Adjust **`snakemake/profiles/local/config.yaml`** `singularity-args` if your data live outside **`PROJECT_DIR`** (or **`PIPELINE_DATA_DIR`** / **`QTL_DATA_DIR`**); profiles bind **`DATA_DIR`** and **`RESULTS_DIR`** (derived from **`PROJECT_DIR`**). Add more `-B host:host` pairs if needed.
-
----
-
-## Slurm (HPC)
-
-The repo ships Slurm-oriented profiles (paths and partitions are **Bristol / MRC IEU-oriented**; **edit** them for your site):
-
-| Profile directory | Notes |
-|-------------------|--------|
-| `snakemake/profiles/slurm/` | Slurm + Apptainer: Make sure that slurm `account` and `partition` are set correctly for your HPC |
-| `snakemake/profiles/local/` | Runs apptainer locally, no job invocation |
-| `snakemake/profiles/uob-bp1/` | Specific example for UoB BP1 HPC |
-
-**Typical usage:**
-
-```bash
-export SNAKEMAKE_PROFILE=snakemake/profiles/slurm/
-./run_pipeline.sh snakemake/compare_gwases.smk
-```
-
-`run_pipeline.sh` runs **`module load ${APPTAINER_MODULE}`** when the profile is **not** `snakemake/profiles/local/*` (or legacy `snakemake/local/*`) — set **`APPTAINER_MODULE`** in `.env` to match your cluster.
-
-**Customize** each profile under **`snakemake/profiles/`** (each directory has a **`config.yaml`**) as needed:
-
-- **`Slurm account / partition`:** In **`.env`**, optional **`SLURM_ACCOUNT`** overrides **`sbatch --account`**; if unset, the profile uses **`sacctmgr … | grep … | head -n1`**. **`SLURM_PARTITION`**, if unset, is inferred by **`run_pipeline.sh`** from **`sinfo -h -o '%P'`** (the partition marked with **`*`**, e.g. **`compute*`** → **`compute`**); if **`sinfo`** is unavailable or returns nothing, the fallback is **`compute`**. Passed to Snakemake as **`--default-resources partition=…`**.
-- **`cluster:`** block: `sbatch` options (`partition`, `account`, walltime, memory, `--output` log directory).
-- **`singularity-args`:** The generic profile binds repo code, **`$HOME`**, **`DATA_DIR`** and **`RESULTS_DIR`** (paths under **`PROJECT_DIR`**, set by `run_pipeline.sh`), **`PIPELINE_DATA_DIR`**, **`/tmp`**, and adds **`QTL_DATA_DIR`** only when non-empty (see **`GENEHACKMAN_EXTRA_SINGULARITY_BINDS`** in `run_pipeline.sh`). Add more `-B host:host` pairs for shared reference data on your site.
-
-**Snakemake version:** `environment.yml` pins **Snakemake 7.x**. Migrating to **Snakemake 8+** changes cluster syntax (`cluster-generic` executor + plugins); this repository’s profiles target the v7 style unless you have already updated them.
-
----
-
-## PBS Pro / OpenPBS / Torque
-
-There is **no** checked-in PBS profile. You can add one by mirroring the Slurm profiles with a **`cluster:`** line that calls your scheduler, for example (Snakemake 7 — adjust directives to your site):
-
-```yaml
-cluster: >-
-  qsub -N {rule}-{wildcards}
-  -l walltime={resources.time}
-  -l select=1:ncpus={threads}:mem={resources.mem}
-  -o /path/to/your/pbs_logs/{rule}_%I.out
-  -j oe
-```
-
-Requirements:
-
-- **`qsub`** must return the job ID on stdout in a form Snakemake can track.
-- For large workflows, set **`--cluster-status`** (or Snakemake’s DRMAA integration) if your site documents it; otherwise use Snakemake’s polling defaults where supported.
-
-Copy `snakemake/slurm_singularity/config.yaml` as a template, replace the **`cluster:`** section with **`qsub`**, and add **`singularity-args`** appropriate for PBS compute nodes (shared filesystem mounts).
 
 ## Environment variables (quick reference)
 
 | Variable | Purpose |
-|----------|---------|
-| **`SNAKEMAKE_PROFILE`** | Snakemake profile path (default `snakemake/profiles/local/`). Example HPC: `snakemake/profiles/slurm/` |
-| **`SLURM_ACCOUNT`** | Optional (**`profiles/slurm`**). Sets **`sbatch --account`**; omitted ⇒ existing **`sacctmgr`** derivation in `config.yaml` |
-| **`SLURM_PARTITION`** | Optional (**`profiles/slurm`**). Overrides **`sinfo`** default-partition detection in **`run_pipeline.sh`** (see **`sinfo`** `*` suffix); ultimate fallback **`compute`** |
+| -------- | ------- |
+| **`SNAKEMAKE_PROFILE`** | Profile path (default `snakemake/profiles/local/`). HPC example: `snakemake/profiles/slurm/` |
+| **`APPTAINER_MODULE`** | Module to load on HPC when not using the local profile |
+| **`SLURM_ACCOUNT`** | Optional; sets `sbatch --account` for Slurm profiles |
+| **`SLURM_PARTITION`** | Optional; overrides `sinfo` partition detection in `run_pipeline.sh` |
 
-The **pipeline YAML path** is not configured via `.env`. Use **`./run_pipeline.sh <workflow>.smk [path/to/input.yaml]`** (defaults to **`input.yaml`**) or run **`snakemake`** with **`--config genehackman_input=path/to/input.yaml`** (see [PIPELINES.md](PIPELINES.md)).
-
-Use **`.env`** for values you want loaded every time `./run_pipeline.sh` runs (`export $(cat .env | xargs)`).
+The pipeline input YAML path is **not** set in `.env`. Pass it as the second argument to `run_pipeline.sh`, or use **`--config genehackman_input=...`** with bare `snakemake` (see [PIPELINES.md](PIPELINES.md)).
 
 ---
 
 ## Further reading
 
-- Pipeline input schema: [PIPELINES.md](PIPELINES.md)
-- Main readme: [`README.md`](README.md)
+- Pipeline inputs: [PIPELINES.md](PIPELINES.md)
+- Main readme: [README.md](README.md)
 - Snakemake profiles: [documentation](https://snakemake.readthedocs.io/en/stable/executing/cli.html#profiles)
-- Snakemake cluster execution: [docs](https://snakemake.readthedocs.io/en/stable/executing/cluster.html)
+- Snakemake cluster execution: [documentation](https://snakemake.readthedocs.io/en/stable/executing/cluster.html)

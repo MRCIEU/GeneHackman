@@ -2,9 +2,7 @@
 
 Standardise, clump, and fine-map GWAS loci with **SuSiE** (single ancestry) or **MultiSuSiE** (multi-ancestry). No trait-trait colocalisation or MR.
 
-**Workflow file:** [`finemap.smk`](finemap.smk)  
-**Example input:** [`input_templates/finemap.yaml`](input_templates/finemap.yaml)  
-**Multi-ancestry test input:** [`tests/testthat/data/snakemake_inputs/finemap_multi_ancestry.yaml`](../tests/testthat/data/snakemake_inputs/finemap_multi_ancestry.yaml)
+**Workflow file:** [`finemap.smk`](finemap.smk)
 
 ## Run
 
@@ -14,11 +12,9 @@ Standardise, clump, and fine-map GWAS loci with **SuSiE** (single ancestry) or *
 
 ## Input
 
-### GWAS count
+**GWAS count:** one or more under `gwases:`.
 
-- **One or more** GWAS under `gwases:`.
-
-### Ancestry rules
+**Ancestry rules:**
 
 | Mode | Condition |
 | ---- | --------- |
@@ -27,27 +23,61 @@ Standardise, clump, and fine-map GWAS loci with **SuSiE** (single ancestry) or *
 
 Mixed duplicates (e.g. two EUR + one EAS) **fail at startup**.
 
-### Per-GWAS fields
+Copy from [`input_templates/finemap.yaml`](input_templates/finemap.yaml). Multi-ancestry example: [`tests/testthat/data/snakemake_inputs/finemap_multi_ancestry.yaml`](../tests/testthat/data/snakemake_inputs/finemap_multi_ancestry.yaml).
+
+### Example YAML
+
+```yaml
+gwases:
+  - file: /path/to/gwas1.tsv.gz
+    columns: {}
+    N: 100000
+    ancestry: EUR
+plink_clump_arguments: "--clump-p1 5e-8 --clump-r2 0.01 --clump-kb 1000"
+finemap:
+  window_kb: 1000
+  max_causal: 10
+  coverage: 0.95
+  min_abs_corr: 0.5
+populate_rsid: false
+```
+
+Add more entries under `gwases:` for additional traits or ancestries.
+
+### `gwases[]`
 
 | Field | Required | Notes |
 | ----- | -------- | ----- |
-| `file` | Yes | Input summary-statistics file. |
-| `ancestry` | **Yes** | LD reference for clumping and fine-mapping. |
+| `file` | **Yes** | Input summary-statistics file. |
+| `ancestry` | **Yes** | LD reference for clumping and fine-mapping (`AFR`, `AMR`, `EAS`, `EUR`, `SAS`). |
 | `N` | Recommended | Sample size passed to SuSiE / MultiSuSiE. |
 | `columns` | No | Column map or preset. |
-| `build` | No | Default `GRCh37`. |
-| `populate_rsid` / `populate_eaf` | No | See [PIPELINES.md](../PIPELINES.md#shared-yaml-schema). |
+| `build` | No | Input build. Default `GRCh37`. |
+| `populate_rsid` | No | Per-GWAS override; default inherits root `false`. |
+| `populate_eaf` | No | Fill missing `EAF` from 1000 Genomes (requires `ancestry`). |
 
-### Root-level fields
+### `plink_clump_arguments`
 
 | Field | Required | Notes |
 | ----- | -------- | ----- |
-| `plink_clump_arguments` | **Yes** | PLINK clump settings. |
+| `plink_clump_arguments` | **Yes** | Passed to `plink1.9 --clump`. [PLINK clump options](https://zzz.bwh.harvard.edu/plink/clump.shtml). |
+
+### `finemap`
+
+| Field | Required | Notes |
+| ----- | -------- | ----- |
 | `finemap.window_kb` | No | Half-width of fine-mapping window around each lead (kb). Default **500** in parser; templates often use **1000**. |
 | `finemap.max_causal` | No | Max causal signals per locus (`L`). Default `10`. |
 | `finemap.coverage` | No | Credible set coverage. Default `0.95`. |
 | `finemap.min_abs_corr` | No | Minimum \|r\| for credible-set purity. Default `0.5`. |
-| `populate_rsid` / `populate_eaf` | No | Default `false`. |
+
+### Root fields
+
+| Field | Required | Notes |
+| ----- | -------- | ----- |
+| `populate_rsid` | No | Default `false`. With clumping and `false`, RSID population is **partial** unless overridden per GWAS. |
+| `populate_eaf` | No | Default `false`. |
+| `output.build` | No | Target build after standardisation. Default `GRCh37`. |
 
 `flip_alleles: false` is **not** allowed.
 

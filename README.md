@@ -146,32 +146,16 @@ Run your analysis:
 ./run_pipeline.sh snakemake/<pipeline>.smk [path/to/input.yaml]
 ```
 
-Snakemake profiles live under **`snakemake/profiles/`** — see [PLATFORM_SETUP.md](PLATFORM_SETUP.md) for local, Slurm, and PBS setups.
+Snakemake profiles live under **`snakemake/profiles/`** — see [PLATFORM_SETUP.md](PLATFORM_SETUP.md) for **Linux**, **HPC (Slurm)**, and **macOS** (not officially supported).
 
 - Default: **`SNAKEMAKE_PROFILE=snakemake/profiles/local/`** (Apptainer on the current machine).
 - On a cluster: e.g. **`SNAKEMAKE_PROFILE=snakemake/profiles/slurm/`**, or add a site-specific profile beside the bundled ones.
 - `run_pipeline.sh` is a convenience wrapper around **`snakemake`**; see the [Snakemake documentation](https://snakemake.readthedocs.io/) for advanced options.
 - Long jobs: consider a terminal multiplexer (e.g. `tmux`) so SSH disconnects do not kill the run.
 
-## How it works
-
-Harmonised GWAS columns use this schema by default:
-
-| CHR | BP  | EA  | OA  | BETA | SE  | P   | EAF | SNP | RSID |
-|-----|-----|-----|-----|------|-----|-----|-----|-----|------|
-
-Preset column maps and aliases: [`inst/extdata/predefined_column_maps.csv`](inst/extdata/predefined_column_maps.csv).
-
-Two components run every workflow:
-
-1. **Snakemake** — defines steps, dependencies, and resource requests per rule.
-2. **Container image** (`mrcieu/genehackman`) — pinned R/Python packages, PLINK, liftOver, LDSC, and pipeline code.
-
-On a cluster, each Snakemake job typically launches Apptainer/Singularity inside the scheduler allocation; rules can request different CPU and memory limits.
-
 ### Platform setup
 
-**macOS, Linux, Slurm, or PBS:** see **[PLATFORM_SETUP.md](PLATFORM_SETUP.md)** for Apptainer/Lima, SIF cache layout, profiles, and cluster templates.
+See **[PLATFORM_SETUP.md](PLATFORM_SETUP.md)** for Linux, HPC (Slurm), and macOS setup (macOS is not officially supported).
 
 ### Contributing
 
