@@ -377,6 +377,8 @@ def build_locus_credible_sets_df(fit, final_rsids, r_list, ancestries):
                 float(lbf[cs["ser_idx"]]) if cs["ser_idx"] < len(lbf) else np.nan
             ),
             "COVERAGE": cs["coverage"],
+            "PURITY": cs["purity"],
+            "PASS_FILTER": cs["pass_filter"],
         }
         for k, ancestry in enumerate(ancestries):
             row[f"PURITY_{ancestry}"] = _compute_cs_purity(indices, r_list[k])
@@ -395,6 +397,8 @@ def build_locus_credible_sets_df(fit, final_rsids, r_list, ancestries):
             "TOP_SNP_PIP",
             "TOP_SNP_LBF",
             "COVERAGE",
+            "PURITY",
+            "PASS_FILTER",
             *purity_cols,
         ]
     ]

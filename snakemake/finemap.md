@@ -117,7 +117,7 @@ Full documentation for interpreting MultiSuSiE results can be [found here](https
 | Path | Description |
 | ---- | ----------- |
 | `finemap/multi_ancestry/finemap_complete_<gwas_prefixes>.txt` | **Snakemake target.** One line = number of successfully fine-mapped loci. `<gwas_prefixes>` is sorted input GWAS file prefixes joined with `_`. |
-| `finemap/multi_ancestry/<CHR>_<center>_locus_credible_sets.tsv` | One row per credible set: size, top variant PIP/LBF, per-ancestry purity, coverage. |
+| `finemap/multi_ancestry/<CHR>_<center>_locus_credible_sets.tsv` | One row per credible set: size, top variant PIP/LBF, `COVERAGE`, MultiSuSiE `PURITY`, `PASS_FILTER`, and per-ancestry `PURITY_*` diagnostics. |
 | `finemap/multi_ancestry/<CHR>_<center>_locus_credible_set_variants.tsv` | One row per variant in any credible set: coordinates, alleles, global PIP, per-ancestry `COEF`/`COEF_SD`, and input `BETA`/`SE`/`P`. |
 
 Locus names use the clump window centre (`<CHR>_<center>`).
