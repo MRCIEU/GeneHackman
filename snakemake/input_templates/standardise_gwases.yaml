@@ -1,5 +1,5 @@
 gwases:
-  - file: /Users/wt23152/Documents/Projects/scratch/020/data/gwas_with_lbfs.tsv.gz
+  - file: /path/to/gwas.tsv.gz
     columns:
       CHR: CHR
       BP: BP

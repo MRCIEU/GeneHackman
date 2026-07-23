@@ -2,8 +2,7 @@
 
 Compare an **incident** and **subsequent** GWAS for collider bias, apply a correction method, and report Miami plots plus expected-vs-observed metrics before and after adjustment.
 
-**Workflow file:** [`disease_progression.smk`](disease_progression.smk)  
-**Example input:** [`input_templates/disease_progression.yaml`](input_templates/disease_progression.yaml)
+**Workflow file:** [`disease_progression.smk`](disease_progression.smk)
 
 ## Run
 
@@ -13,30 +12,69 @@ Compare an **incident** and **subsequent** GWAS for collider bias, apply a corre
 
 ## Input
 
-### GWAS count
+**GWAS count:** exactly two under `gwases:` — **order matters:**
 
-- **Exactly two** GWAS under `gwases:`:
-  1. **Incident** GWAS (first entry)
-  2. **Subsequent** GWAS (second entry)
+1. **Incident** GWAS (first entry)
+2. **Subsequent** GWAS (second entry)
 
-### Per-GWAS fields
+Copy from [`input_templates/disease_progression.yaml`](input_templates/disease_progression.yaml).
+
+### Example YAML
+
+```yaml
+gwases:
+  - file: /path/to/incident_gwas.tsv.gz
+    columns:
+      CHR: CHR
+      BP: BP
+      EA: EA
+      OA: OA
+      EAF: EAF
+      P: P
+      BETA: BETA
+      SE: SE
+    ancestry: EUR
+  - file: /path/to/subsequent_gwas.tsv.gz
+    columns: {}
+    ancestry: EAS
+plink_clump_arguments: "--clump-p2 0.001 --clump-r2 0.3 --clump-kb 500"
+populate_rsid: false
+output:
+  adjusted_gwas:
+    type: cwls
+    p_val: 0.001
+```
+
+### `gwases[]`
 
 | Field | Required | Notes |
 | ----- | -------- | ----- |
-| `file` | Yes | Input summary-statistics file. |
-| `ancestry` | **Yes** | Used for clumping LD reference. May differ between incident and subsequent. |
+| `file` | **Yes** | Input summary-statistics file. |
+| `ancestry` | **Yes** | LD reference for clumping. May differ between incident and subsequent. |
 | `columns` | No | Column map or preset. |
-| `build` | No | Default `GRCh37`. |
-| `populate_rsid` | No | See [PIPELINES.md](../PIPELINES.md#shared-yaml-schema). |
+| `build` | No | Input build. Default `GRCh37`. |
+| `populate_rsid` | No | Per-GWAS override; default inherits root `false`. |
+| `populate_eaf` | No | Fill missing `EAF` from 1000 Genomes (requires `ancestry`). |
 
-### Root-level fields
+### `plink_clump_arguments`
 
 | Field | Required | Notes |
 | ----- | -------- | ----- |
-| `plink_clump_arguments` | **Yes** | PLINK clump settings (clumping uses the **incident** GWAS leads). |
+| `plink_clump_arguments` | **Yes** | PLINK clump settings. Clumping uses the **incident** GWAS leads for expected-vs-observed comparisons. |
+
+### `output.adjusted_gwas`
+
+| Field | Required | Notes |
+| ----- | -------- | ----- |
 | `output.adjusted_gwas.type` | No | Correction method: `slopehunter`, `cwls`, or `mr_ivw`. Default `slopehunter`. |
 | `output.adjusted_gwas.p_val` | No | P-value threshold for the adjustment. Default `0.001`. Allowed: `0.1`, `0.01`, `0.001`, `1e-5`. |
+
+### Root fields
+
+| Field | Required | Notes |
+| ----- | -------- | ----- |
 | `populate_rsid` | No | Default `false`. |
+| `output.build` | No | Target build after standardisation. Default `GRCh37`. |
 
 `flip_alleles: false` is **not** allowed.
 

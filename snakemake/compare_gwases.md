@@ -2,8 +2,7 @@
 
 Standardise and clump multiple GWAS, then compare them with heterogeneity metrics, LDSC heritability / genetic correlation, and expected-vs-observed replication statistics.
 
-**Workflow file:** [`compare_gwases.smk`](compare_gwases.smk)  
-**Example input:** [`input_templates/compare_gwases.yaml`](input_templates/compare_gwases.yaml)
+**Workflow file:** [`compare_gwases.smk`](compare_gwases.smk)
 
 ## Run
 
@@ -13,31 +12,66 @@ Standardise and clump multiple GWAS, then compare them with heterogeneity metric
 
 ## Input
 
-### GWAS count
+**GWAS count:** two or more under `gwases:`.
 
-- **Two or more** GWAS under `gwases:`.
+Copy from [`input_templates/compare_gwases.yaml`](input_templates/compare_gwases.yaml).
 
-### Per-GWAS fields
+### Example YAML
+
+```yaml
+gwases:
+  - file: /path/to/gwas1.tsv.gz
+    columns:
+      SNP: rsid
+      CHR: chr
+      BP: pos
+      EA: a1
+      OA: a2
+      EAF: freq
+      P: p
+      BETA: beta
+      SE: se
+    N: 10000
+    ancestry: EUR
+  - file: /path/to/gwas2.tsv.gz
+    columns: {}
+    N: 10000
+    ancestry: AFR
+  - file: /path/to/gwas3.tsv.gz
+    columns: {}
+    N: 10000
+    ancestry: EAS
+plink_clump_arguments: "--clump-p1 0.00000005"
+populate_rsid: false
+```
+
+### `gwases[]`
 
 | Field | Required | Notes |
 | ----- | -------- | ----- |
-| `file` | Yes | Input summary-statistics file. |
+| `file` | **Yes** | Input summary-statistics file. |
 | `N` | **Yes** | Sample size; required for LDSC. |
-| `ancestry` | **Yes** | `AFR`, `AMR`, `EAS`, `EUR`, or `SAS` — used for clumping LD reference and LDSC grouping. |
+| `ancestry` | **Yes** | `AFR`, `AMR`, `EAS`, `EUR`, or `SAS` — LD reference for clumping and LDSC grouping. |
 | `columns` | No | Column map or preset. |
-| `build` | No | Default `GRCh37`; lifted to `output.build` if set. |
-| `populate_rsid` / `populate_eaf` | No | See [PIPELINES.md](../PIPELINES.md#shared-yaml-schema). With clumping and `populate_rsid: false`, RSID population is **partial** unless overridden. |
+| `build` | No | Input build. Default `GRCh37`; lifted to `output.build` if set. |
+| `populate_rsid` | No | Per-GWAS override; default inherits root `false`. With clumping and `false`, RSID population is **partial** unless overridden. |
+| `populate_eaf` | No | Fill missing `EAF` from 1000 Genomes (requires `ancestry`). |
 
-### Root-level fields
+### `plink_clump_arguments`
 
 | Field | Required | Notes |
 | ----- | -------- | ----- |
 | `plink_clump_arguments` | **Yes** | Passed to `plink1.9 --clump` (e.g. `--clump-p1 5e-8 --clump-r2 0.01 --clump-kb 1000`). |
+
+### Root fields
+
+| Field | Required | Notes |
+| ----- | -------- | ----- |
 | `populate_rsid` | No | Default `false`. |
 | `populate_eaf` | No | Default `false`. |
-| `output.build` | No | Target build after standardisation (default `GRCh37`). |
+| `output.build` | No | Target build after standardisation. Default `GRCh37`. |
 
-`flip_alleles: false` is **not** allowed (YAML load fails).
+`flip_alleles: false` is **not** allowed.
 
 ## Workflow
 
