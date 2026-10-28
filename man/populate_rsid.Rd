@@ -4,12 +4,19 @@
 \alias{populate_rsid}
 \title{populate_rsid: populate the RSID column from the SNP column}
 \usage{
-populate_rsid(gwas, option = populate_rsid_options$none)
+populate_rsid(
+  gwas,
+  option = populate_rsid_options$none,
+  build = reference_builds$GRCh37
+)
 }
 \arguments{
 \item{gwas}{dataframe with the following columns: SNP}
 
 \item{option}{option to populate the RSID column}
+
+\item{build}{reference build of the CHR/BP positions in \code{gwas} (one of \code{reference_builds});
+RSIDs are looked up in the reference resource for this build. Defaults to GRCh37.}
 }
 \value{
 gwas with new column RSID

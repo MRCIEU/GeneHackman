@@ -11,7 +11,10 @@ run_coloc_on_qtl_mr_results(
   study_type = "continuous",
   exposures = c(),
   default_n = NA,
-  output_file
+  output_file,
+  p1 = 1e-04,
+  p2 = 1e-04,
+  p12 = 5e-06
 )
 }
 \arguments{
@@ -21,13 +24,20 @@ run_coloc_on_qtl_mr_results(
 
 \item{qtl_dataset}{QTL dataset name (metabrain or eqtlgen)}
 
-\item{study_type}{study type for LBF conversion ("continuous" or "categorical")}
+\item{study_type}{study type of the QTL trait, used to convert the QTL summary statistics to
+log Bayes factors ("continuous" or "categorical"); molecular QTL traits are normally continuous}
 
 \item{exposures}{optional character vector of exposures to filter}
 
-\item{default_n}{default sample size for QTL data}
+\item{default_n}{sample size of the QTL dataset, used only when the QTL files have no N column}
 
 \item{output_file}{output file path}
+
+\item{p1}{prior probability a SNP is associated with the GWAS trait}
+
+\item{p2}{prior probability a SNP is associated with the QTL trait}
+
+\item{p12}{prior probability a SNP is associated with both traits}
 }
 \description{
 For each significant MR result, loads the finemapped GWAS locus that covers

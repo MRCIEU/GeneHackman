@@ -13,7 +13,8 @@ rule run_finemapping:
         window_kb = finemap_window_kb,
         max_causal = finemap_max_causal,
         coverage = finemap_coverage,
-        min_abs_corr = finemap_min_abs_corr
+        min_abs_corr = finemap_min_abs_corr,
+        max_region_kb = finemap_max_region_kb
     output:
         finemap_complete = FINEMAP_COMPLETE_TXT_PATTERN
     shell:
@@ -28,5 +29,6 @@ rule run_finemapping:
             --window_kb {params.window_kb} \
             --max_causal {params.max_causal} \
             --coverage {params.coverage} \
-            --min_abs_corr {params.min_abs_corr}
+            --min_abs_corr {params.min_abs_corr} \
+            --max_region_kb {params.max_region_kb}
         """

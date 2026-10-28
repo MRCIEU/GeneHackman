@@ -74,6 +74,14 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
             raise ValueError(f"Error: {pipeline.output.build} is not one of the valid options: {build_options}")
 
         if not hasattr(pipeline.output, "columns"): pipeline.output.columns = default_output_options.columns
+    if pipeline_includes_clumping:
+        clump_arguments = getattr(pipeline, "plink_clump_arguments", None)
+        if not clump_arguments:
+            raise ValueError(
+                'Error: plink_clump_arguments is required for this pipeline, '
+                'e.g. plink_clump_arguments: "--clump-p1 5e-8 --clump-r2 0.01 --clump-kb 1000"'
+            )
+        pipeline.plink_clump_arguments = apply_default_clump_arguments(str(clump_arguments))
     if not hasattr(pipeline, "populate_rsid"): pipeline.populate_rsid = False
     if not hasattr(pipeline, "populate_eaf"): pipeline.populate_eaf = False
     if not hasattr(pipeline, "flip_alleles"): pipeline.flip_alleles = True
@@ -85,6 +93,7 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
     if not hasattr(fm, "max_causal"): fm.max_causal = 10
     if not hasattr(fm, "coverage"): fm.coverage = 0.95
     if not hasattr(fm, "min_abs_corr"): fm.min_abs_corr = 0.5
+    if not hasattr(fm, "max_region_kb"): fm.max_region_kb = 3000
 
     if not hasattr(pipeline, "coloc"):
         pipeline.coloc = SimpleNamespace()
@@ -130,6 +139,17 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
             if getattr(g, "flip_alleles", True) is False:
                 raise ValueError("flip_alleles = FALSE is only available for standardise_gwas.smk")
     return pipeline
+
+def apply_default_clump_arguments(clump_arguments):
+    """Append GeneHackman's default --clump-r2 / --clump-kb when plink_clump_arguments does not set them."""
+    provided = clump_arguments.split()
+    added = [f"{flag} {value}" for flag, value in default_clump_arguments.items() if flag not in provided]
+    if not added:
+        return clump_arguments
+    print(f"plink_clump_arguments: adding default(s) {' '.join(added)} "
+          "(PLINK's own defaults are --clump-r2 0.5 --clump-kb 250)")
+    return " ".join([clump_arguments.strip()] + added)
+
 
 def resolve_rsid_population(pipeline_includes_clumping, populate_rsid):
     if not populate_rsid and pipeline_includes_clumping:

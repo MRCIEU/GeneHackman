@@ -20,7 +20,7 @@ parser <- add_argument(parser, "--N",
                        type = "numeric"
 )
 parser <- add_argument(parser, "--output_finemap_dir",
-                       help = "Directory for one <CHR>_<BP>_finemap.tsv.gz per clumped locus",
+                       help = "Directory for one <CHR>_<BP>_finemap.tsv.gz per fine-mapping region",
                        type = "character"
 )
 parser <- add_argument(parser, "--window_kb",
@@ -43,6 +43,11 @@ parser <- add_argument(parser, "--min_abs_corr",
                        type = "numeric",
                        default = 0.5
 )
+parser <- add_argument(parser, "--max_region_kb",
+                       help = "Maximum width (kb) of a region formed by merging overlapping lead-SNP windows",
+                       type = "numeric",
+                       default = 3000
+)
 parser <- add_argument(parser, "--completion_file",
                        help = "Sentinel file written on successful completion",
                        type = "character"
@@ -62,5 +67,6 @@ invisible(finemap_gwas(gwas = args$gwas_filename,
              window_kb = args$window_kb,
              max_causal = args$max_causal,
              coverage = args$coverage,
-             min_abs_corr = args$min_abs_corr
+             min_abs_corr = args$min_abs_corr,
+             max_region_kb = args$max_region_kb
 ))

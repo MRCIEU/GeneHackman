@@ -24,6 +24,7 @@ finemap_window_kb = getattr(finemap_opts, "window_kb", 1000)
 finemap_max_causal = getattr(finemap_opts, "max_causal", 10)
 finemap_coverage = getattr(finemap_opts, "coverage", 0.95)
 finemap_min_abs_corr = getattr(finemap_opts, "min_abs_corr", 0.5)
+finemap_max_region_kb = getattr(finemap_opts, "max_region_kb", 3000)
 
 coloc_opts = getattr(pipeline, "coloc", SimpleNamespace())
 coloc_overlap_kb = getattr(coloc_opts, "overlap_kb", 1000)

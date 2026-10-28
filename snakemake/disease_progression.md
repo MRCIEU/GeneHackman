@@ -60,7 +60,7 @@ output:
 
 | Field | Required | Notes |
 | ----- | -------- | ----- |
-| `plink_clump_arguments` | **Yes** | PLINK clump settings. Clumping uses the **incident** GWAS leads for expected-vs-observed comparisons. |
+| `plink_clump_arguments` | **Yes** | PLINK clump settings. Clumping uses the **incident** GWAS leads for expected-vs-observed comparisons. If `--clump-r2` or `--clump-kb` are not given, GeneHackman adds `--clump-r2 0.01 --clump-kb 1000` (PLINK's own defaults, 0.5 and 250 kb, leave several correlated lead SNPs per locus). |
 
 ### `output.adjusted_gwas`
 

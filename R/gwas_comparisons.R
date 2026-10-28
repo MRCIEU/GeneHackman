@@ -20,15 +20,13 @@ compare_replication_across_all_gwas_permutations <- function(gwas_filenames = c(
   expected_vs_observed_results <- list()
   expected_vs_observed_variants <- list()
 
-  for (i in seq_along(gwas_filenames)) {
-    for (j in i:length(gwas_filenames)) {
-      j <- j + 1
-      if (j <= length(gwas_filenames)) {
-        result <- compare_two_gwases_from_clumped_hits(gwas_filenames[i], gwas_filenames[j], clumped_filenames[i])
-        expected_vs_observed_results[[i+j]] <- result$res
-        expected_vs_observed_variants[[i+j]] <- result$variants
-      }
-    }
+  # every unordered pair once, with the earlier-listed GWAS (and its clumped hits) as the discovery dataset
+  for (pair in utils::combn(seq_along(gwas_filenames), 2, simplify = FALSE)) {
+    i <- pair[1]
+    j <- pair[2]
+    result <- compare_two_gwases_from_clumped_hits(gwas_filenames[i], gwas_filenames[j], clumped_filenames[i])
+    expected_vs_observed_results <- c(expected_vs_observed_results, list(result$res))
+    expected_vs_observed_variants <- c(expected_vs_observed_variants, list(result$variants))
   }
   merged_results <- do.call("rbind", expected_vs_observed_results)
   merged_variants <- do.call("rbind", expected_vs_observed_variants)
@@ -88,7 +86,8 @@ expected_vs_observed_replication <- function(b_disc, se_disc, b_rep, se_rep, alp
   p_sig <- pnorm(-abs(b_disc) / se_rep + qnorm(alpha / 2)) +
     (1 - pnorm(-abs(b_disc) / se_rep - qnorm(alpha / 2)))
 
-  p_rep <- pnorm(abs(b_rep) / se_rep, lower.tail = FALSE)
+  # two-sided, to match the two-sided threshold used for the expected count (p_sig)
+  p_rep <- 2 * pnorm(abs(b_rep) / se_rep, lower.tail = FALSE)
 
   res <- tibble::tibble(
     N = length(b_disc),

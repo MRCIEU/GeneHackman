@@ -60,7 +60,7 @@ populate_rsid: false
 
 | Field | Required | Notes |
 | ----- | -------- | ----- |
-| `plink_clump_arguments` | **Yes** | Passed to `plink1.9 --clump`. |
+| `plink_clump_arguments` | **Yes** | Passed to `plink1.9 --clump`. If `--clump-r2` or `--clump-kb` are not given, GeneHackman adds `--clump-r2 0.01 --clump-kb 1000` (PLINK's own defaults, 0.5 and 250 kb, leave several correlated lead SNPs per locus). |
 
 ### `finemap`
 
@@ -70,12 +70,13 @@ populate_rsid: false
 | `finemap.max_causal` | No | Max causal signals per locus. Default `10`. |
 | `finemap.coverage` | No | Credible set coverage. Default `0.95`. |
 | `finemap.min_abs_corr` | No | Minimum \|r\| for credible-set purity. Default `0.5`. |
+| `finemap.max_region_kb` | No | Maximum width (kb) of a region made by merging overlapping lead windows. Default `3000`. See [`finemap.md`](finemap.md). |
 
 ### `coloc`
 
 | Field | Required | Notes |
 | ----- | -------- | ----- |
-| `coloc.overlap_kb` | No | Two signals “overlap” if lead positions are within this distance (kb). Default `1000`. |
+| `coloc.overlap_kb` | No | Two fine-mapped loci are tested if their lead positions are within this distance (kb), or if their fine-mapping regions overlap. Default `1000`. |
 | `coloc.p1` | No | Prior: SNP associated with trait 1. Default `1e-4`. |
 | `coloc.p2` | No | Prior: SNP associated with trait 2. Default `1e-4`. |
 | `coloc.p12` | No | Prior: SNP associated with both traits. Default `5e-6`. |
@@ -112,7 +113,8 @@ populate_rsid: false
 | Path | Description |
 | ---- | ----------- |
 | `finemap/<prefix>/finemap_complete_<prefix>.txt` | Fine-mapping completion marker per GWAS. |
-| `finemap/<prefix>/<CHR>_<BP>_finemap.tsv.gz` | Per-locus SuSiE output with LBF columns. |
+| `finemap/<prefix>/<CHR>_<BP>_finemap.tsv.gz` | Per-region SuSiE output with PIP and LBF columns. |
+| `finemap/<prefix>/finemap_regions.tsv`, `finemap_credible_sets.tsv` | Region and credible-set summaries (see [`finemap.md`](finemap.md)). |
 | `coloc/coloc_results.tsv` | Pairwise coloc results (sorted by PP.H4 in the HTML report). |
 | `coloc/result_coloc.html` | Summary HTML report. |
 | `coloc/locus_zoom/` | Locus zoom plot outputs. |
@@ -121,4 +123,5 @@ populate_rsid: false
 ## Notes
 
 - Coloc requires LBF columns in finemap outputs; multi-ancestry MultiSuSiE outputs are not compatible with this pipeline.
+- Only variants with log Bayes factors in both loci (i.e. present in the LD panel for both fine-mapping runs) are used.
 - See [coloc documentation](https://chr1swallace.github.io/coloc/) for interpretation of posterior probabilities.

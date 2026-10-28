@@ -16,9 +16,15 @@ finemap_window_kb = getattr(finemap_opts, "window_kb", 1000)
 finemap_max_causal = getattr(finemap_opts, "max_causal", 10)
 finemap_coverage = getattr(finemap_opts, "coverage", 0.95)
 finemap_min_abs_corr = getattr(finemap_opts, "min_abs_corr", 0.5)
+finemap_max_region_kb = getattr(finemap_opts, "max_region_kb", 3000)
 
 qtl_opts = getattr(pipeline, "qtl", SimpleNamespace())
-study_type = gwas.study_type
+# The coloc step converts the QTL summary statistics (not the GWAS) to log Bayes factors,
+# so the study type and fallback sample size are properties of the QTL dataset.
+qtl_study_type = getattr(qtl_opts, "study_type", "continuous")
+if qtl_study_type not in ("continuous", "categorical"):
+    raise ValueError(f"qtl.study_type must be 'continuous' or 'categorical', not '{qtl_study_type}'")
+qtl_n = getattr(qtl_opts, "N", 0)
 
 qtl_name = pipeline.qtl.dataset + "_" + pipeline.qtl.subcategory
 if not hasattr(pipeline.qtl, "exposures"): pipeline.qtl.exposures = []
@@ -91,8 +97,11 @@ rule run_coloc_analysis_of_significant_mr_results:
         finemap_complete = expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=[gwas_prefix])
     params:
         finemap_dir = gwas.finemap_dir,
-        N = gwas.N,
-        study_type = study_type,
+        N = qtl_n,
+        study_type = qtl_study_type,
+        p1 = pipeline.coloc.p1,
+        p2 = pipeline.coloc.p2,
+        p12 = pipeline.coloc.p12,
         exposures = f"--exposures {exposures_string}" if exposures_string else ""
     output: coloc_results
     shell:
@@ -102,6 +111,9 @@ rule run_coloc_analysis_of_significant_mr_results:
             --finemap_dir {params.finemap_dir} \
             --N {params.N} \
             --study_type {params.study_type} \
+            --p1 {params.p1} \
+            --p2 {params.p2} \
+            --p12 {params.p12} \
             --dataset {pipeline.qtl.dataset} {params.exposures} \
             --output_file {output}
         """

@@ -56,7 +56,7 @@ standardise_gwas <- function(gwas,
 
   gwas <- gwas |>
     health_check() |>
-    populate_rsid(rsid_option) |>
+    populate_rsid(rsid_option, build = output_reference_build) |>
     populate_gene_names()
 
   if (isTRUE(populate_eaf)) {
@@ -131,11 +131,8 @@ standardise_columns <- function(gwas, N) {
     gwas$N <- N
   }
 
-  if (!all(c("CHR", "BP") %in% gwas_columns)) {
-    if(all(grepl("\\d:\\d", gwas$SNP))) {
-      gwas <- tidyr::separate(data = gwas, col = "SNP", into = c("CHR", "BP"), sep = "[:_]", remove = F)
-      gwas$BP <- as.numeric(gwas$BP)
-    }
+  if (!all(c("CHR", "BP") %in% gwas_columns) && "SNP" %in% gwas_columns) {
+    gwas <- populate_chr_bp_from_variant_id(gwas)
   }
 
   if (all(c("OR", "OR_LB", "OR_UB") %in% gwas_columns) && !all(c("BETA", "SE") %in% colnames(gwas))) {
@@ -167,6 +164,31 @@ standardise_columns <- function(gwas, N) {
     gwas$CHR <- normalise_gwas_chr(gwas$CHR)
   }
 
+  return(gwas)
+}
+
+#' Fill missing CHR / BP columns from \code{chr:pos[:a1:a2]} style variant identifiers in the SNP column.
+#' Accepts an optional \code{chr} prefix, \code{:}, \code{_} or \code{-} separators,
+#' numeric chromosomes and X, Y, XY, M or MT.
+#' Rows whose identifier does not match (e.g. rsIDs) are left with missing CHR / BP and are removed later by
+#' \code{filter_incomplete_rows()}. Alleles embedded in the identifier are not used: EA and OA must come from
+#' their own columns, because the identifier does not say which allele is the effect allele.
+#' @keywords internal
+populate_chr_bp_from_variant_id <- function(gwas) {
+  variant_id_pattern <- stringr::regex("^(?:chr)?([0-9]{1,2}|X|Y|XY|MT|M)[:_-]([0-9]+)(?:[:_-].*)?$",
+                                       ignore_case = TRUE)
+  parsed <- stringr::str_match(stringr::str_trim(as.character(gwas$SNP)), variant_id_pattern)
+  matched <- !is.na(parsed[, 1])
+
+  if (!any(matched)) {
+    return(gwas)
+  }
+  if (!all(matched)) {
+    warning(paste("Could not parse CHR and BP from", sum(!matched), "SNP identifiers; these rows will be removed"))
+  }
+
+  if (!"CHR" %in% colnames(gwas)) gwas$CHR <- toupper(parsed[, 2])
+  if (!"BP" %in% colnames(gwas)) gwas$BP <- as.numeric(parsed[, 3])
   return(gwas)
 }
 

@@ -72,3 +72,36 @@ test_that("gwas_comparison.compare_heterogeneity_across_ancestries works well", 
   expect_true(file.exists(first_plot))
   expect_true(file.exists(second_plot))
 })
+
+test_that("gwas_comparison.expected_vs_observed_replication counts observed replications with a two-sided p-value", {
+  # replication z-scores of 1.8 (two-sided p = 0.072) and 2.5 (two-sided p = 0.012)
+  result <- expected_vs_observed_replication(
+    b_disc = rep(1, 4), se_disc = rep(0.1, 4),
+    b_rep = c(0.18, 0.18, 0.25, 0.25), se_rep = rep(0.1, 4),
+    alpha = 0.05
+  )
+
+  observed <- result$res$VALUE[result$res$METRIC == "P-value" & result$res$DATUM == "Observed"]
+  expect_equal(observed, 2)
+  expect_equal(result$variants$OBSERVED, c(FALSE, FALSE, TRUE, TRUE))
+})
+
+test_that("gwas_comparison.compare_replication_across_all_gwas_permutations keeps every pair with four GWAS", {
+  input_gwases <- vapply(c("gwas_a", "gwas_b", "gwas_c", "gwas_d"), function(name) {
+    path <- file.path(tempdir(), paste0(name, ".tsv.gz"))
+    file.copy("data/test_data_small.tsv.gz", path, overwrite = TRUE)
+    path
+  }, character(1))
+  input_clumps <- rep("data/clumped_snps.tsv.gz", 4)
+
+  output_file <- tempfile(fileext = ".tsv")
+  variants_output_file <- tempfile(fileext = ".tsv")
+  compare_replication_across_all_gwas_permutations(input_gwases, input_clumps, output_file, variants_output_file)
+
+  results <- vroom::vroom(output_file, show_col_types = FALSE)
+  expect_equal(nrow(results), 4 * 6)
+  expect_setequal(unique(results$COMPARISON), c(
+    "gwas_a_vs_gwas_b", "gwas_a_vs_gwas_c", "gwas_a_vs_gwas_d",
+    "gwas_b_vs_gwas_c", "gwas_b_vs_gwas_d", "gwas_c_vs_gwas_d"
+  ))
+})

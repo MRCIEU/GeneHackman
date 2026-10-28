@@ -116,19 +116,21 @@ populate_eaf_from_reference_panel <- function(gwas, ancestry) {
 #' populate_rsid: populate the RSID column from the SNP column
 #' @param gwas dataframe with the following columns: SNP
 #' @param option option to populate the RSID column
+#' @param build reference build of the CHR/BP positions in \code{gwas} (one of \code{reference_builds});
+#'   RSIDs are looked up in the reference resource for this build. Defaults to GRCh37.
 #' @return gwas with new column RSID
 
 
 #' @export
-populate_rsid <- function(gwas, option = populate_rsid_options$none) {
+populate_rsid <- function(gwas, option = populate_rsid_options$none, build = reference_builds$GRCh37) {
   gc()
   start_time <- Sys.time()
   if (option == populate_rsid_options$none || "RSID" %in% colnames(gwas)) {
     return(gwas)
   } else if (option == populate_rsid_options$partial) {
-    gwas <- populate_partial_rsids(gwas)
+    gwas <- populate_partial_rsids(gwas, build)
   } else if (option == populate_rsid_options$full){
-    gwas <- populate_full_rsids(gwas)
+    gwas <- populate_full_rsids(gwas, build)
   }
   else {
     stop(paste("Invalid RSID population option", option))
@@ -139,23 +141,56 @@ populate_rsid <- function(gwas, option = populate_rsid_options$none) {
   return(gwas)
 }
 
-populate_partial_rsids <- function(gwas) {
+#' Partial RSID population from the 1000 Genomes marker map.
+#' The marker map is keyed on GRCh37 \code{CHR:BP_A1_A2} identifiers (\code{HG37}). For GRCh38 positions,
+#' a \code{HG38} column is used if the map has one; otherwise the GRCh37 key is rebuilt from the
+#' \code{BP37} column that \code{convert_reference_build_via_liftover()} keeps when lifting from GRCh37.
+#' @keywords internal
+populate_partial_rsids <- function(gwas,
+                                   build = reference_builds$GRCh37,
+                                   marker_to_rsid_file = file.path(thousand_genomes_dir, "marker_to_rsid.tsv.gz")) {
   message("populating RSIDs based on 1000genomes...")
-  marker_to_rsid_file <- file.path(thousand_genomes_dir, "marker_to_rsid.tsv.gz")
-  chrpos_to_rsid <- vroom::vroom(marker_to_rsid_file, col_select = c("HG37", "RSID"), show_col_types=F)
-  gwas$RSID <- chrpos_to_rsid$RSID[match(gwas$SNP, chrpos_to_rsid$HG37)]
+  marker_columns <- colnames(vroom::vroom(marker_to_rsid_file, n_max = 0, show_col_types = F))
+
+  if (build == reference_builds$GRCh37) {
+    marker_column <- "HG37"
+    gwas_keys <- gwas$SNP
+  } else if (build == reference_builds$GRCh38 && "HG38" %in% marker_columns) {
+    marker_column <- "HG38"
+    gwas_keys <- gwas$SNP
+  } else if (build == reference_builds$GRCh38 && "BP37" %in% colnames(gwas)) {
+    marker_column <- "HG37"
+    gwas_keys <- toupper(paste0(gwas$CHR, ":", format(as.numeric(gwas$BP37), scientific = F, trim = T),
+                                "_", gwas$EA, "_", gwas$OA))
+  } else {
+    stop(paste0("Partial RSID population is only available for GRCh37 positions (or GRCh38 positions lifted over ",
+                "from GRCh37). For ", build, " output please set populate_rsid: true to use the full dbSNP lookup."))
+  }
+
+  chrpos_to_rsid <- vroom::vroom(marker_to_rsid_file,
+                                 col_select = dplyr::all_of(c(marker_column, "RSID")),
+                                 show_col_types = F)
+  gwas$RSID <- chrpos_to_rsid$RSID[match(gwas_keys, chrpos_to_rsid[[marker_column]])]
 
   return(gwas)
 }
 
 
-populate_full_rsids <- function(gwas) {
-  build <- rsid_builds$GRCh37
-  dbsnp_dir <- file.path(genomic_data_dir, "dbsnp")
-  if (!build %in% rsid_builds) stop(paste("Error: invalid rsid build option:", build))
+populate_full_rsids <- function(gwas,
+                                build = reference_builds$GRCh37,
+                                dbsnp_dir = file.path(genomic_data_dir, "dbsnp")) {
+  rsid_build <- rsid_builds[[build]]
+  if (is.null(rsid_build)) {
+    stop(paste0("Error: full RSID population is not available for reference build ", build,
+                ". Supported builds: ", paste(names(rsid_builds), collapse = ", ")))
+  }
+  if (!dir.exists(file.path(dbsnp_dir, rsid_build))) {
+    stop(paste0("Error: dbSNP reference for ", build, " not found at ", file.path(dbsnp_dir, rsid_build),
+                ". Download the ", build, " reference data, or standardise to a build that is available."))
+  }
 
   parallel_chr_population <- calculate_parallelism()
-  message(paste0("Using ", parallel_chr_population, " cores for full RSID population"))
+  message(paste0("Using ", parallel_chr_population, " cores for full RSID population (", rsid_build, ")"))
 
   gwas <- data.table::as.data.table(gwas)
   gwas <- chrpos_to_rsid(
@@ -166,7 +201,7 @@ populate_full_rsids <- function(gwas) {
     "OA",
     flip = "allow",
     dbsnp_dir = dbsnp_dir,
-    build = build,
+    build = rsid_build,
     alt_rsids = FALSE,
     parallel_cores=parallel_chr_population
   )

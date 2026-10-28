@@ -14,7 +14,8 @@ finemap_gwas(
   window_kb = 1000,
   max_causal = 10,
   coverage = 0.95,
-  min_abs_corr = 0.5
+  min_abs_corr = 0.5,
+  max_region_kb = 3000
 )
 }
 \arguments{
@@ -27,27 +28,44 @@ finemap_gwas(
 \item{default_n}{GWAS sample size when not inferrable from \code{gwas}; see}
 
 \item{output_finemap_dir}{directory to write one
-\verb{<CHR>_<BP>_finemap.tsv.gz} per clumped locus.}
+\verb{<CHR>_<BP>_finemap.tsv.gz} per fine-mapping region.}
 
 \item{completion_file}{path to a sentinel file written on successful completion
-(one line: expected lead count). If NULL, defaults to
-\verb{<output_finemap_dir>/finemap_complete.txt}.}
+(one line: number of fine-mapping regions). If NULL, defaults to
+\verb{<output_finemap_dir>/finemap_complete_<dir_basename>.txt}.}
 
-\item{window_kb}{half-width of the fine-mapping window in kb (default 1000 = ±1 Mb)}
+\item{window_kb}{half-width of the fine-mapping window around each lead SNP in kb}
 
 \item{max_causal}{maximum number of causal signals per locus (SuSiE L, default 10)}
 
 \item{coverage}{credible set coverage (default 0.95)}
 
 \item{min_abs_corr}{minimum absolute correlation for credible sets (default 0.5)}
+
+\item{max_region_kb}{maximum width of a merged fine-mapping region in kb (default 3000)}
 }
 \value{
 invisibly, the combined per-SNP finemap data.table (LD-matched SNPs only)
 }
 \description{
-For each lead SNP from plink --clump output, extracts a window, computes an
-LD matrix from the 1000 Genomes reference panel via plink, and runs
-susieR::susie_rss.  Writes one TSV per locus: all GWAS variants within the
-genomic window around the lead SNP, with SuSiE Z-scores, credible-set
-membership, and per-credible-set (independent signal) columns \code{LBF_1}, \code{LBF_2}, ...
+Lead SNPs from plink --clump output are turned into fine-mapping regions by
+\code{define_finemap_regions()}: a window of \code{window_kb} either side of
+each lead, with overlapping windows merged into a single region (up to
+\code{max_region_kb} wide) so that a signal is only fine-mapped once. For each
+region an LD matrix is computed from the 1000 Genomes reference panel via
+plink and \code{susieR::susie_rss} is run.
+}
+\details{
+Outputs written to \code{output_finemap_dir}:
+\itemize{
+\item \verb{<CHR>_<BP>_finemap.tsv.gz} per region (BP is the most significant
+lead SNP in the region): all GWAS variants in the region with SuSiE
+Z-scores, posterior inclusion probabilities (\code{PIP}), credible-set
+membership (\code{CS}) and per-credible-set log Bayes factors
+\code{LBF_1}, \code{LBF_2}, ...
+\item \code{finemap_regions.tsv}: one row per region (bounds, leads, status,
+number of variants with LD, number of credible sets, SuSiE convergence).
+\item \code{finemap_credible_sets.tsv}: one row per credible set (size,
+coverage, purity, lead variant and its PIP, log Bayes factor).
+}
 }

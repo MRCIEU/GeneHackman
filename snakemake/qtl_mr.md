@@ -34,7 +34,6 @@ gwases:
       SE: SE
     ancestry: EUR
     N: 100000
-    study_type: continuous
 plink_clump_arguments: "--clump-p1 5e-8 --clump-r2 0.01 --clump-kb 1000"
 finemap:
   window_kb: 1000
@@ -45,6 +44,7 @@ qtl:
   dataset: metabrain
   subcategory: cortex
   exposures: []
+  study_type: continuous
 populate_rsid: false
 ```
 
@@ -54,8 +54,7 @@ populate_rsid: false
 | ----- | -------- | ----- |
 | `file` | **Yes** | Outcome GWAS summary statistics. |
 | `ancestry` | **Yes** | LD reference for clumping and fine-mapping. |
-| `N` | **Yes** | Sample size (used in MR coloc LBF conversion). |
-| `study_type` | No | `continuous` (default) or `categorical` — controls QTL LBF conversion in the coloc step. |
+| `N` | **Yes** | GWAS sample size (used for fine-mapping). |
 | `columns` | No | Column map or preset. |
 | `build` | No | Input build. Default `GRCh37`. |
 | `populate_rsid` | No | Per-GWAS override; default inherits root `false`. |
@@ -65,7 +64,7 @@ populate_rsid: false
 
 | Field | Required | Notes |
 | ----- | -------- | ----- |
-| `plink_clump_arguments` | **Yes** | Passed to `plink1.9 --clump`. |
+| `plink_clump_arguments` | **Yes** | Passed to `plink1.9 --clump`. If `--clump-r2` or `--clump-kb` are not given, GeneHackman adds `--clump-r2 0.01 --clump-kb 1000` (PLINK's own defaults, 0.5 and 250 kb, leave several correlated lead SNPs per locus). |
 
 ### `finemap`
 
@@ -75,6 +74,7 @@ populate_rsid: false
 | `finemap.max_causal` | No | Max causal signals per locus. Default `10`. |
 | `finemap.coverage` | No | Credible set coverage. Default `0.95`. |
 | `finemap.min_abs_corr` | No | Minimum \|r\| for credible-set purity. Default `0.5`. |
+| `finemap.max_region_kb` | No | Maximum width (kb) of a region made by merging overlapping lead windows. Default `3000`. See [`finemap.md`](finemap.md). |
 
 ### `qtl`
 
@@ -83,6 +83,16 @@ populate_rsid: false
 | `qtl.dataset` | **Yes** | QTL source, e.g. `metabrain`, `eqtlgen`. |
 | `qtl.subcategory` | **Yes** | Sub-panel, e.g. `cortex` (MetaBrain) or `cis` (eQTLGen). Combined with `dataset` in output names. |
 | `qtl.exposures` | No | List of exposure names to test; if empty (`[]`), all exposures in the panel are run. |
+| `qtl.study_type` | No | Trait type of the **QTL** data, used to convert QTL summary statistics to log Bayes factors in the coloc step: `continuous` (default; expression and protein levels) or `categorical`. |
+| `qtl.N` | No | QTL sample size, used in the coloc step only when the QTL files have no `N` column. If neither is available, coloc is skipped for that exposure. |
+
+### `coloc`
+
+| Field | Required | Notes |
+| ----- | -------- | ----- |
+| `coloc.p1` | No | Prior: SNP associated with the GWAS trait. Default `1e-4`. |
+| `coloc.p2` | No | Prior: SNP associated with the QTL trait. Default `1e-4`. |
+| `coloc.p12` | No | Prior: SNP associated with both traits. Default `5e-6`. |
 
 **Example subcategories:**
 

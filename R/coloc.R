@@ -56,10 +56,14 @@ run_coloc_on_list_of_datasets <- function(first_gwas_list=list(),
 #' @param mr_results_file MR results file
 #' @param finemap_dir directory containing finemapped GWAS locus files
 #' @param qtl_dataset QTL dataset name (metabrain or eqtlgen)
-#' @param study_type study type for LBF conversion ("continuous" or "categorical")
+#' @param study_type study type of the QTL trait, used to convert the QTL summary statistics to
+#'   log Bayes factors ("continuous" or "categorical"); molecular QTL traits are normally continuous
 #' @param exposures optional character vector of exposures to filter
-#' @param default_n default sample size for QTL data
+#' @param default_n sample size of the QTL dataset, used only when the QTL files have no N column
 #' @param output_file output file path
+#' @param p1 prior probability a SNP is associated with the GWAS trait
+#' @param p2 prior probability a SNP is associated with the QTL trait
+#' @param p12 prior probability a SNP is associated with both traits
 
 
 
@@ -71,7 +75,10 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
                                         study_type = "continuous",
                                         exposures = c(),
                                         default_n = NA,
-                                        output_file) {
+                                        output_file,
+                                        p1 = 1e-4,
+                                        p2 = 1e-4,
+                                        p12 = 5e-6) {
 
   mr_results <- get_file_or_dataframe(mr_results_file) |>
     dplyr::filter(p.adjusted < 0.05)
@@ -113,7 +120,10 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
       chr = chr,
       bp = bp,
       study_type = study_type,
-      default_n = default_n
+      default_n = default_n,
+      p1 = p1,
+      p2 = p2,
+      p12 = p12
     )
   }) |> dplyr::bind_rows()
 
@@ -159,9 +169,12 @@ load_qtl_gwas_for_mr_result <- function(mr_result, qtl_dataset) {
 #' @param exposure_name exposure label
 #' @param chr chromosome of the MR hit
 #' @param bp base position of the MR hit
-#' @param study_type study type for LBF conversion
-#' @param default_n default sample size
+#' @param study_type study type of the QTL trait for LBF conversion
+#' @param default_n sample size of the QTL dataset, used only when \code{qtl_gwas} has no N column
 #' @param range_bp overlap window in bp (default 1e6 = ±1Mb)
+#' @param p1 prior probability a SNP is associated with the GWAS trait
+#' @param p2 prior probability a SNP is associated with the QTL trait
+#' @param p12 prior probability a SNP is associated with both traits
 #' @return tibble with coloc results or NULL
 
 
@@ -174,7 +187,10 @@ coloc_bf_bf_qtl_analysis <- function(finemap_dir,
                                      bp,
                                      study_type = "continuous",
                                      default_n = NA,
-                                     range_bp = 1e6) {
+                                     range_bp = 1e6,
+                                     p1 = 1e-4,
+                                     p2 = 1e-4,
+                                     p12 = 5e-6) {
 
   finemap_locus <- find_finemap_locus_for_region(finemap_dir, chr, bp, range_bp)
   if (is.null(finemap_locus)) {
@@ -204,6 +220,9 @@ coloc_bf_bf_qtl_analysis <- function(finemap_dir,
     return(NULL)
   }
 
+  # only GWAS SNPs that were fine-mapped (have LBFs); SNPs missing from the LD panel have none
+  finemap_locus <- keep_snps_with_lbfs(finemap_locus, lbf_cols)
+
   shared_snps <- intersect(finemap_locus$SNP, qtl_region$SNP)
   if (length(shared_snps) < 2) {
     message(paste("Too few shared SNPs for", exposure_name, "at", chr, ":", bp))
@@ -226,8 +245,9 @@ coloc_bf_bf_qtl_analysis <- function(finemap_dir,
 
   qtl_n <- `if`("N" %in% colnames(qtl_sub) && !is.na(as.numeric(qtl_sub$N[1])),
                 as.numeric(qtl_sub$N[1]), default_n)
-  if (is.na(qtl_n)) {
-    message(paste("Cannot determine N for QTL data for", exposure_name))
+  if (is.na(qtl_n) || qtl_n <= 0) {
+    message(paste("Cannot determine N for QTL data for", exposure_name,
+                  "- add an N column to the QTL data or set qtl.N in the input YAML"))
     return(NULL)
   }
 
@@ -242,7 +262,7 @@ coloc_bf_bf_qtl_analysis <- function(finemap_dir,
   names(qtl_lbf) <- qtl_sub$SNP
 
   result <- tryCatch(
-    coloc::coloc.bf_bf(bf1 = gwas_bf, bf2 = qtl_lbf),
+    coloc::coloc.bf_bf(bf1 = gwas_bf, bf2 = qtl_lbf, p1 = p1, p2 = p2, p12 = p12),
     error = function(e) {
       message(paste("coloc.bf_bf failed for", exposure_name, "at", chr, ":", bp,
                     ":", conditionMessage(e)))
@@ -272,8 +292,10 @@ build_bf_matrix <- function(locus_df, lbf_cols) {
   }
   if (!has_signal) return(NULL)
 
+  locus_df <- keep_snps_with_lbfs(locus_df, lbf_cols)
+  if (nrow(locus_df) < 2) return(NULL)
+
   bf_mat <- t(as.matrix(locus_df[, lbf_cols, drop = FALSE]))
-  bf_mat[is.na(bf_mat)] <- 0
   colnames(bf_mat) <- locus_df$SNP
   rownames(bf_mat) <- lbf_cols
   return(bf_mat)
@@ -281,12 +303,27 @@ build_bf_matrix <- function(locus_df, lbf_cols) {
 
 
 #' Find the finemapped locus file that covers a genomic region
+#'
+#' Uses the region bounds in \code{finemap_regions.tsv} (written by \code{finemap_gwas()}) to pick the
+#' fine-mapping region that contains \code{bp}; otherwise falls back to the locus whose lead SNP is
+#' nearest to \code{bp} within \code{range_bp}.
 #' @keywords internal
 find_finemap_locus_for_region <- function(finemap_dir, chr, bp, range_bp = 1e6) {
   if (!dir.exists(finemap_dir)) return(NULL)
 
   files <- list.files(finemap_dir, pattern = "_finemap\\.tsv\\.gz$", full.names = TRUE)
   if (length(files) == 0) return(NULL)
+
+  regions_file <- file.path(finemap_dir, "finemap_regions.tsv")
+  if (file.exists(regions_file)) {
+    regions <- data.table::fread(regions_file)
+    containing <- regions[regions$CHR == chr & regions$START <= bp & regions$END >= bp, ]
+    containing_files <- file.path(finemap_dir, paste0(containing$LOCUS, "_finemap.tsv.gz"))
+    containing_files <- containing_files[file.exists(containing_files)]
+    if (length(containing_files) > 0) {
+      return(vroom::vroom(containing_files[1], show_col_types = FALSE))
+    }
+  }
 
   best_file <- NULL
   best_dist <- Inf

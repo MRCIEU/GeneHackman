@@ -1,8 +1,9 @@
 #' Run pairwise  colocalization on finemapped GWAS results
 #'
-#' For each pair of GWAS datasets, identifies overlapping finemapped signals
-#' (lead SNPs within ±\code{overlap_kb} kb), then runs \code{coloc::coloc.bf_bf}
-#' on shared SNPs using the per-signal LBF columns produced by the fine-mapping
+#' For each pair of GWAS datasets, identifies overlapping finemapped loci
+#' (lead SNPs within ±\code{overlap_kb} kb, or fine-mapping regions that overlap),
+#' then runs \code{coloc::coloc.bf_bf} on the SNPs that have log Bayes factors in
+#' both loci, using the per-signal LBF columns produced by the fine-mapping
 #' pipeline.
 #'
 #' @param finemap_dirs named character vector of finemap output directories,
@@ -58,7 +59,7 @@ run_bf_bf_coloc <- function(finemap_dirs,
     for (l1 in loci1) {
       for (l2 in loci2) {
         if (l1$chr != l2$chr) next
-        if (abs(l1$lead_bp - l2$lead_bp) > overlap_bp) next
+        if (!loci_overlap(l1, l2, overlap_bp)) next
 
         result <- coloc_bf_bf_for_locus_pair(l1, l2, t1, t2, p1, p2, p12)
         if (!is.null(result)) {
@@ -113,11 +114,16 @@ load_all_finemap_loci <- function(finemap_dirs) {
       chr <- as.numeric(parts[1])
       bp <- as.numeric(parts[2])
 
+      region_bp <- if ("BP" %in% colnames(locus)) suppressWarnings(as.numeric(locus$BP)) else numeric()
+      region_bp <- region_bp[!is.na(region_bp)]
+
       trait_loci <- c(trait_loci, list(list(
         data = locus,
         lbf_cols = lbf_cols,
         chr = chr,
         lead_bp = bp,
+        start = if (length(region_bp) > 0) min(region_bp) else NA_real_,
+        end = if (length(region_bp) > 0) max(region_bp) else NA_real_,
         locus_name = locus_name
       )))
     }
@@ -131,6 +137,18 @@ load_all_finemap_loci <- function(finemap_dirs) {
 }
 
 
+#' Do two finemapped loci (same chromosome) overlap?
+#' TRUE when their lead SNPs are within \code{overlap_bp}, or when both loci carry
+#' region bounds (\code{start}/\code{end}) and the regions intersect.
+#' @keywords internal
+loci_overlap <- function(l1, l2, overlap_bp) {
+  if (abs(l1$lead_bp - l2$lead_bp) <= overlap_bp) return(TRUE)
+  bounds <- c(l1$start, l1$end, l2$start, l2$end)
+  if (length(bounds) != 4L || any(is.na(bounds))) return(FALSE)
+  l1$start <= l2$end && l2$start <= l1$end
+}
+
+
 #' Run coloc::coloc.bf_bf for one pair of overlapping loci
 #' @keywords internal
 coloc_bf_bf_for_locus_pair <- function(l1, l2, trait1_name, trait2_name,
@@ -141,6 +159,11 @@ coloc_bf_bf_for_locus_pair <- function(l1, l2, trait1_name, trait2_name,
   if (!"SNP" %in% colnames(d1) || !"SNP" %in% colnames(d2)) {
     return(NULL)
   }
+
+  # only SNPs that were fine-mapped (have LBFs) in both loci; SNPs missing from the
+  # LD panel have no LBFs and must not be treated as having a Bayes factor of 1
+  d1 <- keep_snps_with_lbfs(d1, l1$lbf_cols)
+  d2 <- keep_snps_with_lbfs(d2, l2$lbf_cols)
 
   shared_snps <- intersect(d1$SNP, d2$SNP)
   if (length(shared_snps) < 2) return(NULL)
@@ -191,11 +214,27 @@ build_lbf_matrix <- function(locus_df, lbf_cols) {
   }
   if (!has_signal) return(NULL)
 
+  locus_df <- keep_snps_with_lbfs(locus_df, lbf_cols)
+  if (nrow(locus_df) < 2) return(NULL)
+
   bf_mat <- t(as.matrix(locus_df[, lbf_cols, drop = FALSE]))
-  bf_mat[is.na(bf_mat)] <- 0
   colnames(bf_mat) <- locus_df$SNP
   rownames(bf_mat) <- lbf_cols
   return(bf_mat)
+}
+
+
+#' Keep only SNPs with a log Bayes factor in every LBF column (i.e. SNPs that were fine-mapped).
+#' @keywords internal
+keep_snps_with_lbfs <- function(locus_df, lbf_cols) {
+  lbf_cols <- intersect(lbf_cols, colnames(locus_df))
+  keep <- if (length(lbf_cols) == 0) {
+    rep(FALSE, nrow(locus_df))
+  } else {
+    stats::complete.cases(as.data.frame(locus_df)[, lbf_cols, drop = FALSE])
+  }
+  if (data.table::is.data.table(locus_df)) return(locus_df[keep])
+  locus_df[keep, , drop = FALSE]
 }
 
 

@@ -49,6 +49,10 @@ Default logical names: `SNP`, `CHR`, `BP`, `EA`, `OA`, `EAF`, `BETA`, `SE`, `OR`
 
 **Allele harmonisation:** root `flip_alleles` defaults to `true`. Only [`standardise_gwas.smk`](snakemake/standardise_gwas.smk) accepts `flip_alleles: false`.
 
+**Clumping:** pipelines that clump require `plink_clump_arguments`. If `--clump-r2` or `--clump-kb` are not given, GeneHackman adds `--clump-r2 0.01 --clump-kb 1000` (PLINK's own defaults, 0.5 and 250 kb, leave several correlated lead SNPs per locus).
+
+**RSIDs and genome build:** RSIDs are looked up in the reference for the output build (`output.build`). Partial RSID population (the default for pipelines that clump) uses the GRCh37 1000 Genomes marker map, so for GRCh38 output it only works when the GWAS was lifted over from GRCh37; otherwise set `populate_rsid: true` to use the full dbSNP lookup for GRCh38.
+
 ---
 
 ## Standard intermediate paths

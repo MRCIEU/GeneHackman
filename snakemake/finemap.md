@@ -60,7 +60,7 @@ Add more entries under `gwases:` for additional traits or ancestries.
 
 | Field | Required | Notes |
 | ----- | -------- | ----- |
-| `plink_clump_arguments` | **Yes** | Passed to `plink1.9 --clump`. [PLINK clump options](https://zzz.bwh.harvard.edu/plink/clump.shtml). |
+| `plink_clump_arguments` | **Yes** | Passed to `plink1.9 --clump`. [PLINK clump options](https://zzz.bwh.harvard.edu/plink/clump.shtml). If `--clump-r2` or `--clump-kb` are not given, GeneHackman adds `--clump-r2 0.01 --clump-kb 1000` (PLINK's own defaults, 0.5 and 250 kb, leave several correlated lead SNPs per locus). |
 
 ### `finemap`
 
@@ -70,6 +70,7 @@ Add more entries under `gwases:` for additional traits or ancestries.
 | `finemap.max_causal` | No | Max causal signals per locus (`L`). Default `10`. |
 | `finemap.coverage` | No | Credible set coverage. Default `0.95`. |
 | `finemap.min_abs_corr` | No | Minimum \|r\| for credible-set purity. Default `0.5`. |
+| `finemap.max_region_kb` | No | Maximum width (kb) of a region made by merging overlapping lead windows (single-ancestry SuSiE). Default `3000`. |
 
 ### Root fields
 
@@ -89,6 +90,10 @@ Add more entries under `gwases:` for additional traits or ancestries.
    - **Single ancestry:** `run_finemap.R` → SuSiE RSS per GWAS
    - **Multi ancestry:** `run_multisusie.py` → MultiSuSiE across all GWAS jointly
 
+### Fine-mapping regions (single ancestry)
+
+Each clumped lead SNP gets a window of `window_kb` either side. Windows that overlap on the same chromosome are merged into one region, so a signal is fine-mapped once rather than once per nearby lead SNP. A merged region never grows beyond `max_region_kb`: if adding a lead would exceed it, the region is closed and the next region starts immediately after it, so regions never overlap and every lead belongs to exactly one region. Each region is named `<CHR>_<BP>` after its most significant lead SNP. The regions, their lead SNPs and the outcome of fine-mapping each one are listed in `finemap_regions.tsv`.
+
 ## Output
 
 Snakemake `rule all` tracks completion markers only; additional per-locus files are written alongside them.
@@ -107,8 +112,10 @@ what should be kept.
 
 | Path | Description |
 | ---- | ----------- |
-| `finemap/<prefix>/finemap_complete_<prefix>.txt` | **Snakemake target.** One line = number of clumped loci processed. |
-| `finemap/<prefix>/<CHR>_<BP>_finemap.tsv.gz` | Per-locus fine-mapping table (LBF columns, credible-set membership, posterior effects). |
+| `finemap/<prefix>/finemap_complete_<prefix>.txt` | **Snakemake target.** One line = number of fine-mapping regions processed. |
+| `finemap/<prefix>/<CHR>_<BP>_finemap.tsv.gz` | Per-region fine-mapping table: every GWAS variant in the region, with SuSiE `Z`, posterior inclusion probability `PIP`, credible-set membership `CS` and per-credible-set log Bayes factors `LBF_1`, `LBF_2`, … (empty for variants not in the LD panel). |
+| `finemap/<prefix>/finemap_regions.tsv` | One row per region: bounds, lead SNP(s), `STATUS` (fine-mapped, or why it was skipped), number of variants with LD, number of credible sets, SuSiE convergence. |
+| `finemap/<prefix>/finemap_credible_sets.tsv` | One row per credible set: size, coverage, purity (min/mean/median \|r\|), lead variant and its PIP, log Bayes factor. |
 
 ### Results — multi-ancestry MultiSuSiE (`results/finemap/multi_ancestry/`)
 

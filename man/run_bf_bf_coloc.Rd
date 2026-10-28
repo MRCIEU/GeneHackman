@@ -31,8 +31,9 @@ one per GWAS. Names are used as trait labels in the output.}
 tibble of coloc results for every overlapping signal pair
 }
 \description{
-For each pair of GWAS datasets, identifies overlapping finemapped signals
-(lead SNPs within ±\code{overlap_kb} kb), then runs \code{coloc::coloc.bf_bf}
-on shared SNPs using the per-signal LBF columns produced by the fine-mapping
+For each pair of GWAS datasets, identifies overlapping finemapped loci
+(lead SNPs within ±\code{overlap_kb} kb, or fine-mapping regions that overlap),
+then runs \code{coloc::coloc.bf_bf} on the SNPs that have log Bayes factors in
+both loci, using the per-signal LBF columns produced by the fine-mapping
 pipeline.
 }
