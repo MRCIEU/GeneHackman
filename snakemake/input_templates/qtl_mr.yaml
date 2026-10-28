@@ -11,6 +11,7 @@ gwases:
       SE: ""
     ancestry: EUR
     N: 0
+ld_reference: 1000genomes   # or pan_ukb: precomputed Pan-UKB LD (see PIPELINES.md)
 plink_clump_arguments: "--clump-p1 5e-8 --clump-r2 0.01 --clump-kb 1000"
 finemap:
   window_kb: 1000

@@ -10,6 +10,7 @@ onstart:
     print("##### GWAS Comparison Pipeline #####")
 
 ancestries = list([g.ancestry for g in pipeline.gwases])
+# LDSC uses the 1000 Genomes LD scores, so ancestries must be 1000G codes even with ld_reference: pan_ukb
 validate_ancestries(ancestries)
 
 #List of output files

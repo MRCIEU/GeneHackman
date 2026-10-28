@@ -72,6 +72,10 @@ gsutil -m rsync -r "gs://genehackman/1.1.0/" /path/to/my_pipeline_data/
 
 Set `PIPELINE_DATA_DIR=/path/to/my_pipeline_data/` in `.env`.
 
+**Optional: Pan-UKB LD pack** (for `ld_reference: pan_ukb`)
+
+Precomputed LD from the Pan-UK Biobank for six ancestries, built with [`reference_data/pan_ukb_ld`](reference_data/pan_ukb_ld/README.md). Place it at `PIPELINE_DATA_DIR/genomic_data/pan_ukb_ld/`.
+
 **Optional — QTL MR pipeline only**
 
 ```bash

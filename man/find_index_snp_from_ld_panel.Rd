@@ -2,11 +2,18 @@
 % Please edit documentation in R/locus_zoom.R
 \name{find_index_snp_from_ld_panel}
 \alias{find_index_snp_from_ld_panel}
-\title{Find the top SNP near a locus center from the LD reference panel}
+\title{Find the LD reference variant nearest a locus centre.}
 \usage{
-find_index_snp_from_ld_panel(chr, center_bp, window_bp, ancestry)
+find_index_snp_from_ld_panel(
+  chr,
+  center_bp,
+  window_bp,
+  ancestry,
+  ld_reference = ld_reference_options$thousand_genomes,
+  build = reference_builds$GRCh37
+)
 }
 \description{
-Find the top SNP near a locus center from the LD reference panel
+Returns an RSID for 1000 Genomes, or a GeneHackman SNP key (in \code{build}) for the LD pack.
 }
 \keyword{internal}

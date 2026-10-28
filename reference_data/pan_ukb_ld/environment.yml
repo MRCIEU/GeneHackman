@@ -1,0 +1,17 @@
+# Python + Java environment for building the Pan-UKB LD pack (created by 01_setup_env.sh under
+# $WORK_DIR/env).  Hail is only needed to read the Pan-UKB Hail BlockMatrix files; GeneHackman's
+# pipelines read the finished pack with numpy / base R and do not need any of this.
+name: gh_ldpack
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - openjdk=11
+  - numpy
+  - pandas
+  - boto3
+  - ucsc-liftover   # same UCSC liftOver GeneHackman's container uses
+  - pip
+  - pip:
+      - hail==0.2.139

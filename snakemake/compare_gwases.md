@@ -51,7 +51,7 @@ populate_rsid: false
 | ----- | -------- | ----- |
 | `file` | **Yes** | Input summary-statistics file. |
 | `N` | **Yes** | Sample size; required for LDSC. |
-| `ancestry` | **Yes** | `AFR`, `AMR`, `EAS`, `EUR`, or `SAS` — LD reference for clumping and LDSC grouping. |
+| `ancestry` | **Yes** | `AFR`, `AMR`, `EAS`, `EUR`, or `SAS` — LD reference for clumping and LDSC grouping. These 1000 Genomes codes are needed even with `ld_reference: pan_ukb`, because LDSC uses the 1000 Genomes LD scores (`SAS` clumps against Pan-UKB `CSA`). |
 | `columns` | No | Column map or preset. |
 | `build` | No | Input build. Default `GRCh37`; lifted to `output.build` if set. |
 | `populate_rsid` | No | Per-GWAS override; default inherits root `false`. With clumping and `false`, RSID population is **partial** unless overridden. |
@@ -76,7 +76,7 @@ populate_rsid: false
 ## Workflow
 
 1. Standardise each GWAS → `data/gwas/<prefix>_std.tsv.gz`
-2. PLINK clump per GWAS (ancestry-matched 1000 Genomes panel)
+2. Clump per GWAS: PLINK on the ancestry-matched 1000 Genomes panel, or the Pan-UKB LD pack with `ld_reference: pan_ukb`
 3. Expected vs observed replication (`compare_observed_vs_expected_gwas.R`)
 4. Cross-GWAS heterogeneity scores and plots (`calculate_heterogeneity.R`)
 5. LDSC per **unique ancestry** present in the input (`run_ldsc.sh`)

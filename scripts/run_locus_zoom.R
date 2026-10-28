@@ -22,6 +22,16 @@ parser <- add_argument(parser, "--ancestry",
                        type = "character",
                        default = "EUR"
 )
+parser <- add_argument(parser, "--ld_reference",
+                       help = "LD reference: 1000genomes or pan_ukb",
+                       type = "character",
+                       default = "1000genomes"
+)
+parser <- add_argument(parser, "--build",
+                       help = "Reference build of the standardised GWAS (GRCh37 or GRCh38)",
+                       type = "character",
+                       default = "GRCh37"
+)
 parser <- add_argument(parser, "--pp_h4_threshold",
                        help = "Minimum PP.H4.abf to plot (default 0.8)",
                        type = "numeric",
@@ -67,5 +77,7 @@ locus_zoom_coloc(
   output_dir = args$output_dir,
   pp_h4_threshold = args$pp_h4_threshold,
   window_kb = args$window_kb,
-  completion_file = args$completion_file
+  completion_file = args$completion_file,
+  ld_reference = args$ld_reference,
+  build = args$build
 )

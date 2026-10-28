@@ -1,0 +1,12 @@
+format	genehackman-ldpack
+format_version	1
+scale	127
+compression	xz
+radius_bp	40000
+maf_min	0.01
+deadzone	0.02
+n_samples	400
+chunk_rows	16
+index_build	GRCh37
+key_builds	GRCh37,GRCh38
+source	synthetic test fixture

@@ -51,6 +51,21 @@ Default logical names: `SNP`, `CHR`, `BP`, `EA`, `OA`, `EAF`, `BETA`, `SE`, `OR`
 
 **Clumping:** pipelines that clump require `plink_clump_arguments`. If `--clump-r2` or `--clump-kb` are not given, GeneHackman adds `--clump-r2 0.01 --clump-kb 1000` (PLINK's own defaults, 0.5 and 250 kb, leave several correlated lead SNPs per locus).
 
+**LD reference:** `ld_reference` chooses where clumping, fine-mapping (SuSiE and MultiSuSiE), LocusZoom and EAF filling get LD:
+
+| Value | Source | Variants are matched on | Ancestries |
+|---|---|---|---|
+| `1000genomes` (default) | 1000 Genomes Phase 3 genotypes, via PLINK | RSID | EUR, EAS, AFR, AMR, SAS |
+| `pan_ukb` | Precomputed Pan-UKB LD: 6,000–420,000 people per ancestry, MAF ≥ 1%, ±500 kb, GRCh37 and GRCh38 | SNP key (`CHR:BP_EA_OA`) | EUR, AFR, AMR, CSA, EAS, MID (`SAS` maps to `CSA`) |
+
+The Pan-UKB pack must be at `PIPELINE_DATA_DIR/genomic_data/pan_ukb_ld/`; see [`reference_data/pan_ukb_ld/README.md`](reference_data/pan_ukb_ld/README.md) for how it is built.
+
+With `pan_ukb`:
+
+- **Clumping** follows PLINK 1.9's `--clump` rules on the stored LD, and `--clump-kb` is capped at the pack's 500 kb radius.
+- **Fine-mapping** variant pairs further apart than 500 kb are set to r = 0. `finemap_regions.tsv` reports the share of such pairs and any ridge added to keep the LD matrix positive semi-definite.
+- **`compare_gwases`** still needs 1000G ancestry codes, because LDSC uses the 1000 Genomes LD scores.
+
 **RSIDs and genome build:** RSIDs are looked up in the reference for the output build (`output.build`). Partial RSID population (the default for pipelines that clump) uses the GRCh37 1000 Genomes marker map, so for GRCh38 output it only works when the GWAS was lifted over from GRCh37; otherwise set `populate_rsid: true` to use the full dbSNP lookup for GRCh38.
 
 ---

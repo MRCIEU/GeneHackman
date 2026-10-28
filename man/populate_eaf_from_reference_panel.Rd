@@ -4,15 +4,29 @@
 \alias{populate_eaf_from_reference_panel}
 \title{Populate missing EAF from the LD reference panel \code{.frq} file via RSID matching.}
 \usage{
-populate_eaf_from_reference_panel(gwas, ancestry)
+populate_eaf_from_reference_panel(
+  gwas,
+  ancestry,
+  ld_reference = ld_reference_options$thousand_genomes,
+  build = reference_builds$GRCh37
+)
 }
 \arguments{
-\item{gwas}{Standardised GWAS tibble with RSID, EA, OA columns.}
+\item{gwas}{Standardised GWAS tibble with RSID, EA, OA columns (SNP for pan_ukb).}
 
-\item{ancestry}{One of EUR, EAS, AFR, AMR, SAS matching the reference panel prefix.}
+\item{ancestry}{One of EUR, EAS, AFR, AMR, SAS matching the reference panel prefix
+(pan_ukb: EUR, AFR, AMR, CSA or SAS, EAS, MID).}
+
+\item{ld_reference}{"1000genomes" (default) or "pan_ukb"}
+
+\item{build}{reference build of the GWAS positions (pan_ukb only)}
 }
 \description{
 Expects the GWAS to have an \code{RSID} column (populated by \code{populate_rsid})
 and alleles in canonical (alphabetically sorted) order from \code{standardise_alleles}.
 Only reads the lightweight \code{.frq} file; the \code{.bim} is not needed.
+}
+\details{
+With \code{ld_reference = "pan_ukb"}, EAF comes from the Pan-UKB LD pack instead, matched on the
+GeneHackman SNP key (\code{CHR:BP_EA_OA}, canonical allele order) in \code{build}; no RSIDs needed.
 }

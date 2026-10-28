@@ -8,7 +8,7 @@ onstart:
     print("##### SuSiE Fine-Mapping Pipeline #####")
 
 ancestries = list([g.ancestry for g in pipeline.gwases])
-validate_ancestries(ancestries)
+validate_ancestries(ancestries, pipeline.ld_reference)
 unique_ancestries = list(set(ancestries))
 if len(unique_ancestries) > 1 and len(unique_ancestries) < len(ancestries):
     raise ValueError(

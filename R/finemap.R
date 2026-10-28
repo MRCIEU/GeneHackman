@@ -4,8 +4,9 @@
 #' \code{define_finemap_regions()}: a window of \code{window_kb} either side of
 #' each lead, with overlapping windows merged into a single region (up to
 #' \code{max_region_kb} wide) so that a signal is only fine-mapped once. For each
-#' region an LD matrix is computed from the 1000 Genomes reference panel via
-#' plink and \code{susieR::susie_rss} is run.
+#' region an LD matrix is taken from the LD reference (\code{ld_reference}): the
+#' precomputed Pan-UKB LD pack, matched on SNP keys, or the 1000 Genomes panel via
+#' plink, matched on RSIDs; then \code{susieR::susie_rss} is run.
 #'
 #' Outputs written to \code{output_finemap_dir}:
 #' \itemize{
@@ -15,14 +16,18 @@
 #'     membership (\code{CS}) and per-credible-set log Bayes factors
 #'     \code{LBF_1}, \code{LBF_2}, ...
 #'   \item \code{finemap_regions.tsv}: one row per region (bounds, leads, status,
-#'     number of variants with LD, number of credible sets, SuSiE convergence).
+#'     number of variants with LD, number of credible sets, SuSiE convergence, LD
+#'     reference, its sample size \code{N_REF}, the share of variant pairs beyond the
+#'     LD pack's stored radius \code{FRAC_BEYOND_LD_RADIUS} (set to r = 0) and any
+#'     ridge added to keep the LD matrix positive semi-definite, \code{LD_RIDGE}).
 #'   \item \code{finemap_credible_sets.tsv}: one row per credible set (size,
 #'     coverage, purity, lead variant and its PIP, log Bayes factor).
 #' }
 #'
 #' @param gwas filename or dataframe of a standardised GWAS
 #' @param clumped_file plink --clump output file
-#' @param ancestry ancestry code matching 1000 Genomes panel prefix (EUR, EAS, AFR, AMR, SAS)
+#' @param ancestry ancestry code: EUR, EAS, AFR, AMR or SAS for 1000 Genomes; EUR, AFR, AMR, CSA (or SAS),
+#'   EAS or MID for the Pan-UKB LD pack
 #' @param default_n GWAS sample size when not inferrable from \code{gwas}; see
 #' @param output_finemap_dir directory to write one
 #'   \verb{<CHR>_<BP>_finemap.tsv.gz} per fine-mapping region.
@@ -34,6 +39,8 @@
 #' @param coverage credible set coverage (default 0.95)
 #' @param min_abs_corr minimum absolute correlation for credible sets (default 0.5)
 #' @param max_region_kb maximum width of a merged fine-mapping region in kb (default 3000)
+#' @param ld_reference LD source, one of \code{ld_reference_options} ("1000genomes" or "pan_ukb")
+#' @param build reference build of the GWAS positions (used to match SNP keys in the Pan-UKB LD pack)
 #' @return invisibly, the combined per-SNP finemap data.table (LD-matched SNPs only)
 #' @export
 finemap_gwas <- function(gwas,
@@ -46,7 +53,13 @@ finemap_gwas <- function(gwas,
                          max_causal = 10,
                          coverage = 0.95,
                          min_abs_corr = 0.5,
-                         max_region_kb = 3000) {
+                         max_region_kb = 3000,
+                         ld_reference = ld_reference_options$thousand_genomes,
+                         build = reference_builds$GRCh37) {
+  validate_ld_reference(ld_reference)
+  id_column <- ld_reference_id_column(ld_reference)
+  use_pack <- ld_reference == ld_reference_options$pan_ukb
+  n_ref <- if (use_pack) ld_pack_n_samples(ancestry) else NA_real_
 
   gwas <- get_file_or_dataframe(gwas)
   data.table::setDT(gwas)
@@ -105,7 +118,8 @@ finemap_gwas <- function(gwas,
   rm(gwas); gc(verbose = FALSE)
 
   locus_outcome <- function(status, n_snps = NA_integer_, result = NULL, converged = NA) {
-    list(status = status, n_snps = n_snps, result = result, converged = converged)
+    list(status = status, n_snps = n_snps, result = result, converged = converged,
+         beyond_radius = NA_real_, ridge = NA_real_)
   }
 
   process_one_locus <- function(i) {
@@ -122,29 +136,38 @@ finemap_gwas <- function(gwas,
         return(locus_outcome("skipped: fewer than 2 SNPs in region", nrow(locus_gwas)))
       }
 
-      if (!has_rsid || all(is.na(locus_gwas$RSID))) {
+      if (id_column == "RSID" && (!has_rsid || all(is.na(locus_gwas$RSID)))) {
         message(paste("Skipping locus", locus_name, "- no RSIDs available for LD computation"))
         return(locus_outcome("skipped: no RSIDs for LD computation", 0L))
       }
-      locus_gwas <- locus_gwas[!is.na(RSID) & nchar(RSID) > 0L]
+      ids <- locus_gwas[[id_column]]
+      locus_gwas <- locus_gwas[!is.na(ids) & nchar(ids) > 0L & !duplicated(ids)]
 
-      ld_result <- compute_ld_matrix(locus_gwas$RSID, lead_chr, ancestry)
+      ld_result <- get_ld_matrix(locus_gwas[[id_column]], lead_chr, ancestry, build, ld_reference)
       if (is.null(ld_result)) {
         message(paste("Skipping locus", locus_name, "- LD matrix computation failed"))
         return(locus_outcome("skipped: LD matrix computation failed", 0L))
       }
 
-      shared_rsids <- intersect(locus_gwas$RSID, ld_result$snps)
-      if (length(shared_rsids) < 2L) {
+      shared_ids <- intersect(locus_gwas[[id_column]], ld_result$snps)
+      if (length(shared_ids) < 2L) {
         rm(ld_result); gc(verbose = FALSE)
         message(paste("Skipping locus", locus_name, "- too few shared SNPs between GWAS and LD panel"))
-        return(locus_outcome("skipped: fewer than 2 SNPs in LD panel", length(shared_rsids)))
+        return(locus_outcome("skipped: fewer than 2 SNPs in LD panel", length(shared_ids)))
       }
 
-      locus_gwas <- locus_gwas[match(shared_rsids, RSID)]
-      ld_idx <- match(shared_rsids, ld_result$snps)
+      locus_gwas <- locus_gwas[match(shared_ids, locus_gwas[[id_column]])]
+      ld_idx <- match(shared_ids, ld_result$snps)
       R <- ld_result$matrix[ld_idx, ld_idx]
+      beyond_radius <- if (is.null(ld_result$beyond_band_fraction)) NA_real_ else ld_result$beyond_band_fraction
       rm(ld_result); gc(verbose = FALSE)
+      ridge <- NA_real_
+      if (use_pack) {
+        # pairs beyond the pack's radius are r = 0 and r is quantised; keep R positive semi-definite
+        psd <- make_ld_positive_semidefinite(R)
+        R <- psd$matrix
+        ridge <- psd$ridge
+      }
 
       z_scores <- locus_gwas$BETA / locus_gwas$SE
       n <- if (has_n && !is.na(as.numeric(locus_gwas$N[1L]))) as.numeric(locus_gwas$N[1L]) else default_n
@@ -165,7 +188,7 @@ finemap_gwas <- function(gwas,
       rm(R, locus_gwas); gc(verbose = FALSE)
 
       if (nrow(locus_lbf) == 0L) {
-        return(locus_outcome("skipped: SuSiE failed", length(shared_rsids)))
+        return(locus_outcome("skipped: SuSiE failed", length(shared_ids)))
       }
 
       cs_summary <- attr(locus_lbf, "cs_summary")
@@ -175,18 +198,19 @@ finemap_gwas <- function(gwas,
       }
 
       lbf_nm <- grep("^LBF_[0-9]+$", names(locus_lbf), value = TRUE)
-      finemap_cols <- intersect(c("RSID", "Z", "PIP", "CS", lbf_nm), names(locus_lbf))
+      finemap_cols <- intersect(c(id_column, "Z", "PIP", "CS", lbf_nm), names(locus_lbf))
       finemap_join <- locus_lbf[, ..finemap_cols]
 
-      out_gwas <- merge(window_gwas, finemap_join, by = "RSID", all.x = TRUE, sort = FALSE)
+      out_gwas <- merge(window_gwas, finemap_join, by = id_column, all.x = TRUE, sort = FALSE)
       rm(window_gwas, finemap_join)
 
       out_file <- file.path(output_finemap_dir, paste0(locus_name, "_finemap.tsv.gz"))
       data.table::fwrite(out_gwas, out_file, sep = "\t", compress = "gzip")
       rm(out_gwas)
 
-      list(status = "fine-mapped", n_snps = length(shared_rsids), result = locus_lbf,
-           converged = if (is.null(converged)) NA else converged, cs_summary = cs_summary)
+      list(status = "fine-mapped", n_snps = length(shared_ids), result = locus_lbf,
+           converged = if (is.null(converged)) NA else converged, cs_summary = cs_summary,
+           beyond_radius = beyond_radius, ridge = ridge)
     }, error = function(e) {
       message(paste("Error processing locus", locus_name, ":", conditionMessage(e)))
       return(locus_outcome(paste("error:", conditionMessage(e))))
@@ -217,6 +241,11 @@ finemap_gwas <- function(gwas,
     if (is.null(x$cs_summary)) 0L else nrow(x$cs_summary)
   }, FUN.VALUE = integer(1))
   regions$CONVERGED <- vapply(locus_results, function(x) as.logical(x$converged)[1], FUN.VALUE = logical(1))
+  regions$LD_REFERENCE <- ld_reference
+  regions$N_REF <- n_ref
+  regions$FRAC_BEYOND_LD_RADIUS <- vapply(locus_results, function(x) as.numeric(x$beyond_radius %||% NA)[1],
+                                          FUN.VALUE = numeric(1))
+  regions$LD_RIDGE <- vapply(locus_results, function(x) as.numeric(x$ridge %||% NA)[1], FUN.VALUE = numeric(1))
   data.table::fwrite(regions, regions_file, sep = "\t")
 
   cs_tables <- Filter(function(x) !is.null(x) && nrow(x) > 0L, lapply(locus_results, function(x) x$cs_summary))
@@ -361,6 +390,10 @@ add_region_status_columns <- function(regions) {
   regions$N_SNPS <- rep(NA_integer_, nrow(regions))
   regions$N_CS <- rep(NA_integer_, nrow(regions))
   regions$CONVERGED <- rep(NA, nrow(regions))
+  regions$LD_REFERENCE <- rep(NA_character_, nrow(regions))
+  regions$N_REF <- rep(NA_real_, nrow(regions))
+  regions$FRAC_BEYOND_LD_RADIUS <- rep(NA_real_, nrow(regions))
+  regions$LD_RIDGE <- rep(NA_real_, nrow(regions))
   regions
 }
 
@@ -640,7 +673,7 @@ susie_credible_set_summary <- function(fitted, snp_info, pip) {
       MEAN_ABS_CORR = purity_value(j, "mean.abs.corr"),
       MEDIAN_ABS_CORR = purity_value(j, "median.abs.corr"),
       LEAD_SNP = as.character(snp_info$SNP[lead]),
-      LEAD_RSID = as.character(snp_info$RSID[lead]),
+      LEAD_RSID = if (is.null(snp_info$RSID)) NA_character_ else as.character(snp_info$RSID[lead]),
       LEAD_BP = as.numeric(snp_info$BP[lead]),
       LEAD_PIP = pip[lead],
       LOG_BF = if (!is.null(lbf) && length(lbf) >= lbf_row) as.numeric(lbf[lbf_row]) else NA_real_

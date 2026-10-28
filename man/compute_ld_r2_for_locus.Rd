@@ -2,11 +2,18 @@
 % Please edit documentation in R/locus_zoom.R
 \name{compute_ld_r2_for_locus}
 \alias{compute_ld_r2_for_locus}
-\title{Compute r2 relative to an index SNP using the local LD reference panel}
+\title{Compute r2 relative to an index variant using the configured LD reference}
 \usage{
-compute_ld_r2_for_locus(rsids, chr, ancestry, index_snp)
+compute_ld_r2_for_locus(
+  rsids,
+  chr,
+  ancestry,
+  index_snp,
+  ld_reference = ld_reference_options$thousand_genomes,
+  build = reference_builds$GRCh37
+)
 }
 \description{
-Compute r2 relative to an index SNP using the local LD reference panel
+Compute r2 relative to an index variant using the configured LD reference
 }
 \keyword{internal}

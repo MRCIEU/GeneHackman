@@ -15,7 +15,9 @@ finemap_gwas(
   max_causal = 10,
   coverage = 0.95,
   min_abs_corr = 0.5,
-  max_region_kb = 3000
+  max_region_kb = 3000,
+  ld_reference = ld_reference_options$thousand_genomes,
+  build = reference_builds$GRCh37
 )
 }
 \arguments{
@@ -23,7 +25,8 @@ finemap_gwas(
 
 \item{clumped_file}{plink --clump output file}
 
-\item{ancestry}{ancestry code matching 1000 Genomes panel prefix (EUR, EAS, AFR, AMR, SAS)}
+\item{ancestry}{ancestry code: EUR, EAS, AFR, AMR or SAS for 1000 Genomes; EUR, AFR, AMR, CSA (or SAS),
+EAS or MID for the Pan-UKB LD pack}
 
 \item{default_n}{GWAS sample size when not inferrable from \code{gwas}; see}
 
@@ -43,6 +46,10 @@ finemap_gwas(
 \item{min_abs_corr}{minimum absolute correlation for credible sets (default 0.5)}
 
 \item{max_region_kb}{maximum width of a merged fine-mapping region in kb (default 3000)}
+
+\item{ld_reference}{LD source, one of \code{ld_reference_options} ("1000genomes" or "pan_ukb")}
+
+\item{build}{reference build of the GWAS positions (used to match SNP keys in the Pan-UKB LD pack)}
 }
 \value{
 invisibly, the combined per-SNP finemap data.table (LD-matched SNPs only)
@@ -52,8 +59,9 @@ Lead SNPs from plink --clump output are turned into fine-mapping regions by
 \code{define_finemap_regions()}: a window of \code{window_kb} either side of
 each lead, with overlapping windows merged into a single region (up to
 \code{max_region_kb} wide) so that a signal is only fine-mapped once. For each
-region an LD matrix is computed from the 1000 Genomes reference panel via
-plink and \code{susieR::susie_rss} is run.
+region an LD matrix is taken from the LD reference (\code{ld_reference}): the
+precomputed Pan-UKB LD pack, matched on SNP keys, or the 1000 Genomes panel via
+plink, matched on RSIDs; then \code{susieR::susie_rss} is run.
 }
 \details{
 Outputs written to \code{output_finemap_dir}:
@@ -64,7 +72,10 @@ Z-scores, posterior inclusion probabilities (\code{PIP}), credible-set
 membership (\code{CS}) and per-credible-set log Bayes factors
 \code{LBF_1}, \code{LBF_2}, ...
 \item \code{finemap_regions.tsv}: one row per region (bounds, leads, status,
-number of variants with LD, number of credible sets, SuSiE convergence).
+number of variants with LD, number of credible sets, SuSiE convergence, LD
+reference, its sample size \code{N_REF}, the share of variant pairs beyond the
+LD pack's stored radius \code{FRAC_BEYOND_LD_RADIUS} (set to r = 0) and any
+ridge added to keep the LD matrix positive semi-definite, \code{LD_RIDGE}).
 \item \code{finemap_credible_sets.tsv}: one row per credible set (size,
 coverage, purity, lead variant and its PIP, log Bayes factor).
 }

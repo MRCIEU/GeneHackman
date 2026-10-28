@@ -76,6 +76,8 @@ is_on_cluster <- nzchar(Sys.getenv("SLURM_JOB_ID")) || nzchar(Sys.getenv("PBS_JO
 genomic_data_dir <- file.path(pipeline_data_dir, "genomic_data")
 # Must match snakemake/util/constants.smk THOUSAND_GENOMES_DIR (used by clumping + LD).
 thousand_genomes_dir <- file.path(genomic_data_dir, "1000genomes", "b37_dbsnp156")
+# Must match snakemake/util/constants.smk LD_PACK_DIR (precomputed Pan-UKB LD, see reference_data/pan_ukb_ld).
+ld_pack_dir <- file.path(genomic_data_dir, "pan_ukb_ld")
 
 liftover_chain_dir <- file.path(genomic_data_dir, "liftover")
 liftover_binary <- Sys.which("liftOver")

@@ -45,7 +45,7 @@ populate_rsid: false
 | `file` | **Yes** | Path to VCF, CSV, TSV, or TXT (`.gz` / `.zip` supported). |
 | `columns` | No | Maps logical names to file headers, or a preset (`metal`, `gwama`, `opengwas_phewas`, …). See [`inst/extdata/predefined_column_maps.csv`](../inst/extdata/predefined_column_maps.csv). |
 | `build` | No | Input reference build: `GRCh36`, `GRCh37`, `GRCh38`. Default `GRCh37`. |
-| `ancestry` | If `populate_eaf: true` | One of `AFR`, `AMR`, `EAS`, `EUR`, `SAS`. |
+| `ancestry` | If `populate_eaf: true` | One of `AFR`, `AMR`, `EAS`, `EUR`, `SAS`; with `ld_reference: pan_ukb` EAF comes from the Pan-UKB LD pack (matched on SNP keys) and `CSA`, `MID` are also allowed. |
 | `populate_rsid` | No | Per-GWAS override of root `populate_rsid`. |
 | `populate_eaf` | No | Fill missing `EAF` from 1000 Genomes `.frq` for `ancestry`. |
 | `flip_alleles` | No | Inherits root default `true`. **`false` is allowed only in this pipeline.** |

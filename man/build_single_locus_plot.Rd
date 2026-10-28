@@ -11,7 +11,9 @@ build_single_locus_plot(
   ens_db,
   ancestry,
   index_snp,
-  trait_label
+  trait_label,
+  ld_reference = ld_reference_options$thousand_genomes,
+  build = reference_builds$GRCh37
 )
 }
 \description{

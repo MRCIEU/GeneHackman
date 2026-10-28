@@ -99,6 +99,13 @@ QTL_DATA_DIR = os.getenv("QTL_DATA_DIR", "").strip()
 LDSC_DIR = format_dir_string(PIPELINE_DATA_DIR + "/LDSCORE/b37_dbsnp156")
 GENOMIC_DATA_DIR = format_dir_string(PIPELINE_DATA_DIR + "/genomic_data")
 THOUSAND_GENOMES_DIR = format_dir_string(GENOMIC_DATA_DIR + "1000genomes/b37_dbsnp156")
+# Precomputed Pan-UKB LD (built by reference_data/pan_ukb_ld); used when a pipeline sets ld_reference: pan_ukb
+LD_PACK_DIR = format_dir_string(GENOMIC_DATA_DIR + "pan_ukb_ld")
+ld_reference_options = ["1000genomes", "pan_ukb"]
+default_ld_reference = "1000genomes"
+thousand_genomes_ancestries = ["EUR", "EAS", "AFR", "AMR", "SAS"]
+pan_ukb_ancestries = ["EUR", "AFR", "AMR", "CSA", "EAS", "MID"]
+pan_ukb_ancestry_aliases = {"SAS": "CSA"}
 QTL_DIRECTORY = format_dir_string(QTL_DATA_DIR)
 
 AVAILABLE_CPUS = _available_cpus()

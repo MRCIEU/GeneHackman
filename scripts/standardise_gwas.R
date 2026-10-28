@@ -47,9 +47,16 @@ parser <- add_argument(parser, "--populate_eaf",
                        default = FALSE
 )
 parser <- add_argument(parser, "--ancestry",
-                       help = "Ancestry code for EAF reference (EUR, EAS, AFR, AMR, SAS); required when --populate_eaf is true",
+                       help = paste("Ancestry code for EAF reference (EUR, EAS, AFR, AMR, SAS; pan_ukb also CSA, MID);",
+                                    "required when --populate_eaf is true"),
                        type = "character",
                        default = ""
+)
+parser <- add_argument(parser, "--ld_reference",
+                       help = paste("Reference used to fill EAF: 1000genomes (.frq, matched on RSID)",
+                                    "or pan_ukb (LD pack, matched on SNP key)"),
+                       type = "character",
+                       default = "1000genomes"
 )
 parser <- add_argument(parser, "--remove_extra_columns",
 											 help = "Remove additional columns in GWAS that are not specified as an input column",
@@ -77,5 +84,6 @@ invisible(standardise_gwas(
 								 remove_extra_columns = args$remove_extra_columns,
                  populate_eaf = args$populate_eaf,
                  ancestry = args$ancestry,
-                 flip_alleles = args$flip_alleles
+                 flip_alleles = args$flip_alleles,
+                 ld_reference = args$ld_reference
 ))

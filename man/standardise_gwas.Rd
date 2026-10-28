@@ -16,7 +16,8 @@ standardise_gwas(
   remove_extra_columns = F,
   populate_eaf = FALSE,
   ancestry = NULL,
-  flip_alleles = TRUE
+  flip_alleles = TRUE,
+  ld_reference = ld_reference_options$thousand_genomes
 )
 }
 \arguments{
@@ -40,9 +41,9 @@ can be list() of key/value pairs, string of row in predefined_column_maps, or co
 
 \item{remove_extra_columns}{logical flag on if to remove extra columns}
 
-\item{populate_eaf}{If TRUE, fill missing \code{EAF} from the 1000 Genomes \code{.frq}
-file via RSID matching.  Requires \code{ancestry}.  A partial RSID population is
-performed automatically when RSIDs are not already present.}
+\item{populate_eaf}{If TRUE, fill missing \code{EAF} from the LD reference: the 1000 Genomes
+\code{.frq} file via RSID matching (a partial RSID population is performed automatically when
+RSIDs are not already present), or the Pan-UKB LD pack via SNP keys.  Requires \code{ancestry}.}
 
 \item{ancestry}{Ancestry code (EUR, EAS, AFR, AMR, SAS) matching the reference panel prefix; required when \code{populate_eaf} is TRUE.}
 
@@ -50,6 +51,8 @@ performed automatically when RSIDs are not already present.}
 BETA/EAF/Z in the output.  When FALSE the original allele order and effect direction
 are restored before saving; all internal steps still operate on the canonical
 (alphabetically flipped) representation.}
+
+\item{ld_reference}{reference for \code{populate_eaf}: "1000genomes" or "pan_ukb"}
 }
 \value{
 modified gwas: saves new gwas in output_file if present

@@ -49,7 +49,7 @@ Add more entries under `gwases:` for additional traits or ancestries.
 | Field | Required | Notes |
 | ----- | -------- | ----- |
 | `file` | **Yes** | Input summary-statistics file. |
-| `ancestry` | **Yes** | LD reference for clumping and fine-mapping (`AFR`, `AMR`, `EAS`, `EUR`, `SAS`). |
+| `ancestry` | **Yes** | LD reference population for clumping and fine-mapping: `AFR`, `AMR`, `EAS`, `EUR`, `SAS` with `ld_reference: 1000genomes`; also `CSA` and `MID` with `ld_reference: pan_ukb` (`SAS` maps to `CSA`). |
 | `N` | Recommended | Sample size passed to SuSiE / MultiSuSiE. |
 | `columns` | No | Column map or preset. |
 | `build` | No | Input build. Default `GRCh37`. |
@@ -79,6 +79,7 @@ Add more entries under `gwases:` for additional traits or ancestries.
 | `populate_rsid` | No | Default `false`. With clumping and `false`, RSID population is **partial** unless overridden per GWAS. |
 | `populate_eaf` | No | Default `false`. |
 | `output.build` | No | Target build after standardisation. Default `GRCh37`. |
+| `ld_reference` | No | `1000genomes` (default; PLINK on the 1000 Genomes panel) or `pan_ukb` (precomputed Pan-UKB LD pack, see [PIPELINES.md](../PIPELINES.md#common-conventions)). |
 
 `flip_alleles: false` is **not** allowed.
 
@@ -114,7 +115,7 @@ what should be kept.
 | ---- | ----------- |
 | `finemap/<prefix>/finemap_complete_<prefix>.txt` | **Snakemake target.** One line = number of fine-mapping regions processed. |
 | `finemap/<prefix>/<CHR>_<BP>_finemap.tsv.gz` | Per-region fine-mapping table: every GWAS variant in the region, with SuSiE `Z`, posterior inclusion probability `PIP`, credible-set membership `CS` and per-credible-set log Bayes factors `LBF_1`, `LBF_2`, … (empty for variants not in the LD panel). |
-| `finemap/<prefix>/finemap_regions.tsv` | One row per region: bounds, lead SNP(s), `STATUS` (fine-mapped, or why it was skipped), number of variants with LD, number of credible sets, SuSiE convergence. |
+| `finemap/<prefix>/finemap_regions.tsv` | One row per region: bounds, lead SNP(s), `STATUS` (fine-mapped, or why it was skipped), number of variants with LD, number of credible sets, SuSiE convergence, `LD_REFERENCE`, `N_REF` (people in the LD panel, Pan-UKB pack only), `FRAC_BEYOND_LD_RADIUS` (share of variant pairs further apart than the pack's 500 kb radius, set to r = 0) and `LD_RIDGE` (ridge added to keep the LD matrix positive semi-definite). |
 | `finemap/<prefix>/finemap_credible_sets.tsv` | One row per credible set: size, coverage, purity (min/mean/median \|r\|), lead variant and its PIP, log Bayes factor. |
 
 ### Results — multi-ancestry MultiSuSiE (`results/finemap/multi_ancestry/`)

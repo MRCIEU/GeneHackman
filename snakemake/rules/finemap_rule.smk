@@ -14,7 +14,9 @@ rule run_finemapping:
         max_causal = finemap_max_causal,
         coverage = finemap_coverage,
         min_abs_corr = finemap_min_abs_corr,
-        max_region_kb = finemap_max_region_kb
+        max_region_kb = finemap_max_region_kb,
+        ld_reference = pipeline.ld_reference,
+        build = pipeline.output.build
     output:
         finemap_complete = FINEMAP_COMPLETE_TXT_PATTERN
     shell:
@@ -30,5 +32,7 @@ rule run_finemapping:
             --max_causal {params.max_causal} \
             --coverage {params.coverage} \
             --min_abs_corr {params.min_abs_corr} \
-            --max_region_kb {params.max_region_kb}
+            --max_region_kb {params.max_region_kb} \
+            --ld_reference {params.ld_reference} \
+            --build {params.build}
         """

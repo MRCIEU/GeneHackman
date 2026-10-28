@@ -8,7 +8,7 @@ onstart:
     print("##### Colocalization Pipeline #####")
 
 ancestries = list([g.ancestry for g in pipeline.gwases])
-validate_ancestries(ancestries)
+validate_ancestries(ancestries, pipeline.ld_reference)
 
 unique_ancestries = list(set(ancestries))
 if len(unique_ancestries) > 1:
@@ -128,7 +128,9 @@ rule run_locus_zoom:
         gwas_files = gwas_files_str,
         trait_names = trait_names_str,
         ancestry = first_ancestry,
-        output_dir = locus_zoom_dir
+        output_dir = locus_zoom_dir,
+        ld_reference = pipeline.ld_reference,
+        build = pipeline.output.build
     output:
         done = locus_zoom_done
     shell:
@@ -138,6 +140,8 @@ rule run_locus_zoom:
             --gwas_files {params.gwas_files} \
             --trait_names {params.trait_names} \
             --ancestry {params.ancestry} \
+            --ld_reference {params.ld_reference} \
+            --build {params.build} \
             --output_dir {params.output_dir} \
             --completion_file {output.done}
         """

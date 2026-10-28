@@ -36,6 +36,7 @@ rule standardise_gwases:
             --populate_rsid {params.populate_rsid} \
             --populate_eaf {params.populate_eaf_flag} \
             --ancestry '{params.ancestry}' \
+            --ld_reference {pipeline.ld_reference} \
             --flip_alleles {params.flip_alleles_flag}
         """
 

@@ -10,14 +10,15 @@
 #' @param output_columns column header map used for renaming GWAS:
 #'   can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values
 #' @param remove_extra_columns logical flag on if to remove extra columns
-#' @param populate_eaf If TRUE, fill missing \code{EAF} from the 1000 Genomes \code{.frq}
-#'   file via RSID matching.  Requires \code{ancestry}.  A partial RSID population is
-#'   performed automatically when RSIDs are not already present.
+#' @param populate_eaf If TRUE, fill missing \code{EAF} from the LD reference: the 1000 Genomes
+#'   \code{.frq} file via RSID matching (a partial RSID population is performed automatically when
+#'   RSIDs are not already present), or the Pan-UKB LD pack via SNP keys.  Requires \code{ancestry}.
 #' @param ancestry Ancestry code (EUR, EAS, AFR, AMR, SAS) matching the reference panel prefix; required when \code{populate_eaf} is TRUE.
 #' @param flip_alleles If TRUE (default), keep EA/OA in alphabetical order with flipped
 #'   BETA/EAF/Z in the output.  When FALSE the original allele order and effect direction
 #'   are restored before saving; all internal steps still operate on the canonical
 #'   (alphabetically flipped) representation.
+#' @param ld_reference reference for \code{populate_eaf}: "1000genomes" or "pan_ukb"
 #' @return modified gwas: saves new gwas in output_file if present
 
 
@@ -33,7 +34,8 @@ standardise_gwas <- function(gwas,
                              remove_extra_columns=F,
                              populate_eaf=FALSE,
                              ancestry=NULL,
-                             flip_alleles=TRUE) {
+                             flip_alleles=TRUE,
+                             ld_reference=ld_reference_options$thousand_genomes) {
   input_gwas_columns <- resolve_column_map(input_columns)
   output_gwas_columns <- resolve_column_map(output_columns)
 
@@ -50,7 +52,8 @@ standardise_gwas <- function(gwas,
   gwas <- standardise_alleles(gwas)
 
   rsid_option <- populate_rsid_option
-  if (isTRUE(populate_eaf) && identical(rsid_option, populate_rsid_options$none) && !"RSID" %in% colnames(gwas)) {
+  if (isTRUE(populate_eaf) && ld_reference == ld_reference_options$thousand_genomes &&
+      identical(rsid_option, populate_rsid_options$none) && !"RSID" %in% colnames(gwas)) {
     rsid_option <- populate_rsid_options$partial
   }
 
@@ -60,7 +63,7 @@ standardise_gwas <- function(gwas,
     populate_gene_names()
 
   if (isTRUE(populate_eaf)) {
-    gwas <- populate_eaf_from_reference_panel(gwas, ancestry)
+    gwas <- populate_eaf_from_reference_panel(gwas, ancestry, ld_reference, output_reference_build)
   }
 
   if (!flip_alleles) {

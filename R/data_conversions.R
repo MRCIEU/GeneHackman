@@ -31,15 +31,25 @@ gene_name_to_ensembl_id <- function(gwas) {
 #' and alleles in canonical (alphabetically sorted) order from \code{standardise_alleles}.
 #' Only reads the lightweight \code{.frq} file; the \code{.bim} is not needed.
 #'
-#' @param gwas Standardised GWAS tibble with RSID, EA, OA columns.
-#' @param ancestry One of EUR, EAS, AFR, AMR, SAS matching the reference panel prefix.
+#' With \code{ld_reference = "pan_ukb"}, EAF comes from the Pan-UKB LD pack instead, matched on the
+#' GeneHackman SNP key (\code{CHR:BP_EA_OA}, canonical allele order) in \code{build}; no RSIDs needed.
+#'
+#' @param gwas Standardised GWAS tibble with RSID, EA, OA columns (SNP for pan_ukb).
+#' @param ancestry One of EUR, EAS, AFR, AMR, SAS matching the reference panel prefix
+#'   (pan_ukb: EUR, AFR, AMR, CSA or SAS, EAS, MID).
+#' @param ld_reference "1000genomes" (default) or "pan_ukb"
+#' @param build reference build of the GWAS positions (pan_ukb only)
 #' @export
-populate_eaf_from_reference_panel <- function(gwas, ancestry) {
+populate_eaf_from_reference_panel <- function(gwas, ancestry, ld_reference = ld_reference_options$thousand_genomes,
+                                              build = reference_builds$GRCh37) {
   if ("EAF" %in% colnames(gwas) && !all(is.na(gwas$EAF))) {
     if (sum(is.na(gwas$EAF)) == 0) {
       message("EAF column already fully populated; skipping reference panel lookup.")
       return(gwas)
     }
+  }
+  if (validate_ld_reference(ld_reference) == ld_reference_options$pan_ukb) {
+    return(populate_eaf_from_ld_pack(gwas, ancestry, build))
   }
 
   allowed <- c("EUR", "EAS", "AFR", "AMR", "SAS")
@@ -110,6 +120,29 @@ populate_eaf_from_reference_panel <- function(gwas, ancestry) {
     "EAF population (", ancestry, " reference): filled ", n_fill,
     " of ", n_total_need, " missing values; ", n_total_need - n_fill, " still missing."
   )
+  gwas
+}
+
+#' Fill missing EAF from the Pan-UKB LD pack, matching on GeneHackman SNP keys.
+#' @keywords internal
+populate_eaf_from_ld_pack <- function(gwas, ancestry, build = reference_builds$GRCh37,
+                                      pack_dir = default_ld_pack_dir()) {
+  if (!"EAF" %in% names(gwas)) gwas$EAF <- NA_real_
+  need <- which(is.na(gwas$EAF))
+  if (length(need) == 0L) return(gwas)
+  key_column <- ld_pack_key_column(build)
+  snp <- toupper(as.character(gwas$SNP))
+  chr <- as.character(gwas$CHR)
+  n_fill <- 0L
+  for (chrom in intersect(unique(chr[need]), ld_pack_chromosomes(ancestry, pack_dir))) {
+    rows <- need[chr[need] == chrom]
+    variants <- load_ld_pack_variants(chrom, ancestry, pack_dir)
+    eaf <- variants$EAF[match(snp[rows], variants[[key_column]])]
+    gwas$EAF[rows] <- eaf
+    n_fill <- n_fill + sum(!is.na(eaf))
+  }
+  message("EAF population (", ancestry, ", Pan-UKB LD pack): filled ", n_fill, " of ", length(need),
+          " missing values; ", length(need) - n_fill, " still missing.")
   gwas
 }
 

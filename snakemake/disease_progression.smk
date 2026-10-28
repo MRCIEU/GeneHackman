@@ -13,7 +13,7 @@ onstart:
     print("##### Pipeline to Calculate Slope and Apply Correction on Collider Bias #####")
 
 ancestries = [incident.ancestry, subsequent.ancestry]
-validate_ancestries(ancestries)
+validate_ancestries(ancestries, pipeline.ld_reference)
 
 collider_bias_results = RESULTS_DIR + "collider_bias/" + subsequent.prefix + "_collider_bias_results.tsv"
 harmonised_effects = RESULTS_DIR + "collider_bias/" + subsequent.prefix + "_harmonised_effects.tsv.gz"

@@ -74,6 +74,9 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
             raise ValueError(f"Error: {pipeline.output.build} is not one of the valid options: {build_options}")
 
         if not hasattr(pipeline.output, "columns"): pipeline.output.columns = default_output_options.columns
+    pipeline.ld_reference = str(getattr(pipeline, "ld_reference", default_ld_reference)).strip()
+    if pipeline.ld_reference not in ld_reference_options:
+        raise ValueError(f"Error: ld_reference must be one of {ld_reference_options}, not {pipeline.ld_reference}")
     if pipeline_includes_clumping:
         clump_arguments = getattr(pipeline, "plink_clump_arguments", None)
         if not clump_arguments:
@@ -133,7 +136,11 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
         setattr(pipeline,g.prefix,g)
     eaf_ancestries = [g.ancestry for g in pipeline.gwases if g.populate_eaf]
     if eaf_ancestries:
-        validate_ancestries(eaf_ancestries)
+        validate_ancestries(eaf_ancestries, pipeline.ld_reference)
+    if pipeline.ld_reference == "pan_ukb" and (pipeline_includes_clumping or eaf_ancestries):
+        ld_ancestries = [g.ancestry for g in pipeline.gwases if pipeline_includes_clumping or g.populate_eaf]
+        validate_ancestries(ld_ancestries, pipeline.ld_reference)
+        check_ld_pack_available(ld_ancestries)
     if not allow_flip_false:
         for g in pipeline.gwases:
             if getattr(g, "flip_alleles", True) is False:
@@ -264,10 +271,27 @@ def ensure_mandatory_columns_are_present(gwas_file, mandatory_column_names_in_gw
                 The options available are: (BETA, SE), or (OR, OR_LB, OR_UB)""")
 
 
-def validate_ancestries(ancestries):
-    allowed_ancestries = ["EUR", "EAS", "AFR", "AMR", "SAS"]
+def validate_ancestries(ancestries, ld_reference=default_ld_reference):
+    if ld_reference == "pan_ukb":
+        allowed_ancestries = pan_ukb_ancestries + list(pan_ukb_ancestry_aliases)
+    else:
+        allowed_ancestries = thousand_genomes_ancestries
     if not all(ancestry in allowed_ancestries for ancestry in ancestries):
-        raise ValueError(f"Please ensure all ancestries are one of these values:\n {allowed_ancestries}")
+        raise ValueError(f"Please ensure all ancestries are one of these values for ld_reference "
+                         f"{ld_reference}:\n {allowed_ancestries}")
+
+
+def check_ld_pack_available(ancestries):
+    """The Pan-UKB LD pack must exist, with every requested ancestry, before a pan_ukb pipeline starts."""
+    help_text = ("Build it with reference_data/pan_ukb_ld (see its README.md) or copy a built pack to "
+                 f"{LD_PACK_DIR}, or set ld_reference: 1000genomes")
+    if not os.path.isfile(os.path.join(LD_PACK_DIR, "MANIFEST.json")):
+        raise ValueError(f"Error: ld_reference is pan_ukb but no LD pack was found at {LD_PACK_DIR}. {help_text}")
+    for ancestry in set(ancestries):
+        population = pan_ukb_ancestry_aliases.get(ancestry, ancestry)
+        if not os.path.isfile(os.path.join(LD_PACK_DIR, population, "info.tsv")):
+            raise ValueError(f"Error: the LD pack at {LD_PACK_DIR} has no {population} data "
+                             f"(ancestry {ancestry}). {help_text}")
 
 
 def standardised_gwas_name(gwas_name):

@@ -13,6 +13,7 @@ gwases:
   - file: ""
     columns: {}
     ancestry: EAS
+ld_reference: 1000genomes   # or pan_ukb: precomputed Pan-UKB LD (see PIPELINES.md)
 plink_clump_arguments: "--clump-p2 0.001 --clump-r2 0.3 --clump-kb 500"
 populate_rsid: false
 output:

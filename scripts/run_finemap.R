@@ -12,8 +12,20 @@ parser <- add_argument(parser, "--clumped_filename",
                        type = "character"
 )
 parser <- add_argument(parser, "--ancestry",
-                       help = "Ancestry code matching 1000 Genomes panel (EUR, EAS, AFR, AMR, SAS)",
+                       help = paste("Ancestry code (1000genomes: EUR, EAS, AFR, AMR, SAS;",
+                                    "pan_ukb: EUR, AFR, AMR, CSA/SAS, EAS, MID)"),
                        type = "character"
+)
+parser <- add_argument(parser, "--ld_reference",
+                       help = paste("LD reference: 1000genomes (PLINK on the 1000 Genomes panel)",
+                                    "or pan_ukb (precomputed LD pack)"),
+                       type = "character",
+                       default = "1000genomes"
+)
+parser <- add_argument(parser, "--build",
+                       help = "Reference build of the standardised GWAS (GRCh37 or GRCh38)",
+                       type = "character",
+                       default = "GRCh37"
 )
 parser <- add_argument(parser, "--N",
                        help = "GWAS sample size",
@@ -68,5 +80,7 @@ invisible(finemap_gwas(gwas = args$gwas_filename,
              max_causal = args$max_causal,
              coverage = args$coverage,
              min_abs_corr = args$min_abs_corr,
-             max_region_kb = args$max_region_kb
+             max_region_kb = args$max_region_kb,
+             ld_reference = args$ld_reference,
+             build = args$build
 ))

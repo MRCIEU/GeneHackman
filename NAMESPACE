@@ -2,6 +2,7 @@
 
 export(calculate_f_statistic)
 export(chrpos_to_rsid)
+export(clump_gwas_with_ld_pack)
 export(coloc_analysis)
 export(coloc_bf_bf_qtl_analysis)
 export(conduct_collider_bias_analysis)

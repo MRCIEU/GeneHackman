@@ -17,3 +17,5 @@ venv
 ^\.git$
 ^\.gitignore$
 ^\.cursorrules$
+^reference_data$
+^tests/python$

@@ -19,6 +19,8 @@ import pandas as pd
 
 import MultiSuSiE
 
+from ld_reference import LDPack, make_positive_semidefinite
+
 
 def available_memory_mb():
     """Slurm allocated memory (MB) when under Slurm, else total system memory."""
@@ -77,7 +79,7 @@ def parse_args():
     parser.add_argument("--clumped_files", nargs="+", required=True,
                         help="Plink clumped files (one per ancestry)")
     parser.add_argument("--ancestries", nargs="+", required=True,
-                        help="Ancestry codes matching 1000 Genomes panels (e.g. EUR EAS)")
+                        help="Ancestry codes (e.g. EUR EAS); pan_ukb also allows CSA (or SAS) and MID")
     parser.add_argument("--sample_sizes", nargs="+", type=int, required=True,
                         help="GWAS sample sizes (one per ancestry)")
     parser.add_argument("--output_dir", required=True,
@@ -90,8 +92,14 @@ def parse_args():
                         help="Credible set coverage")
     parser.add_argument("--min_abs_corr", type=float, default=0.5,
                         help="Minimum absolute correlation for credible sets")
-    parser.add_argument("--thousand_genomes_dir", required=True,
-                        help="Path to 1000 Genomes reference panel directory")
+    parser.add_argument("--thousand_genomes_dir", default=None,
+                        help="Path to 1000 Genomes reference panel directory (ld_reference 1000genomes)")
+    parser.add_argument("--ld_reference", choices=["1000genomes", "pan_ukb"], default="1000genomes",
+                        help="LD source: 1000 Genomes genotypes via PLINK, or the precomputed Pan-UKB LD pack")
+    parser.add_argument("--ld_pack_dir", default=None,
+                        help="Pan-UKB LD pack directory (ld_reference pan_ukb)")
+    parser.add_argument("--build", choices=["GRCh37", "GRCh38"], default="GRCh37",
+                        help="Reference build of the standardised GWAS (selects the pack's SNP keys)")
     parser.add_argument("--completion_file", required=True,
                         help="Sentinel file written on success")
     return parser.parse_args()
@@ -354,8 +362,12 @@ def _append_variant_ancestry_columns(result_df, fit, ancestry_gwas, ancestries, 
             result_df[f"COEF_SD_{ancestry}"] = np.nan
 
 
-def build_locus_credible_sets_df(fit, final_rsids, r_list, ancestries):
-    """One row per credible set for locus_credible_sets.tsv."""
+def build_locus_credible_sets_df(fit, final_rsids, r_list, ancestries, snp_keys=None):
+    """One row per credible set for locus_credible_sets.tsv.
+
+    final_rsids are the variant labels reported as TOP_SNP_RSID (RSIDs, or SNP keys when the GWAS has
+    none); snp_keys, when given, are the GeneHackman SNP keys reported as TOP_SNP.
+    """
     sets = getattr(fit, "sets", None)
     n = len(final_rsids)
     pip = _fit_pip(fit, n)
@@ -371,6 +383,7 @@ def build_locus_credible_sets_df(fit, final_rsids, r_list, ancestries):
         row = {
             "CS_ID": cs["cs_id"],
             "CS_SIZE": len(indices),
+            "TOP_SNP": snp_keys[top_idx] if snp_keys is not None else final_rsids[top_idx],
             "TOP_SNP_RSID": final_rsids[top_idx],
             "TOP_SNP_PIP": float(pip[top_idx]),
             "TOP_SNP_LBF": (
@@ -393,6 +406,7 @@ def build_locus_credible_sets_df(fit, final_rsids, r_list, ancestries):
         [
             "CS_ID",
             "CS_SIZE",
+            "TOP_SNP",
             "TOP_SNP_RSID",
             "TOP_SNP_PIP",
             "TOP_SNP_LBF",
@@ -417,6 +431,7 @@ def build_locus_credible_set_variants_df(
         for idx in cs["indices"]:
             rows.append({
                 "CS_ID": cs["cs_id"],
+                "SNP": ref_gwas["SNP"].iloc[idx] if "SNP" in ref_gwas.columns else final_rsids[idx],
                 "RSID": final_rsids[idx],
                 "CHROM": ref_gwas["CHR"].iloc[idx],
                 "POS": ref_gwas["BP"].iloc[idx],
@@ -446,6 +461,7 @@ def build_locus_credible_set_variants_df(
     return variants_df[
         [
             "CS_ID",
+            "SNP",
             "RSID",
             "CHROM",
             "POS",
@@ -474,20 +490,40 @@ def extract_locus_data(gwas_df, chrom, start, end):
     return gwas_df[mask].copy()
 
 
+def compute_ld_from_reference(ids, chrom, ancestry, ld_options):
+    """LD matrix and the ids it covers, from the configured LD reference."""
+    if ld_options["ld_reference"] == "pan_ukb":
+        pack = ld_options.get("pack")
+        if pack is None:
+            pack = ld_options["pack"] = LDPack(ld_options["ld_pack_dir"])
+        r_matrix, found = pack.get_ld_matrix(ids, chrom, ancestry, ld_options["build"])
+        if len(found) < 2:
+            return None, None
+        return r_matrix, found
+    return compute_ld_matrix(ids, chrom, ancestry, ld_options["thousand_genomes_dir"])
+
+
 def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
-                             thousand_genomes_dir, max_causal, coverage,
+                             ld_options, max_causal, coverage,
                              min_abs_corr):
-    """Run MultiSuSiE on a single locus across ancestries."""
+    """Run MultiSuSiE on a single locus across ancestries.
+
+    Variants are matched across ancestries and to the LD reference on RSID (1000genomes) or on the
+    GeneHackman SNP key (pan_ukb, which needs no RSIDs).
+    """
     chrom = locus["chr"]
     start = locus["start"]
     end = locus["end"]
+    id_col = "SNP" if ld_options["ld_reference"] == "pan_ukb" else "RSID"
 
     ancestry_data = []
     for i, (gwas_df, ancestry, n) in enumerate(zip(gwas_dfs, ancestries, sample_sizes)):
         locus_gwas = extract_locus_data(gwas_df, chrom, start, end)
-        if len(locus_gwas) < 2 or "RSID" not in locus_gwas.columns:
+        if len(locus_gwas) < 2 or id_col not in locus_gwas.columns:
             return None
-        locus_gwas = locus_gwas[locus_gwas["RSID"].notna() & (locus_gwas["RSID"].str.len() > 0)]
+        locus_gwas = locus_gwas[locus_gwas[id_col].notna() & (locus_gwas[id_col].astype(str).str.len() > 0)]
+        if id_col == "SNP":
+            locus_gwas = locus_gwas.assign(SNP=locus_gwas["SNP"].astype(str).str.upper())
         if len(locus_gwas) < 2:
             return None
         ancestry_data.append({
@@ -496,24 +532,22 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
             "n": n
         })
 
-    shared_rsids = set(ancestry_data[0]["gwas"]["RSID"])
+    shared_ids = set(ancestry_data[0]["gwas"][id_col])
     for ad in ancestry_data[1:]:
-        shared_rsids &= set(ad["gwas"]["RSID"])
+        shared_ids &= set(ad["gwas"][id_col])
 
-    if len(shared_rsids) < 2:
+    if len(shared_ids) < 2:
         return None
 
-    shared_rsids_list = sorted(shared_rsids)
+    shared_ids_list = sorted(shared_ids)
 
     ancestry_ld = []
     for ad in ancestry_data:
-        gwas_sub = ad["gwas"][ad["gwas"]["RSID"].isin(shared_rsids_list)].copy()
-        gwas_sub = gwas_sub.drop_duplicates(subset="RSID")
-        gwas_sub = gwas_sub.set_index("RSID").loc[shared_rsids_list].reset_index()
+        gwas_sub = ad["gwas"][ad["gwas"][id_col].isin(shared_ids_list)].copy()
+        gwas_sub = gwas_sub.drop_duplicates(subset=id_col)
+        gwas_sub = gwas_sub.set_index(id_col).loc[shared_ids_list].reset_index()
 
-        R, snp_order = compute_ld_matrix(
-            shared_rsids_list, chrom, ad["ancestry"], thousand_genomes_dir
-        )
+        R, snp_order = compute_ld_from_reference(shared_ids_list, chrom, ad["ancestry"], ld_options)
         if R is None:
             return None
 
@@ -525,11 +559,11 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
             "n": ad["n"],
         })
 
-    final_rsids = set(shared_rsids_list)
+    final_ids = set(shared_ids_list)
     for entry in ancestry_ld:
-        final_rsids &= set(entry["snp_order"])
-    final_rsids = sorted(final_rsids)
-    if len(final_rsids) < 2:
+        final_ids &= set(entry["snp_order"])
+    final_ids = sorted(final_ids)
+    if len(final_ids) < 2:
         return None
 
     b_list = []
@@ -541,11 +575,14 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
     locus_label = f"chr{chrom}:{start}-{end}"
     for entry in ancestry_ld:
         snp_order = entry["snp_order"]
-        snp_to_idx = {rsid: idx for idx, rsid in enumerate(snp_order)}
-        ld_idx = [snp_to_idx[r] for r in final_rsids]
+        snp_to_idx = {variant: idx for idx, variant in enumerate(snp_order)}
+        ld_idx = [snp_to_idx[r] for r in final_ids]
         R_sub = np.ascontiguousarray(entry["R"][np.ix_(ld_idx, ld_idx)], dtype=np.float64)
+        if ld_options["ld_reference"] == "pan_ukb":
+            # pairs beyond the pack radius are r = 0 and r is quantised; keep R positive semi-definite
+            R_sub, _ = make_positive_semidefinite(R_sub)
 
-        gwas_sub = entry["gwas_sub"].set_index("RSID").reindex(final_rsids)
+        gwas_sub = entry["gwas_sub"].set_index(id_col).reindex(final_ids)
         if gwas_sub["BETA"].isna().any() or gwas_sub["SE"].isna().any():
             return None
         beta = np.ascontiguousarray(
@@ -575,7 +612,7 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
             L=max_causal,
             coverage=coverage,
             min_abs_corr=min_abs_corr,
-            variant_ids=final_rsids,
+            variant_ids=final_ids,
             low_memory_mode=False,
             float_type=np.float64,
         )
@@ -584,18 +621,23 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
         return None
 
     ref_gwas = ancestry_data[0]["gwas"]
-    ref_gwas = ref_gwas[ref_gwas["RSID"].isin(final_rsids)]
-    ref_gwas = ref_gwas.drop_duplicates(subset="RSID")
-    ref_gwas = ref_gwas.set_index("RSID").loc[final_rsids].reset_index()
+    ref_gwas = ref_gwas[ref_gwas[id_col].isin(final_ids)]
+    ref_gwas = ref_gwas.drop_duplicates(subset=id_col)
+    ref_gwas = ref_gwas.set_index(id_col).loc[final_ids].reset_index()
 
     ancestry_gwas = []
     for entry in ancestry_ld:
-        gwas_sub = entry["gwas_sub"].set_index("RSID").reindex(final_rsids)
+        gwas_sub = entry["gwas_sub"].set_index(id_col).reindex(final_ids)
         ancestry_gwas.append(gwas_sub.reset_index())
 
-    cs_sets_df = build_locus_credible_sets_df(fit, final_rsids, R_list, ancestries)
+    # report RSIDs where the GWAS has them, whichever id the LD was matched on
+    labels = list(final_ids)
+    if id_col == "SNP" and "RSID" in ref_gwas.columns:
+        labels = [r if isinstance(r, str) and r else s for r, s in zip(ref_gwas["RSID"], ref_gwas["SNP"])]
+    snp_keys = list(ref_gwas["SNP"]) if "SNP" in ref_gwas.columns else None
+    cs_sets_df = build_locus_credible_sets_df(fit, labels, R_list, ancestries, snp_keys=snp_keys)
     cs_variants_df = build_locus_credible_set_variants_df(
-        fit, final_rsids, ref_gwas, ancestry_gwas, ancestries
+        fit, labels, ref_gwas, ancestry_gwas, ancestries
     )
     return cs_sets_df, cs_variants_df
 
@@ -619,7 +661,7 @@ def _run_locus_job(job):
         gwas_dfs=ctx["gwas_dfs"],
         ancestries=ctx["ancestries"],
         sample_sizes=ctx["sample_sizes"],
-        thousand_genomes_dir=ctx["thousand_genomes_dir"],
+        ld_options=ctx["ld_options"],
         max_causal=ctx["max_causal"],
         coverage=ctx["coverage"],
         min_abs_corr=ctx["min_abs_corr"],
@@ -662,6 +704,13 @@ def main():
         print("ERROR: Number of sample sizes must match number of ancestries.", file=sys.stderr)
         sys.exit(1)
 
+    if args.ld_reference == "pan_ukb" and not args.ld_pack_dir:
+        print("ERROR: --ld_pack_dir is required with --ld_reference pan_ukb", file=sys.stderr)
+        sys.exit(1)
+    if args.ld_reference == "1000genomes" and not args.thousand_genomes_dir:
+        print("ERROR: --thousand_genomes_dir is required with --ld_reference 1000genomes", file=sys.stderr)
+        sys.exit(1)
+
     os.makedirs(args.output_dir, exist_ok=True)
 
     window_bp = args.window_kb * 1000
@@ -683,7 +732,8 @@ def main():
         "gwas_dfs": gwas_dfs,
         "ancestries": args.ancestries,
         "sample_sizes": args.sample_sizes,
-        "thousand_genomes_dir": args.thousand_genomes_dir,
+        "ld_options": {"ld_reference": args.ld_reference, "thousand_genomes_dir": args.thousand_genomes_dir,
+                       "ld_pack_dir": args.ld_pack_dir, "build": args.build},
         "max_causal": args.max_causal,
         "coverage": args.coverage,
         "min_abs_corr": args.min_abs_corr,
