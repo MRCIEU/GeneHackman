@@ -5,14 +5,15 @@ Check a pack built from make_synthetic_source.py against the truth it saved.
 
 For every population and chromosome in the pack: the kept variants are exactly the biallelic,
 autosomal variants with AF present and MAF >= MAF_MIN; EA/OA/EAF/SNP37 follow GeneHackman's
-canonical allele order; and every decoded r equals the true r, oriented to EA, restricted to the
-radius, with the dead-zone applied and quantised to int8 (exact equality).
+canonical allele order (variants sharing a key get none); and every decoded r equals the true r,
+oriented to EA, restricted to the radius, with the dead-zone applied and quantised to int8 (exact).
 """
 
 import os
 import sys
 
 import numpy as np
+import pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "..", "..", "scripts"))
@@ -40,6 +41,8 @@ def main(source_dir, work_dir):
             on_chrom = [i for i in range(len(alleles)) if truth["contig"][i] == chrom]
             expected_kept = [i for i in on_chrom if len(alleles[i]) == 2 and i not in no_af
                              and min(truth["af"][i], 1 - truth["af"][i]) >= maf_min]
+            expected_kept_set = set(expected_kept)
+            n_shared_key = 0
             kept = []
             for row in variants.itertuples():
                 ref, alt = row.REF37, row.ALT37
@@ -47,7 +50,14 @@ def main(source_dir, work_dir):
                 kept.append(match[0])
                 ea, oa = sorted([ref, alt])
                 assert (row.EA, row.OA) == (ea, oa), (row.EA, row.OA, ea, oa)
-                assert row.SNP37 == f"{chrom}:{row.BP37}_{ea}_{oa}"
+                same_key = [i for i in on_chrom if truth["position"][i] == row.BP37
+                            and sorted(alleles[i]) == [ea, oa] and i != match[0]
+                            and i in expected_kept_set]
+                if same_key:  # shares its key with another kept variant: no keys at all
+                    assert row.LIFT_STATUS == "duplicate_grch37" and pd.isna(row.SNP37), row
+                    n_shared_key += 1
+                else:
+                    assert row.SNP37 == f"{chrom}:{row.BP37}_{ea}_{oa}"
                 eaf = truth["af"][match[0]] if ea == alt else 1 - truth["af"][match[0]]
                 assert abs(row.EAF - eaf) < 1e-5, (row.EAF, eaf)
             if sorted(kept) != expected_kept:
@@ -67,7 +77,8 @@ def main(source_dir, work_dir):
                 failures += 1
             else:
                 flipped = int((sign < 0).sum())
-                print(f"OK   {pop} chr{chrom}: {len(variants)} variants ({flipped} with EA = REF), "
+                print(f"OK   {pop} chr{chrom}: {len(variants)} variants ({flipped} with EA = REF, "
+                      f"{n_shared_key} sharing a key), "
                       f"{int(variants['SEG_LEN'].sum())} stored pairs, LD identical to truth; "
                       f"liftover {variants['LIFT_STATUS'].value_counts().to_dict()}")
     return 1 if failures else 0

@@ -13,7 +13,8 @@
 # convention as convert_reference_build_via_liftover() (BED start = BP, new BP = mapped start);
 # the result is cross-checked against that function on a sample of variants.  Variants that do not
 # map, map to the minus strand (alleles would be complemented) or to another chromosome, or that
-# collide on a GRCh38 key are kept as rows but get BP38/SNP38 = NA and a LIFT_STATUS.
+# collide on a GRCh38 key are kept as rows but get BP38/SNP38 = NA and a LIFT_STATUS.  Variants that
+# collide on a GRCh37 key (LIFT_STATUS duplicate_grch37) get neither key.
 
 args <- commandArgs(trailingOnly = TRUE)
 pop <- args[which(args == "--pop") + 1]
@@ -66,7 +67,15 @@ annot <- data.table::data.table(
 )
 stopifnot(all(annot$SIGN %in% c(-1L, 1L)))
 stopifnot(all(ifelse(annot$SIGN == 1L, annot$EA == toupper(annot$ALT37), annot$EA == toupper(annot$REF37))))
-if (anyDuplicated(annot$SNP37)) stop("Duplicate GRCh37 keys in the source variant list")
+# Two source variants can share a GeneHackman key: e.g. a deletion AT>A and an insertion A>AT at one
+# position both become CHR:BP_A_AT, because the key does not record which allele is the reference.
+# A GWAS row with that key could be either, so neither gets a key; both stay in the matrix.
+duplicated37 <- duplicated(annot$SNP37) | duplicated(annot$SNP37, fromLast = TRUE)
+if (any(duplicated37)) {
+  examples <- annot[duplicated37][order(SNP37)][seq_len(min(6L, sum(duplicated37)))]
+  message(pop, ": ", sum(duplicated37), " variants share a GRCh37 key with another variant and get no keys, e.g. ",
+          paste0(examples$SNP37, " (", examples$REF37, ">", examples$ALT37, ")", collapse = ", "))
+}
 
 # --- GRCh38 positions: one strand-aware liftOver run over every variant
 bed_in <- tempfile(fileext = ".bed")
@@ -91,6 +100,7 @@ annot[, LIFT_STATUS := data.table::fcase(
   STRAND38 != "+", "strand_flip",
   default = "ok"
 )]
+annot[duplicated37, LIFT_STATUS := "duplicate_grch37"]
 annot[, BP38 := data.table::fifelse(LIFT_STATUS == "ok", as.numeric(START38), NA_real_)]
 
 # --- GRCh38 keys, again via standardise_alleles (alleles are already canonical, so this only formats)
@@ -117,6 +127,8 @@ n_package_dropped <- length(sample_rows) - nrow(check)
 message(pop, ": liftover cross-check on ", length(sample_rows), " variants: ", n_disagree, " disagree, ",
         n_package_dropped, " not returned by convert_reference_build_via_liftover()")
 if (n_disagree > 0) stop("GRCh38 positions disagree with convert_reference_build_via_liftover(); not writing keys")
+
+annot[LIFT_STATUS == "duplicate_grch37", SNP37 := NA_character_]
 
 # --- write per chromosome
 columns <- c("CHR", "BP37", "BP38", "EA", "OA", "EAF", "SNP37", "SNP38", "LIFT_STATUS", "REF37", "ALT37",

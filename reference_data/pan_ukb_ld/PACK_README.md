@@ -28,7 +28,7 @@ Columns of `variants_chr<C>.tsv.gz`:
 - `EAF`: frequency of EA.
 - `SNP37`, `SNP38`: the GeneHackman keys `CHR:BP_EA_OA`.
 - `SEG_LEN`: the number of later variants within the radius.
-- `LIFT_STATUS`: `ok`, `unmapped`, `strand_flip`, `chrom_change` or `duplicate_grch38`. When it isn't `ok`, `BP38` and `SNP38` are empty.
+- `LIFT_STATUS`: `ok`, `unmapped`, `strand_flip`, `chrom_change`, `duplicate_grch38` or `duplicate_grch37`. When it isn't `ok`, `BP38` and `SNP38` are empty. `duplicate_grch37` marks variants that share a GeneHackman key with another variant (e.g. an insertion and a deletion with the same alleles at one position); they have no `SNP37` either, because a GWAS row with that key could be either variant.
 - `REF37`, `ALT37`, `RSID_UKB`: the source alleles and the rsID given by Pan-UKB.
 
 r is oriented to EA, so it can be used directly with the z-scores of a GeneHackman-standardised GWAS in either build. Pairs further apart than the radius are not stored, and |r| below the dead-zone is stored as 0.

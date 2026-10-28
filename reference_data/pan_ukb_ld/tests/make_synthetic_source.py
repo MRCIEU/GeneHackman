@@ -10,8 +10,9 @@ the pack build end to end without network access:
 <out_dir>/truth_<POP>.npz               the full r matrix and variant list, for verify_synthetic_pack.py
 
 Includes the awkward cases the build must handle: rare variants (filtered by MAF), a multi-allelic
-row, two biallelic variants at one position, variants with no AF, chrX, and alleles where ALT sorts
-before REF (so the EA orientation flips the sign of r).
+row, two biallelic variants at one position, an insertion and a deletion that share a GeneHackman key,
+variants with no AF, chrX, and alleles where ALT sorts before REF (so the EA orientation flips the
+sign of r).
 """
 
 import os
@@ -43,6 +44,10 @@ def simulate(rng, n_samples):
     other = [b for b in BASES if b not in frame.at[k, "alleles"]][0]
     frame.at[k + 1, "alleles"] = [ref, str(other)]
     frame.at[k + 5, "alleles"] = frame.at[k + 5, "alleles"] + ["T" if "T" not in frame.at[k + 5, "alleles"] else "A"]
+    # an insertion and a deletion at one position with the same alleles: they share a GeneHackman key
+    frame.at[k + 11, "position"] = frame.at[k + 10, "position"]
+    frame.at[k + 10, "alleles"] = ["A", "AT"]
+    frame.at[k + 11, "alleles"] = ["AT", "A"]
 
     n_variants = len(frame)
     latent = rng.standard_normal((n_samples, n_variants))
@@ -51,6 +56,7 @@ def simulate(rng, n_samples):
     freq = rng.uniform(0.02, 0.5, size=n_variants)
     rare = rng.random(n_variants) < 0.12
     freq[rare] = rng.uniform(0.002, 0.008, size=rare.sum())
+    freq[[k + 10, k + 11]] = 0.3  # keep the shared-key pair above the MAF threshold
     hap1 = np.zeros((n_samples, n_variants))
     hap2 = np.zeros((n_samples, n_variants))
     for j in range(n_variants):
@@ -83,7 +89,7 @@ def main(out_dir):
         index = index.annotate_globals(n_samples=n_samples, pop=pop)
         index.write(os.path.join(out_dir, f"UKBB.{pop}.ldadj.variant.ht"), overwrite=True)
 
-        no_af = set(rng.choice(len(frame), size=4, replace=False).tolist())
+        no_af = set(rng.choice([i for i in range(len(frame)) if i not in (50, 51)], size=4, replace=False).tolist())
         ldscore = table.annotate(rsid=hl.str("rs") + hl.str(table.idx + 1000), varid=hl.str(table.idx),
                                  AF=hl.if_else(hl.literal(no_af).contains(hl.int32(table.idx)),
                                                hl.missing(hl.tfloat64), table.AF),

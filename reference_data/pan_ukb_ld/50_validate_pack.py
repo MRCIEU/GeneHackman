@@ -29,8 +29,10 @@ def structural_checks(pack, pop, chrom):
         problems.append("IDX is not 0..n-1")
     if np.any(np.diff(variants["BP37"].values) < 0):
         problems.append("BP37 not sorted")
-    if variants["SNP37"].duplicated().any():
+    if variants["SNP37"].dropna().duplicated().any():
         problems.append("duplicate SNP37 keys")
+    if (variants["SNP37"].isna() != (variants["LIFT_STATUS"] == "duplicate_grch37")).any():
+        problems.append("SNP37 missing exactly when LIFT_STATUS == duplicate_grch37 is violated")
     snp38 = variants["SNP38"].dropna()
     if snp38.duplicated().any():
         problems.append("duplicate SNP38 keys")
@@ -71,7 +73,10 @@ def main():
         variants = pack.variants(chrom, args.pop)
         annotated = pd.read_csv(os.path.join(paths.raw_pop(args.pop), f"variants_annot_chr{chrom}.tsv.gz"),
                                 sep="\t", dtype={"CHR": str, "SNP37": str}, na_values=["NA"], keep_default_na=False)
-        annotated = annotated.set_index("SNP37").loc[variants["SNP37"].values]
+        # the pack's rows are the annotated variants in (BP37, source index) order
+        annotated = annotated.sort_values(["BP37", "IDX_GLOBAL"], kind="stable").reset_index(drop=True)
+        if not np.array_equal(annotated["BP37"].values, variants["BP37"].values):
+            problems.append("pack rows do not line up with the annotated variants")
         gidx = annotated["IDX_GLOBAL"].values.astype(np.int64)
         sign = annotated["SIGN"].values.astype(np.int64)
         seg_len = variants["SEG_LEN"].values.astype(np.int64)
