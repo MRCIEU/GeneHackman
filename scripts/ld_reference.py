@@ -219,14 +219,18 @@ def beyond_band_fraction(pack, snps, chrom, ancestry, build):
 
 
 def make_positive_semidefinite(r_matrix, tolerance=-1e-6):
-    """Add (|lambda_min| + 1e-6) to the diagonal when R has a negative eigenvalue below tolerance.
+    """Clip negative eigenvalues to 0 and rescale to a unit diagonal when R is not positive semi-definite.
 
-    Returns (R, ridge) where ridge is 0 when no change was needed.
+    Same rule as make_ld_positive_semidefinite() in R/ld_reference.R (see there for why clipping is used
+    rather than a ridge).  Returns (R, min_eigenvalue), the smallest eigenvalue before any change.
     """
     if r_matrix.shape[0] < 2:
-        return r_matrix, 0.0
-    min_eig = float(np.linalg.eigvalsh(r_matrix).min())
+        return r_matrix, 1.0
+    values, vectors = np.linalg.eigh(r_matrix)
+    min_eig = float(values.min())
     if min_eig >= tolerance:
-        return r_matrix, 0.0
-    ridge = abs(min_eig) + 1e-6
-    return r_matrix + ridge * np.eye(r_matrix.shape[0]), ridge
+        return r_matrix, min_eig
+    clipped = (vectors * np.maximum(values, 0)) @ vectors.T
+    clipped = (clipped + clipped.T) / 2
+    scale = 1 / np.sqrt(np.diag(clipped))
+    return clipped * scale[:, None] * scale[None, :], min_eig

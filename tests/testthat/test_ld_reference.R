@@ -90,14 +90,19 @@ test_that("ld_reference.resolve_ld_ancestry maps SAS to CSA for the pack and val
   expect_equal(ld_pack_n_samples("SAS", pack_dir), 120)
 })
 
-test_that("ld_reference.make_ld_positive_semidefinite only adds a ridge when needed", {
+test_that("ld_reference.make_ld_positive_semidefinite clips negative eigenvalues only when needed", {
   ok <- make_ld_positive_semidefinite(diag(3))
-  expect_equal(ok$ridge, 0)
+  expect_equal(ok$matrix, diag(3))
+  expect_equal(ok$min_eigenvalue, 1)
 
   not_psd <- matrix(c(1, 0.9, 0, 0.9, 1, 0.9, 0, 0.9, 1), 3)
   fixed <- make_ld_positive_semidefinite(not_psd)
-  expect_gt(fixed$ridge, 0)
+  expect_lt(fixed$min_eigenvalue, 0)
   expect_gte(min(eigen(fixed$matrix, symmetric = TRUE, only.values = TRUE)$values), -1e-9)
+  expect_equal(diag(fixed$matrix), rep(1, 3))
+  # clipping changes R much less than adding |lambda_min| to the diagonal would
+  ridge <- not_psd + diag(abs(fixed$min_eigenvalue), 3)
+  expect_lt(max(abs(fixed$matrix - not_psd)), max(abs(stats::cov2cor(ridge) - not_psd)))
 })
 
 test_that("ld_reference.get_ld_matrix dispatches to PLINK for 1000genomes", {

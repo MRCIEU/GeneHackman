@@ -2,13 +2,21 @@
 % Please edit documentation in R/ld_reference.R
 \name{make_ld_positive_semidefinite}
 \alias{make_ld_positive_semidefinite}
-\title{Make an LD matrix positive semi-definite by adding a small ridge when needed.}
+\title{Make an LD matrix positive semi-definite, changing it as little as possible.}
 \usage{
 make_ld_positive_semidefinite(R, tolerance = -1e-06)
 }
+\value{
+list with \code{matrix} and \code{min_eigenvalue} (smallest eigenvalue before any change)
+}
 \description{
-Quantisation and the zero-filled pairs beyond the stored radius can leave R with slightly
+Quantisation, the dead-zone and the zero-filled pairs beyond the stored radius leave R with
 negative eigenvalues, which SuSiE-RSS does not accept.  When the smallest eigenvalue is below
-\code{tolerance}, \code{|lambda_min| + 1e-6} is added to the diagonal.
+\code{tolerance}, negative eigenvalues are set to 0 and the result is rescaled to a unit
+diagonal (the nearest positive semi-definite correlation matrix, approximately).  This is used
+instead of adding \code{|lambda_min|} to the diagonal: on 1000 Genomes EUR chr22 LD stored like the
+pack, that ridge was 0.1-1.0 for regions of 250-1,900 variants, which shrank every correlation
+enough to lose or invent credible sets in simulations; eigenvalue clipping left SuSiE results
+almost unchanged.
 }
 \keyword{internal}

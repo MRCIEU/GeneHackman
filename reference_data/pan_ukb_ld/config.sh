@@ -10,7 +10,7 @@ export POPS="${POPS:-EUR AFR CSA EAS MID AMR}"
 
 # Pack contents
 export MAF_MIN="${MAF_MIN:-0.01}"          # keep variants with minor allele frequency >= this, per population
-export RADIUS_KB="${RADIUS_KB:-500}"       # store r for variant pairs at most this far apart (GRCh37)
+export RADIUS_KB="${RADIUS_KB:-1000}"      # store r for variant pairs at most this far apart (GRCh37)
 export DEADZONE="${DEADZONE:-0.02}"        # store |r| below this as 0
 export CHUNK_ROWS="${CHUNK_ROWS:-2048}"    # rows per compressed chunk in the pack
 export FETCH_ROWS="${FETCH_ROWS:-8192}"    # rows fetched from the source matrix per Hail job

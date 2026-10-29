@@ -1,4 +1,4 @@
-# GeneHackman LD pack: Pan-UKB, MAF ≥ 1%, ±500 kb
+# GeneHackman LD pack: Pan-UKB, MAF ≥ 1%, ±1 Mb
 
 Precomputed linkage disequilibrium (Pearson r between variants) for six ancestry groups. The pack holds no individual-level data. GeneHackman reads it when a pipeline sets `ld_reference: pan_ukb`.
 

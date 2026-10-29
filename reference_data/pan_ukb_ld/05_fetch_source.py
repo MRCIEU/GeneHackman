@@ -136,7 +136,7 @@ def fetch_blocks(store, paths, pop, logger, threads, chroms=None, region=None, r
         start, end = (int(x) for x in span.split("-"))
         blocks = needed_blocks_for_region(variants, chrom, start, end, block_size)
     else:
-        radius_bp = int(float(radius_kb or env("RADIUS_KB", "500")) * 1000)
+        radius_bp = int(float(radius_kb or env("RADIUS_KB", "1000")) * 1000)
         blocks = needed_blocks_for_band(variants, radius_bp, block_size)
     parts = map_blocks_to_parts(blocks, meta)
     sizes = list_part_sizes(store, paths, pop, logger)

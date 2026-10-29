@@ -49,7 +49,7 @@ def main():
     manifest = {"format": FORMAT_NAME, "format_version": FORMAT_VERSION,
                 "created": datetime.datetime.now().isoformat(timespec="seconds"),
                 "genehackman_commit": git_commit(), "source": SOURCE_DESCRIPTION,
-                "settings": {"maf_min": float(env("MAF_MIN", "0.01")), "radius_kb": float(env("RADIUS_KB", "500")),
+                "settings": {"maf_min": float(env("MAF_MIN", "0.01")), "radius_kb": float(env("RADIUS_KB", "1000")),
                              "deadzone": float(env("DEADZONE", "0.02")), "chunk_rows": int(env("CHUNK_ROWS", "2048")),
                              "scale": 127, "compression": "xz", "index_build": "GRCh37",
                              "key_builds": ["GRCh37", "GRCh38"]},
@@ -65,7 +65,7 @@ def main():
         summary = read_json(os.path.join(paths.raw_pop(pop), "summary.json"), {})
         n_samples = summary.get("n_samples")
         pop_dir = os.path.join(paths.pack, pop)
-        info = base_info(n_samples, int(float(env("RADIUS_KB", "500")) * 1000), float(env("MAF_MIN", "0.01")),
+        info = base_info(n_samples, int(float(env("RADIUS_KB", "1000")) * 1000), float(env("MAF_MIN", "0.01")),
                          float(env("DEADZONE", "0.02")), f"Pan-UKB {pop} ldadj", int(env("CHUNK_ROWS", "2048")))
         info["chromosomes"] = ",".join(done)
         write_info(pop_dir, info)

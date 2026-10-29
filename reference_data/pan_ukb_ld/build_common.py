@@ -21,6 +21,15 @@ def env(name, default=None):
     return default if value is None or value == "" else value
 
 
+def ld_settings():
+    """The settings the LD of a chromosome depends on, in the same form as run_build.sh's settings_for ld.
+
+    Written into state/<POP>.ld.chr<C>.done, so a chromosome built with other settings (e.g. phase 0 at
+    another radius) is recognised as stale instead of being reused."""
+    return (f"maf={env('MAF_MIN', '0.01')} radius={env('RADIUS_KB', '1000')} "
+            f"deadzone={env('DEADZONE', '0.02')} chunk={env('CHUNK_ROWS', '2048')}")
+
+
 class Paths:
     """Directory layout under WORK_DIR (see README.md)."""
 

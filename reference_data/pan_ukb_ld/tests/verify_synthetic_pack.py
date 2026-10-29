@@ -23,7 +23,7 @@ from ldpack_writer import quantise  # noqa: E402
 
 
 def main(source_dir, work_dir):
-    radius = int(float(os.environ.get("RADIUS_KB", "500")) * 1000)
+    radius = int(float(os.environ.get("RADIUS_KB", "1000")) * 1000)
     deadzone = float(os.environ.get("DEADZONE", "0.02"))
     maf_min = float(os.environ.get("MAF_MIN", "0.01"))
     pack = LDPack(os.path.join(work_dir, "pack"))

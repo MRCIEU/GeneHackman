@@ -56,14 +56,14 @@ Default logical names: `SNP`, `CHR`, `BP`, `EA`, `OA`, `EAF`, `BETA`, `SE`, `OR`
 | Value | Source | Variants are matched on | Ancestries |
 |---|---|---|---|
 | `1000genomes` (default) | 1000 Genomes Phase 3 genotypes, via PLINK | RSID | EUR, EAS, AFR, AMR, SAS |
-| `pan_ukb` | Precomputed Pan-UKB LD: 6,000–420,000 people per ancestry, MAF ≥ 1%, ±500 kb, GRCh37 and GRCh38 | SNP key (`CHR:BP_EA_OA`) | EUR, AFR, AMR, CSA, EAS, MID (`SAS` maps to `CSA`) |
+| `pan_ukb` | Precomputed Pan-UKB LD: 6,000–420,000 people per ancestry, MAF ≥ 1%, ±1 Mb, GRCh37 and GRCh38 | SNP key (`CHR:BP_EA_OA`) | EUR, AFR, AMR, CSA, EAS, MID (`SAS` maps to `CSA`) |
 
 The Pan-UKB pack must be at `PIPELINE_DATA_DIR/genomic_data/pan_ukb_ld/`; see [`reference_data/pan_ukb_ld/README.md`](reference_data/pan_ukb_ld/README.md) for how it is built.
 
 With `pan_ukb`:
 
-- **Clumping** follows PLINK 1.9's `--clump` rules on the stored LD, and `--clump-kb` is capped at the pack's 500 kb radius.
-- **Fine-mapping** variant pairs further apart than 500 kb are set to r = 0. `finemap_regions.tsv` reports the share of such pairs and any ridge added to keep the LD matrix positive semi-definite.
+- **Clumping** follows PLINK 1.9's `--clump` rules on the stored LD, and `--clump-kb` is capped at the pack's radius (1,000 kb, so the default `--clump-kb 1000` is not cut).
+- **Fine-mapping:** variant pairs further apart than the radius are set to r = 0. Because r is stored rounded, the LD matrix is made positive semi-definite by setting its negative eigenvalues to 0. `finemap_regions.tsv` reports the share of pairs beyond the radius (`FRAC_BEYOND_LD_RADIUS`) and the smallest eigenvalue before that fix (`LD_MIN_EIGENVALUE`).
 - **`compare_gwases`** still needs 1000G ancestry codes, because LDSC uses the 1000 Genomes LD scores.
 
 **RSIDs and genome build:** RSIDs are looked up in the reference for the output build (`output.build`). Partial RSID population (the default for pipelines that clump) uses the GRCh37 1000 Genomes marker map, so for GRCh38 output it only works when the GWAS was lifted over from GRCh37; otherwise set `populate_rsid: true` to use the full dbSNP lookup for GRCh38.

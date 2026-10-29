@@ -104,6 +104,36 @@ phase0() {
   log "Phase 0 finished. Report: $WORK_DIR/phase0/report.md"
 }
 
+# Chromosomes whose LD was built with other settings than now (e.g. phase 0 at another radius) are
+# removed here, with everything derived from them, so the full build redoes them instead of mixing settings.
+reset_stale_ld() {
+  local pop="$1" want marker chrom built name reset=""
+  want="$(settings_for ld)"
+  for marker in "$WORK_DIR/state/$pop".ld.chr*.done; do
+    [[ -f "$marker" ]] || continue
+    built="$(cat "$marker")"
+    [[ "$built" == "$want" ]] && continue
+    chrom="${marker##*.ld.chr}"; chrom="${chrom%.done}"
+    log "$pop chr$chrom: LD was built with other settings (${built:-not recorded}) than now ($want): rebuilding it"
+    rm -rf "$WORK_DIR/work/$pop/chunks_chr$chrom"
+    rm -f "$marker" "$WORK_DIR/state/$pop.ld.chr$chrom.json" "$WORK_DIR/pack/$pop/ld_chr$chrom.bin" \
+          "$WORK_DIR/pack/$pop/ld_chr$chrom.chunks.tsv" "$WORK_DIR/pack/$pop/variants_chr$chrom.tsv.gz"
+    reset=1
+  done
+  for name in blocks_all validate_all full; do
+    marker="$WORK_DIR/state/$pop.$name.done"
+    if [[ -f "$marker" && "$(cat "$marker")" != "$want" ]]; then
+      log "$pop $name: done with other settings ($(cat "$marker")) than now ($want): redoing it"
+      rm -f "$marker"
+      reset=1
+    fi
+  done
+  if [[ -n "$reset" ]]; then
+    rm -f "$WORK_DIR/state/$pop.blocks_all.chroms" "$WORK_DIR/state/$pop.download_plan.json"
+    "$PY" "$HERE/05_fetch_source.py" plan --pop "$pop" 2>&1 | tee -a "$LOG"
+  fi
+}
+
 remaining_chroms() {  # chromosomes with kept variants whose LD is not finished yet for a population
   local pop="$1" c out=""
   for c in $(seq 1 22); do
@@ -119,6 +149,7 @@ full() {
   if [[ $# -eq 0 ]]; then read -r -a pops <<< "$POPS"; else pops=("$@"); fi
   for pop in "${pops[@]}"; do
     prepare_population "$pop"
+    reset_stale_ld "$pop"
     if [[ ! -f "$WORK_DIR/state/$pop.full.done" ]]; then
       # chromosomes whose LD blocks this download covers (validation needs the blocks on disk)
       local chroms_file="$WORK_DIR/state/$pop.blocks_all.chroms" todo

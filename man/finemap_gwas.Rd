@@ -74,8 +74,9 @@ membership (\code{CS}) and per-credible-set log Bayes factors
 \item \code{finemap_regions.tsv}: one row per region (bounds, leads, status,
 number of variants with LD, number of credible sets, SuSiE convergence, LD
 reference, its sample size \code{N_REF}, the share of variant pairs beyond the
-LD pack's stored radius \code{FRAC_BEYOND_LD_RADIUS} (set to r = 0) and any
-ridge added to keep the LD matrix positive semi-definite, \code{LD_RIDGE}).
+LD pack's stored radius \code{FRAC_BEYOND_LD_RADIUS} (set to r = 0) and the
+smallest eigenvalue of the pack LD matrix, \code{LD_MIN_EIGENVALUE}; when it is below 0
+the matrix was made positive semi-definite by clipping its negative eigenvalues).
 \item \code{finemap_credible_sets.tsv}: one row per credible set (size,
 coverage, purity, lead variant and its PIP, log Bayes factor).
 }

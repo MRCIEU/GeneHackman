@@ -18,8 +18,9 @@
 #'   \item \code{finemap_regions.tsv}: one row per region (bounds, leads, status,
 #'     number of variants with LD, number of credible sets, SuSiE convergence, LD
 #'     reference, its sample size \code{N_REF}, the share of variant pairs beyond the
-#'     LD pack's stored radius \code{FRAC_BEYOND_LD_RADIUS} (set to r = 0) and any
-#'     ridge added to keep the LD matrix positive semi-definite, \code{LD_RIDGE}).
+#'     LD pack's stored radius \code{FRAC_BEYOND_LD_RADIUS} (set to r = 0) and the
+#'     smallest eigenvalue of the pack LD matrix, \code{LD_MIN_EIGENVALUE}; when it is below 0
+#'     the matrix was made positive semi-definite by clipping its negative eigenvalues).
 #'   \item \code{finemap_credible_sets.tsv}: one row per credible set (size,
 #'     coverage, purity, lead variant and its PIP, log Bayes factor).
 #' }
@@ -119,7 +120,7 @@ finemap_gwas <- function(gwas,
 
   locus_outcome <- function(status, n_snps = NA_integer_, result = NULL, converged = NA) {
     list(status = status, n_snps = n_snps, result = result, converged = converged,
-         beyond_radius = NA_real_, ridge = NA_real_)
+         beyond_radius = NA_real_, min_eigenvalue = NA_real_)
   }
 
   process_one_locus <- function(i) {
@@ -161,12 +162,12 @@ finemap_gwas <- function(gwas,
       R <- ld_result$matrix[ld_idx, ld_idx]
       beyond_radius <- if (is.null(ld_result$beyond_band_fraction)) NA_real_ else ld_result$beyond_band_fraction
       rm(ld_result); gc(verbose = FALSE)
-      ridge <- NA_real_
+      min_eigenvalue <- NA_real_
       if (use_pack) {
         # pairs beyond the pack's radius are r = 0 and r is quantised; keep R positive semi-definite
         psd <- make_ld_positive_semidefinite(R)
         R <- psd$matrix
-        ridge <- psd$ridge
+        min_eigenvalue <- psd$min_eigenvalue
       }
 
       z_scores <- locus_gwas$BETA / locus_gwas$SE
@@ -210,7 +211,7 @@ finemap_gwas <- function(gwas,
 
       list(status = "fine-mapped", n_snps = length(shared_ids), result = locus_lbf,
            converged = if (is.null(converged)) NA else converged, cs_summary = cs_summary,
-           beyond_radius = beyond_radius, ridge = ridge)
+           beyond_radius = beyond_radius, min_eigenvalue = min_eigenvalue)
     }, error = function(e) {
       message(paste("Error processing locus", locus_name, ":", conditionMessage(e)))
       return(locus_outcome(paste("error:", conditionMessage(e))))
@@ -245,7 +246,8 @@ finemap_gwas <- function(gwas,
   regions$N_REF <- n_ref
   regions$FRAC_BEYOND_LD_RADIUS <- vapply(locus_results, function(x) as.numeric(x$beyond_radius %||% NA)[1],
                                           FUN.VALUE = numeric(1))
-  regions$LD_RIDGE <- vapply(locus_results, function(x) as.numeric(x$ridge %||% NA)[1], FUN.VALUE = numeric(1))
+  regions$LD_MIN_EIGENVALUE <- vapply(locus_results, function(x) as.numeric(x$min_eigenvalue %||% NA)[1],
+                                      FUN.VALUE = numeric(1))
   data.table::fwrite(regions, regions_file, sep = "\t")
 
   cs_tables <- Filter(function(x) !is.null(x) && nrow(x) > 0L, lapply(locus_results, function(x) x$cs_summary))
@@ -393,7 +395,7 @@ add_region_status_columns <- function(regions) {
   regions$LD_REFERENCE <- rep(NA_character_, nrow(regions))
   regions$N_REF <- rep(NA_real_, nrow(regions))
   regions$FRAC_BEYOND_LD_RADIUS <- rep(NA_real_, nrow(regions))
-  regions$LD_RIDGE <- rep(NA_real_, nrow(regions))
+  regions$LD_MIN_EIGENVALUE <- rep(NA_real_, nrow(regions))
   regions
 }
 

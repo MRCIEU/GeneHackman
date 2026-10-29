@@ -241,18 +241,28 @@ get_ld_matrix_from_pack <- function(snps, chr, ancestry, build = reference_build
   return(list(matrix = R, snps = found, beyond_band_fraction = beyond))
 }
 
-#' Make an LD matrix positive semi-definite by adding a small ridge when needed.
+#' Make an LD matrix positive semi-definite, changing it as little as possible.
 #'
-#' Quantisation and the zero-filled pairs beyond the stored radius can leave R with slightly
+#' Quantisation, the dead-zone and the zero-filled pairs beyond the stored radius leave R with
 #' negative eigenvalues, which SuSiE-RSS does not accept.  When the smallest eigenvalue is below
-#' \code{tolerance}, \code{|lambda_min| + 1e-6} is added to the diagonal.
+#' \code{tolerance}, negative eigenvalues are set to 0 and the result is rescaled to a unit
+#' diagonal (the nearest positive semi-definite correlation matrix, approximately).  This is used
+#' instead of adding \code{|lambda_min|} to the diagonal: on 1000 Genomes EUR chr22 LD stored like the
+#' pack, that ridge was 0.1-1.0 for regions of 250-1,900 variants, which shrank every correlation
+#' enough to lose or invent credible sets in simulations; eigenvalue clipping left SuSiE results
+#' almost unchanged.
+#' @return list with \code{matrix} and \code{min_eigenvalue} (smallest eigenvalue before any change)
 #' @keywords internal
 make_ld_positive_semidefinite <- function(R, tolerance = -1e-6) {
-  if (nrow(R) < 2) return(list(matrix = R, ridge = 0))
-  min_eigen <- min(eigen(R, symmetric = TRUE, only.values = TRUE)$values)
-  if (min_eigen >= tolerance) return(list(matrix = R, ridge = 0))
-  ridge <- abs(min_eigen) + 1e-6
-  return(list(matrix = R + diag(ridge, nrow(R)), ridge = ridge))
+  if (nrow(R) < 2) return(list(matrix = R, min_eigenvalue = 1))
+  decomposition <- eigen(R, symmetric = TRUE)
+  min_eigen <- min(decomposition$values)
+  if (min_eigen >= tolerance) return(list(matrix = R, min_eigenvalue = min_eigen))
+  vectors <- decomposition$vectors
+  clipped <- vectors %*% (pmax(decomposition$values, 0) * t(vectors))
+  clipped <- stats::cov2cor((clipped + t(clipped)) / 2)
+  dimnames(clipped) <- dimnames(R)
+  return(list(matrix = clipped, min_eigenvalue = min_eigen))
 }
 
 #' LD matrix for a set of variants from the configured LD reference.

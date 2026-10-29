@@ -51,7 +51,7 @@ def region_beyond_radius(npz_path, radius_bp):
 def main():
     paths = Paths().make()
     logger = get_logger("phase0_report", os.path.join(paths.logs, "phase0_report.log"))
-    radius_bp = int(float(env("RADIUS_KB", "500")) * 1000)
+    radius_bp = int(float(env("RADIUS_KB", "1000")) * 1000)
     deadzone = float(env("DEADZONE", "0.02"))
     pops = env("POPS", "EUR AFR CSA EAS MID AMR").split()
     report = {"radius_kb": radius_bp / 1000, "deadzone": deadzone, "maf_min": float(env("MAF_MIN", "0.01")),

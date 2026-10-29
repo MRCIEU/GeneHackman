@@ -71,11 +71,14 @@ class TestLDPackReader(unittest.TestCase):
         self.assertEqual(beyond_band_fraction(self.pack, far, "21", "SAS", "GRCh37"), 1.0)
 
     def test_positive_semidefinite_fix(self):
-        fixed, ridge = make_positive_semidefinite(np.array([[1, .9, 0], [.9, 1, .9], [0, .9, 1]]))
-        self.assertGreater(ridge, 0)
+        not_psd = np.array([[1, .9, 0], [.9, 1, .9], [0, .9, 1]])
+        fixed, min_eig = make_positive_semidefinite(not_psd)
+        self.assertLess(min_eig, 0)
         self.assertGreaterEqual(np.linalg.eigvalsh(fixed).min(), -1e-9)
-        _, no_ridge = make_positive_semidefinite(np.eye(3))
-        self.assertEqual(no_ridge, 0.0)
+        np.testing.assert_allclose(np.diag(fixed), 1.0)
+        unchanged, min_eig = make_positive_semidefinite(np.eye(3))
+        np.testing.assert_array_equal(unchanged, np.eye(3))
+        self.assertEqual(min_eig, 1.0)
 
     @unittest.skipUnless(shutil.which(os.environ.get("GH_RSCRIPT", "Rscript")),
                          "Rscript not available for the R/Python parity check")

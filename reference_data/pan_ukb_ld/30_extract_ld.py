@@ -8,7 +8,8 @@ band:  for each chromosome, rows are the kept variants (stage 20 output) in GRCh
        fetched from the source in windows of FETCH_ROWS rows, cut into the ragged +/-RADIUS_KB
        band, oriented to the canonical EA allele, quantised and xz-compressed (see ldpack_writer).
        Every chunk is checkpointed, so a killed run resumes where it stopped; a finished chromosome
-       leaves state/<POP>.ld.chr<C>.done.  --measure (phase 0) also records the compressed size of
+       leaves state/<POP>.ld.chr<C>.done holding the settings it was built with (run_build.sh
+       rebuilds chromosomes whose marker holds other settings).  --measure (phase 0) also records the compressed size of
        each chunk under alternative dead-zones and gzip, for the size report.
 dense: full float r (EA-oriented) for all kept variants in a region, for the phase 0 check of
        how much LD lies beyond the stored radius.
@@ -25,7 +26,7 @@ import time
 import numpy as np
 import pandas as pd
 
-from build_common import AUTOSOMES, Paths, env, get_logger, init_hail, write_json
+from build_common import AUTOSOMES, Paths, env, get_logger, init_hail, ld_settings, write_json
 from ldpack_writer import ChromosomeWriter, encode_chunk
 
 MEASURE_DEADZONES = (0.0, 0.02, 0.03)
@@ -67,7 +68,7 @@ def measure_chunk(rect, r0, r1, writer):
 def run_band(args, paths, logger, hl):
     from hail.linalg import BlockMatrix
     pop = args.pop
-    radius_bp = int(float(env("RADIUS_KB", "500")) * 1000)
+    radius_bp = int(float(env("RADIUS_KB", "1000")) * 1000)
     chunk_rows = int(env("CHUNK_ROWS", "2048"))
     fetch_rows = int(env("FETCH_ROWS", "8192"))
     deadzone = float(env("DEADZONE", "0.02"))
@@ -79,8 +80,14 @@ def run_band(args, paths, logger, hl):
     for chrom in args.chroms:
         done_marker = os.path.join(paths.state, f"{pop}.ld.chr{chrom}.done")
         if os.path.exists(done_marker):
-            logger.info(f"{pop} chr{chrom}: already done")
-            continue
+            with open(done_marker, encoding="utf-8") as handle:
+                built_with = handle.read().strip()
+            if built_with == ld_settings():
+                logger.info(f"{pop} chr{chrom}: already done")
+                continue
+            raise SystemExit(f"{pop} chr{chrom} was built with other settings ({built_with or 'not recorded'}) "
+                             f"than now ({ld_settings()}). run_build.sh full rebuilds it; or remove "
+                             f"{done_marker} and {os.path.join(paths.chunks, pop, f'chunks_chr{chrom}')}.")
         variants = read_annotated(paths, pop, chrom)
         writer = ChromosomeWriter(pop_pack, pop_work, chrom, variants, radius_bp, chunk_rows=chunk_rows,
                                   deadzone=deadzone)
@@ -123,7 +130,8 @@ def run_band(args, paths, logger, hl):
         totals = writer.finalise()
         totals["seconds"] = time.time() - started
         write_json(os.path.join(paths.state, f"{pop}.ld.chr{chrom}.json"), totals)
-        open(done_marker, "w").close()
+        with open(done_marker, "w", encoding="utf-8") as handle:
+            handle.write(ld_settings() + "\n")
         logger.info(f"{pop} chr{chrom}: finished, {totals['bytes'] / 1e6:.1f} MB")
 
 

@@ -43,7 +43,7 @@ test_that("ld_reference.finemap_gwas fine-maps with the LD pack, matching on SNP
       expect_equal(regions$LD_REFERENCE, "pan_ukb")
       expect_equal(regions$N_REF, 400)
       expect_gte(regions$FRAC_BEYOND_LD_RADIUS, 0)
-      expect_false(is.na(regions$LD_RIDGE))
+      expect_false(is.na(regions$LD_MIN_EIGENVALUE))
       expect_gt(regions$N_SNPS, 10)
 
       locus <- data.table::fread(list.files(out_dir, pattern = "_finemap.tsv.gz$", full.names = TRUE))

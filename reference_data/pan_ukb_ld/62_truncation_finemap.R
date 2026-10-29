@@ -14,7 +14,7 @@ get_arg <- function(name, default = NULL) {
 }
 region_stem <- get_arg("--region")
 gwas_file <- get_arg("--gwas")
-radius_bp <- as.numeric(get_arg("--radius-kb", Sys.getenv("RADIUS_KB", "500"))) * 1000
+radius_bp <- as.numeric(get_arg("--radius-kb", Sys.getenv("RADIUS_KB", "1000"))) * 1000
 if (is.null(region_stem) || is.null(gwas_file)) stop("usage: --region <stem> --gwas <file> [--radius-kb 500]")
 work_dir <- Sys.getenv("WORK_DIR", ".")
 if (!startsWith(region_stem, "/")) region_stem <- file.path(work_dir, region_stem)

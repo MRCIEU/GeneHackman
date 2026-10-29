@@ -3,7 +3,7 @@
 These scripts turn the Pan-UK Biobank LD matrices (precomputed r, no individual-level data, 43 TB, GRCh37, ±10 Mb) into the compact GeneHackman LD pack. The pack keeps:
 
 - variants with MAF ≥ 1% in each ancestry;
-- r for variant pairs within ±500 kb;
+- r for variant pairs within ±1 Mb (the usual clumping and fine-mapping window);
 - r oriented to GeneHackman's effect allele, with keys in both GRCh37 and GRCh38;
 - r stored as int8 (r × 127), with |r| < 0.02 stored as 0, xz-compressed.
 
@@ -56,7 +56,7 @@ The build is meant to run on **ieup1**, in `WORK_DIR=/local-scratch/data/pan_ukb
    - builds chromosome 22 in full and checks it byte for byte against the source;
    - measures compressed sizes under alternative encodings.
 
-   For EUR it also extracts the test region `6:35.6–37.6 Mb` at ±2 Mb to measure LD beyond 500 kb. If you set `PHASE0_GWAS` to a GeneHackman-standardised GRCh37 GWAS with a signal there, it also compares SuSiE results with full and truncated LD.
+   For EUR it also extracts the test region `6:35.6–37.6 Mb` at ±2 Mb to measure LD beyond the radius. If you set `PHASE0_GWAS` to a GeneHackman-standardised GRCh37 GWAS with a signal there, it also compares SuSiE results with full and truncated LD.
 
    The report, `phase0/report.md`, gives per ancestry: individuals, kept variants, AF coverage, liftover outcomes, estimated pack size, download size and extraction time.
 
@@ -76,7 +76,7 @@ The build is meant to run on **ieup1**, in `WORK_DIR=/local-scratch/data/pan_ukb
    reference_data/pan_ukb_ld/run_in_tmux.sh full          # the rest of $POPS
    ```
 
-   Chromosome 22 from phase 0 is reused.
+   Chromosome 22 from phase 0 is reused when it was built with the same settings. Otherwise (for example, phase 0 ran at ±500 kb) it is rebuilt automatically; the log says so.
 
 7. **Copy the pack to the laptop**, run from the laptop:
 
@@ -94,7 +94,7 @@ The build is meant to run on **ieup1**, in `WORK_DIR=/local-scratch/data/pan_ukb
 | Logs | `$WORK_DIR/logs/`: `run_build_<date>.log`, per-stage `<POP>_<stage>.log`, Hail logs |
 | Resume | start the same `run_in_tmux.sh …` command again (if the old tmux session is still there, `tmux kill-session -t ldpack` first) |
 
-**Changing settings after a stage has run** (for example `RADIUS_KB`): the stage stops with a message naming the marker and outputs to remove. It never silently mixes settings.
+**Changing settings after a stage has run:** LD chromosomes record the settings they were built with, and `full` rebuilds any built with other `RADIUS_KB`, `DEADZONE`, `MAF_MIN` or `CHUNK_ROWS`. Other stages stop with a message naming the marker and outputs to remove. Settings are never silently mixed.
 
 ## Settings (config.sh)
 
@@ -105,7 +105,7 @@ Every setting can be overridden with an environment variable or in `local_config
 | `WORK_DIR` | `/local-scratch/data/pan_ukb_ld` | everything is written here |
 | `POPS` | `EUR AFR CSA EAS MID AMR` | ancestries to build |
 | `MAF_MIN` | 0.01 | minimum MAF |
-| `RADIUS_KB` | 500 | radius of stored pairs |
+| `RADIUS_KB` | 1000 | radius of stored pairs |
 | `DEADZONE` | 0.02 | \|r\| below this is stored as 0 |
 | `CHUNK_ROWS` | 2048 | rows per compressed chunk |
 | `FETCH_ROWS` | 8192 | rows per source read |
