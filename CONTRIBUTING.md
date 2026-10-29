@@ -24,7 +24,7 @@ For running pipelines in production, see [README.md](README.md) and [PLATFORM_SE
    For development you need at least:
 
    - **`PROJECT_DIR`** — absolute path where test outputs go (e.g. a scratch folder; the pipeline writes to `PROJECT_DIR/data/` and `PROJECT_DIR/results/`).
-   - **`PIPELINE_DATA_DIR`** — absolute path to the reference data bundle from `gs://genehackman:1.1.0` (1000 Genomes LD panels, LDSC assets, etc.).
+   - **`PIPELINE_DATA_DIR`** — absolute path to the reference data bundle from `gs://genehackman:1.1.0` (1000 Genomes LD panels, LDSC assets, the Pan-UKB LD pack, etc.). The end-to-end tests (`tests/e2e_tests/run_test_pipelines.sh`) run every pipeline with both `ld_reference: 1000genomes` and `ld_reference: pan_ukb`, so they need the Pan-UKB LD pack at `genomic_data/pan_ukb_ld/`.
 
    **`DOCKER_VERSION`** is optional; it defaults to **`Version:`** in [`DESCRIPTION`](DESCRIPTION). Set it in `.env` only when you need a different image tag (e.g. `develop`).
 
