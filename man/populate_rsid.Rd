@@ -7,7 +7,7 @@
 populate_rsid(
   gwas,
   option = populate_rsid_options$none,
-  build = reference_builds$GRCh37
+  build = reference_builds$GRCh38
 )
 }
 \arguments{
@@ -16,7 +16,7 @@ populate_rsid(
 \item{option}{option to populate the RSID column}
 
 \item{build}{reference build of the CHR/BP positions in \code{gwas} (one of \code{reference_builds});
-RSIDs are looked up in the reference resource for this build. Defaults to GRCh37.}
+RSIDs are looked up in the reference resource for this build. Defaults to GRCh38.}
 }
 \value{
 gwas with new column RSID

@@ -17,7 +17,8 @@ rule run_multi_ancestry_finemapping:
         coverage = finemap_coverage,
         min_abs_corr = finemap_min_abs_corr,
         ld_reference = pipeline.ld_reference,
-        build = pipeline.output.build
+        build = pipeline.output.build,
+        panel_dir = thousand_genomes_dir(pipeline.output.build)
     output:
         finemap_complete = MULTI_FINEMAP_COMPLETE
     shell:
@@ -32,7 +33,7 @@ rule run_multi_ancestry_finemapping:
             --max_causal {params.max_causal} \
             --coverage {params.coverage} \
             --min_abs_corr {params.min_abs_corr} \
-            --thousand_genomes_dir {THOUSAND_GENOMES_DIR} \
+            --thousand_genomes_dir {params.panel_dir} \
             --ld_reference {params.ld_reference} \
             --ld_pack_dir {LD_PACK_DIR} \
             --build {params.build} \

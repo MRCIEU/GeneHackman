@@ -10,8 +10,22 @@ onstart:
     print("##### GWAS Comparison Pipeline #####")
 
 ancestries = list([g.ancestry for g in pipeline.gwases])
-# LDSC uses the 1000 Genomes LD scores, so ancestries must be 1000G codes even with ld_reference: pan_ukb
-validate_ancestries(ancestries)
+validate_ancestries(ancestries, pipeline.ld_reference)
+# LDSC LD scores: ldsc.ld_scores is pan_ukb (default) or 1000genomes_b37; matched on rsID, so any output build
+if not hasattr(pipeline, "ldsc"): pipeline.ldsc = SimpleNamespace()
+pipeline.ldsc.ld_scores = str(getattr(pipeline.ldsc, "ld_scores", default_ld_scores)).strip()
+if pipeline.ldsc.ld_scores not in LDSC_DIRS:
+    raise ValueError(f"Error: ldsc.ld_scores must be one of {list(LDSC_DIRS)}, not {pipeline.ldsc.ld_scores}")
+if not all(a in ld_scores_ancestries[pipeline.ldsc.ld_scores] for a in ancestries):
+    raise ValueError(f"Please ensure all ancestries are one of {ld_scores_ancestries[pipeline.ldsc.ld_scores]} "
+                     f"for ldsc.ld_scores {pipeline.ldsc.ld_scores}")
+
+
+def ld_score_population(ancestry):
+    """Folder of the LD score set for an ancestry (the Pan-UKB scores call South Asian CSA)."""
+    if pipeline.ldsc.ld_scores == "pan_ukb":
+        return pan_ukb_ancestry_aliases.get(ancestry, ancestry)
+    return ancestry
 
 #List of output files
 expected_vs_observed_results = RESULTS_DIR + "gwas_comparison/expected_vs_observed_outcomes.tsv"
@@ -88,11 +102,12 @@ rule calculate_ldsc_and_genetic_correlation:
     params:
         gwases = lambda wildcards: ','.join([g.standardised_gwas for g in pipeline.gwases if g.ancestry == wildcards.ancestry]),
         ns = lambda wildcards: ','.join([str(g.N) for g in pipeline.gwases if g.ancestry == wildcards.ancestry]),
-        ancestry = lambda wildcards: wildcards.ancestry
+        ancestry = lambda wildcards: ld_score_population(wildcards.ancestry),
+        ld_score_dir = LDSC_DIRS[pipeline.ldsc.ld_scores]
     output: ldsc_result_pattern
     shell:
         """
-        ./run_ldsc.sh {params.gwases} {params.ns} {params.ancestry} {output}
+        ./run_ldsc.sh {params.gwases} {params.ns} {params.ancestry} {output} {params.ld_score_dir}
         """
 
 

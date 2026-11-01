@@ -8,7 +8,7 @@ get_ld_matrix(
   ids,
   chr,
   ancestry,
-  build = reference_builds$GRCh37,
+  build = reference_builds$GRCh38,
   ld_reference = ld_reference_options$thousand_genomes
 )
 }
@@ -19,7 +19,8 @@ get_ld_matrix(
 
 \item{ancestry}{ancestry code}
 
-\item{build}{reference build of the SNP keys (only used for \code{pan_ukb})}
+\item{build}{reference build of the GWAS: the SNP key column for \code{pan_ukb}, the 1000 Genomes panel
+for \code{1000genomes}}
 
 \item{ld_reference}{one of \code{ld_reference_options}}
 }

@@ -28,9 +28,9 @@ parser <- add_argument(parser, "--ld_reference",
                        default = "1000genomes"
 )
 parser <- add_argument(parser, "--build",
-                       help = "Reference build of the standardised GWAS (GRCh37 or GRCh38)",
+                       help = "Reference build of the standardised GWAS (GRCh38 or GRCh37); selects the gene annotation",
                        type = "character",
-                       default = "GRCh37"
+                       default = "GRCh38"
 )
 parser <- add_argument(parser, "--pp_h4_threshold",
                        help = "Minimum PP.H4.abf to plot (default 0.8)",
@@ -61,13 +61,13 @@ if (length(trait_names) != length(gwas_files)) {
 }
 names(gwas_files) <- trait_names
 
-if (!requireNamespace("EnsDb.Hsapiens.v75", quietly = TRUE)) {
-  stop("EnsDb.Hsapiens.v75 is required for gene annotations. ",
-       "Install with: BiocManager::install('EnsDb.Hsapiens.v75')")
+ens_db <- ensembl_db_for_build(args$build)
+if (!requireNamespace(ens_db, quietly = TRUE)) {
+  stop(ens_db, " is required for ", args$build, " gene annotations. ",
+       "Install with: BiocManager::install('", ens_db, "')")
 }
 # locuszoomr requires the EnsDb package to be loaded (not just installed); see ?locuszoomr::locus
-suppressPackageStartupMessages(library(EnsDb.Hsapiens.v75))
-ens_db <- "EnsDb.Hsapiens.v75"
+suppressPackageStartupMessages(library(ens_db, character.only = TRUE))
 
 locus_zoom_coloc(
   coloc_results_file = args$coloc_results,

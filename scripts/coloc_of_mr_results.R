@@ -44,6 +44,11 @@ parser <- add_argument(parser, "--p12",
                        type = "numeric",
                        default = 5e-6
 )
+parser <- add_argument(parser, "--build",
+                       help = "Reference build of the GWAS; QTL files of the same build are used (GRCh38 or GRCh37)",
+                       type = "character",
+                       default = "GRCh38"
+)
 parser <- add_argument(parser, "--output_file",
                        help = "Output filename for coloc results",
                        type = "character"
@@ -63,5 +68,6 @@ run_coloc_on_qtl_mr_results(
   output_file = args$output_file,
   p1 = args$p1,
   p2 = args$p2,
-  p12 = args$p12
+  p12 = args$p12,
+  build = args$build
 )

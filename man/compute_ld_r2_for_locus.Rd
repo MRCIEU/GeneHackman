@@ -10,7 +10,7 @@ compute_ld_r2_for_locus(
   ancestry,
   index_snp,
   ld_reference = ld_reference_options$thousand_genomes,
-  build = reference_builds$GRCh37
+  build = reference_builds$GRCh38
 )
 }
 \description{

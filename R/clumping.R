@@ -52,7 +52,7 @@ parse_clump_arguments <- function(arguments) {
 #' @return data.table in PLINK \code{.clumped} layout; the SNP column holds the GWAS RSID when available,
 #'   otherwise the SNP key
 #' @export
-clump_gwas_with_ld_pack <- function(gwas, ancestry, build = reference_builds$GRCh37, clump_arguments = "",
+clump_gwas_with_ld_pack <- function(gwas, ancestry, build = reference_builds$GRCh38, clump_arguments = "",
                                     output_file = NULL, pack_dir = default_ld_pack_dir()) {
   SNP = CHR = BP = P = RSID = ROW = NULL # silence R CMD check notes for data.table columns
   settings <- parse_clump_arguments(clump_arguments)
@@ -137,4 +137,30 @@ write_clumped_file <- function(clumps, output_file) {
   out[, P := format(as.numeric(P), digits = 4, scientific = TRUE)]
   data.table::fwrite(out, output_file, sep = " ", quote = FALSE)
   return(invisible(output_file))
+}
+
+#' Use the GWAS's own positions in a PLINK \code{.clumped} file.
+#'
+#' PLINK reports each index variant's BP from the reference panel's \code{.bim}.  Fine-mapping regions,
+#' MultiSuSiE loci and LocusZoom windows are then cut from the GWAS by position, so the clumped BP must be
+#' in the GWAS's build and agree with its positions.  This replaces BP by the GWAS position of the same
+#' RSID, so clumping results never depend on the panel's build.
+#' @param clumped_file PLINK \code{.clumped} file, rewritten in place
+#' @param gwas standardised GWAS (file or data frame) with RSID and BP
+#' @return invisibly, the number of positions that changed
+#' @keywords internal
+use_gwas_positions_in_clumped <- function(clumped_file, gwas) {
+  BP = NULL # silence R CMD check note for data.table column
+  clumped <- data.table::fread(clumped_file, header = TRUE, fill = TRUE)
+  if (nrow(clumped) == 0 || !"SNP" %in% colnames(clumped)) return(invisible(0L))
+  gwas <- get_file_or_dataframe(gwas, columns = c("RSID", "BP"))
+  index <- match(clumped$SNP, gwas$RSID)
+  found <- !is.na(index)
+  changed <- sum(found & as.numeric(clumped$BP) != as.numeric(gwas$BP[index]))
+  clumped[found, BP := as.numeric(gwas$BP[index[found]])]
+  write_clumped_file(clumped[, intersect(clumped_file_columns, colnames(clumped)), with = FALSE], clumped_file)
+  if (changed > 0) {
+    message(changed, " clumped positions replaced by the GWAS's own positions (matched by RSID)")
+  }
+  return(invisible(changed))
 }

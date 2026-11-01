@@ -64,6 +64,7 @@ run_coloc_on_list_of_datasets <- function(first_gwas_list=list(),
 #' @param p1 prior probability a SNP is associated with the GWAS trait
 #' @param p2 prior probability a SNP is associated with the QTL trait
 #' @param p12 prior probability a SNP is associated with both traits
+#' @param build reference build of the GWAS; the QTL files of the same build are used
 
 
 
@@ -78,7 +79,8 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
                                         output_file,
                                         p1 = 1e-4,
                                         p2 = 1e-4,
-                                        p12 = 5e-6) {
+                                        p12 = 5e-6,
+                                        build = reference_builds$GRCh38) {
 
   mr_results <- get_file_or_dataframe(mr_results_file) |>
     dplyr::filter(p.adjusted < 0.05)
@@ -106,7 +108,7 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
   }
 
   coloc_results <- apply(mr_results, 1, function(mr_result) {
-    qtl_gwas <- load_qtl_gwas_for_mr_result(mr_result, qtl_dataset)
+    qtl_gwas <- load_qtl_gwas_for_mr_result(mr_result, qtl_dataset, build)
     if (is.null(qtl_gwas)) return(NULL)
 
     chr <- as.numeric(mr_result[["CHR"]])
@@ -136,15 +138,15 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
 
 #' Load the QTL GWAS file for an MR result row
 #' @keywords internal
-load_qtl_gwas_for_mr_result <- function(mr_result, qtl_dataset) {
+load_qtl_gwas_for_mr_result <- function(mr_result, qtl_dataset, build = reference_builds$GRCh38) {
   if (qtl_dataset == qtl_datasets$metabrain) {
     outcome <- unlist(strsplit(mr_result[["outcome"]], "_"))
     brain_region <- outcome[1]
     ancestry <- toupper(outcome[2])
-    qtl_gwas_file <- paste0(metabrain_gwas_dir, "/", brain_region, "/",
+    qtl_gwas_file <- paste0(qtl_dataset_dir(qtl_datasets$metabrain, "gwas", build), "/", brain_region, "/",
                             mr_result[["EXPOSURE"]], "_", ancestry, ".tsv.gz")
   } else if (qtl_dataset == qtl_datasets$eqtlgen) {
-    qtl_gwas_file <- paste0(eqtlgen_gwas_dir, "/", mr_result[["outcome"]], "/",
+    qtl_gwas_file <- paste0(qtl_dataset_dir(qtl_datasets$eqtlgen, "gwas", build), "/", mr_result[["outcome"]], "/",
                             mr_result[["EXPOSURE"]], ".tsv.gz")
   } else {
     stop("Error: qtl dataset not supported for coloc right now")

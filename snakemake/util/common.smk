@@ -98,6 +98,13 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
     if not hasattr(fm, "min_abs_corr"): fm.min_abs_corr = 0.5
     if not hasattr(fm, "max_region_kb"): fm.max_region_kb = 3000
 
+    if not hasattr(pipeline, "liftover"):
+        pipeline.liftover = SimpleNamespace()
+    lo = pipeline.liftover
+    if not hasattr(lo, "complement_minus_strand"): lo.complement_minus_strand = False
+    if not hasattr(lo, "max_drop_fraction"): lo.max_drop_fraction = 0.05
+    if not hasattr(lo, "check_build"): lo.check_build = True
+
     if not hasattr(pipeline, "coloc"):
         pipeline.coloc = SimpleNamespace()
     cl = pipeline.coloc
@@ -111,7 +118,18 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
         if not hasattr(g, "columns"): g.columns = SimpleNamespace()
         if not hasattr(g, "remove_extra_columns"): g.remove_extra_columns = False
         if not hasattr(g, "flip_alleles"): g.flip_alleles = getattr(pipeline, "flip_alleles", True)
+        if g.file.endswith("_std.tsv.gz"):
+            # already standardised: used as is, so it must already be in the output build
+            declared = getattr(g, "build", None)
+            if declared != pipeline.output.build:
+                raise ValueError(
+                    f"Error: {g.file} is already standardised, so it is used without liftover. Declare its build "
+                    f"(build: {pipeline.output.build}) to confirm it is in the output build {pipeline.output.build}"
+                    + (f"; it is declared as {declared}. Re-standardise the original GWAS instead." if declared else ".")
+                )
         if not hasattr(g, "build"): g.build = "GRCh37"
+        if g.build not in build_options:
+            raise ValueError(f"Error: build {g.build} of {g.file} is not one of the valid options: {build_options}")
         if not hasattr(g, "study_type"): g.study_type = "continuous"
         if not hasattr(g, "populate_rsid"): g.populate_rsid = False
         if not hasattr(g, "populate_eaf"): g.populate_eaf = False

@@ -2,7 +2,7 @@ test_that("gwas_formatting.standardise_gwas standardises a gwas", {
   test_gwas <- vroom::vroom("data/test_data_small.tsv.gz", show_col_types=F)
   output_file  <- tempfile(fileext = ".tsv.gz")
 
-  standardise_gwas("data/test_data_small.tsv.gz", output_file)
+  standardise_gwas("data/test_data_small.tsv.gz", output_file, output_reference_build = reference_builds$GRCh37)
   result <- vroom::vroom(output_file, show_col_types=F)
 
   expect_equal(nrow(result), nrow(test_gwas))
@@ -16,7 +16,7 @@ test_that("gwas_formatting.standardise_gwas deletes clashing columns", {
   map <- "N=NEW_N,SNP=MARKER,CHR=CHR,BP=BP,EA=A0,OA=A1,EAF=A0FREQ,P=P,BETA=BETA,SE=SE,OR=OR,OR_LB=OR_LB,OR_UB=OR_UB,RSID=RSID"
   bespoke_column_map <- split_string_into_named_list(map)
 
-  standardise_gwas("data/test_data_tiny_existing_column.tsv.gz", output_file, input_columns = bespoke_column_map)
+  standardise_gwas("data/test_data_tiny_existing_column.tsv.gz", output_file, input_columns = bespoke_column_map, output_reference_build = reference_builds$GRCh37)
   result <- vroom::vroom(output_file, show_col_types=F)
 
   expect_true('N' %in% names(result))
@@ -33,7 +33,7 @@ test_that("gwas_formatting.standardise_gwas with bespoke_column_map standardises
   map <- "SNP=MARKER,CHR=CHR,BP=BP,EA=A0,OA=A1,EAF=A0FREQ,P=P,BETA=BETA,SE=SE,OR=OR,OR_LB=OR_LB,OR_UB=OR_UB,RSID=RSID"
   bespoke_column_map <- split_string_into_named_list(map)
 
-  standardise_gwas("data/test_data_tiny.tsv.gz", output_file, input_columns = bespoke_column_map)
+  standardise_gwas("data/test_data_tiny.tsv.gz", output_file, input_columns = bespoke_column_map, output_reference_build = reference_builds$GRCh37)
   result <- vroom::vroom(output_file, show_col_types=F)
 
   expect_equal(nrow(result), 12)
@@ -45,7 +45,7 @@ test_that("gwas_formatting.standardise_gwas with input_column_map as a string st
   output_file  <- tempfile(fileext = ".tsv.gz")
   map <- "SNP=MARKER,CHR=CHR,BP=BP,EA=A0,OA=A1,EAF=A0FREQ,P=P,BETA=BETA,SE=SE,OR=OR,OR_LB=OR_LB,OR_UB=OR_UB,RSID=RSID"
 
-  standardise_gwas("data/test_data_tiny.tsv.gz", output_file, input_columns = map)
+  standardise_gwas("data/test_data_tiny.tsv.gz", output_file, input_columns = map, output_reference_build = reference_builds$GRCh37)
   result <- vroom::vroom(output_file, show_col_types=F)
 
   expect_equal(nrow(result), 12)
@@ -56,7 +56,7 @@ test_that("gwas_formatting.standardise_gwas with input_column_map as a string st
 test_that("gwas_formatting.standardise_gwas standardises a METAL output", {
   output_file  <- tempfile(fileext = ".tsv.gz")
 
-  standardise_gwas("data/metal_output.txt", output_file, input_columns = "metal")
+  standardise_gwas("data/metal_output.txt", output_file, input_columns = "metal", output_reference_build = reference_builds$GRCh37)
   result <- vroom::vroom(output_file, show_col_types=F)
 
   metal_lines <-  as.numeric(R.utils::countLines("data/metal_output.txt")) - 1
@@ -68,7 +68,7 @@ test_that("gwas_formatting.standardise_gwas standardises a METAL output", {
 test_that("gwas_formatting.standardise_gwas standardises an OpenGWAS PheWAS output", {
   output_file  <- tempfile(fileext = ".tsv.gz")
 
-  standardise_gwas("data/opengwas_phewas_result.tsv", output_file, input_columns = "opengwas_phewas")
+  standardise_gwas("data/opengwas_phewas_result.tsv", output_file, input_columns = "opengwas_phewas", output_reference_build = reference_builds$GRCh37)
   result <- vroom::vroom(output_file, show_col_types=F)
 
   opengwas_lines <-  as.numeric(R.utils::countLines("data/opengwas_phewas_result.tsv")) - 1
@@ -81,7 +81,7 @@ test_that("gwas_formatting.standardise_gwas standardises an gwama output", {
   output_file  <- tempfile(fileext = ".tsv.gz")
 
   filename <- "data/gwama_output.txt.gz"
-  standardise_gwas(filename, output_file, input_columns = "gwama")
+  standardise_gwas(filename, output_file, input_columns = "gwama", output_reference_build = reference_builds$GRCh37)
   result <- vroom::vroom(output_file, show_col_types=F)
 
   number_of_lines <-  as.numeric(R.utils::countLines(filename)) - 1
@@ -92,7 +92,7 @@ test_that("gwas_formatting.standardise_gwas standardises an gwama output", {
 
 test_that("gwas_formatting.standardise_gwas with remove_extra_columns removes extra columns", {
   filename <- "data/gwama_output.txt.gz"
-  result <- standardise_gwas(filename, output_file=F, input_columns = "gwama", remove_extra_columns = T)
+  result <- standardise_gwas(filename, output_file=F, input_columns = "gwama", remove_extra_columns = T, output_reference_build = reference_builds$GRCh37)
 
   suppressWarnings(
     expect_true(all(is.null(result$effects), is.null(result$q_statistic), is.null(result$i2), is.null(result$n_studies)))
@@ -105,7 +105,7 @@ test_that("gwas_formatting.standardise_gwas standardises an IEU ukb pipeline out
   output_file  <- tempfile(fileext = ".tsv.gz")
 
   filename <- "data/ukb_pipeline.txt.gz"
-  standardise_gwas(filename, output_file, input_columns = "ieu_ukb")
+  standardise_gwas(filename, output_file, input_columns = "ieu_ukb", output_reference_build = reference_builds$GRCh37)
   result <- vroom::vroom(output_file, show_col_types=F)
 
   opengwas_lines <-  as.numeric(R.utils::countLines(filename)) - 1
@@ -163,8 +163,8 @@ test_that("standardise_gwas errors when populate_eaf is TRUE and ancestry is mis
       "data/test_data_tiny.tsv.gz",
       tempfile(fileext = ".tsv.gz"),
       populate_eaf = TRUE,
-      ancestry = NULL
-    ),
+      ancestry = NULL,
+      output_reference_build = reference_builds$GRCh37),
     "populate_eaf is TRUE but ancestry is missing"
   )
   expect_error(
@@ -172,8 +172,8 @@ test_that("standardise_gwas errors when populate_eaf is TRUE and ancestry is mis
       "data/test_data_tiny.tsv.gz",
       tempfile(fileext = ".tsv.gz"),
       populate_eaf = TRUE,
-      ancestry = ""
-    ),
+      ancestry = "",
+      output_reference_build = reference_builds$GRCh37),
     "populate_eaf is TRUE but ancestry is missing"
   )
 })
@@ -184,8 +184,8 @@ test_that("standardise_gwas flip_alleles=FALSE with partial RSID succeeds (inter
     tempfile(fileext = ".tsv.gz"),
     input_columns = "SNP=MARKER,CHR=CHR,BP=BP,EA=A0,OA=A1,EAF=A0FREQ,P=P,BETA=BETA,SE=SE,OR=OR,OR_LB=OR_LB,OR_UB=OR_UB,RSID=RSID",
     flip_alleles = FALSE,
-    populate_rsid_option = populate_rsid_options$partial
-  )
+    populate_rsid_option = populate_rsid_options$partial,
+    output_reference_build = reference_builds$GRCh37)
   expect_equal(nrow(out), 12L)
 })
 
@@ -195,8 +195,8 @@ test_that("standardise_gwas allows flip_alleles FALSE with populate_rsid none", 
     tempfile(fileext = ".tsv.gz"),
     input_columns = "SNP=MARKER,CHR=CHR,BP=BP,EA=A0,OA=A1,EAF=A0FREQ,P=P,BETA=BETA,SE=SE,OR=OR,OR_LB=OR_LB,OR_UB=OR_UB,RSID=RSID",
     flip_alleles = FALSE,
-    populate_rsid_option = populate_rsid_options$none
-  )
+    populate_rsid_option = populate_rsid_options$none,
+    output_reference_build = reference_builds$GRCh37)
   expect_equal(nrow(out_none), 12L)
 })
 
@@ -298,7 +298,7 @@ test_that("gwas_formatting.standardise_gwas opengwas preset attributes ES and AF
   vroom::vroom_write(vcf_as_tsv, input_file)
   output_file <- tempfile(fileext = ".tsv.gz")
 
-  standardise_gwas(input_file, output_file, input_columns = "opengwas")
+  standardise_gwas(input_file, output_file, input_columns = "opengwas", output_reference_build = reference_builds$GRCh37)
   result <- vroom::vroom(output_file, show_col_types = FALSE)
   result <- result[order(result$BP), ]
 
@@ -336,7 +336,7 @@ test_that("gwas_formatting.standardise_gwas fills CHR and BP from SNP identifier
   vroom::vroom_write(gwas, input_file)
   output_file <- tempfile(fileext = ".tsv.gz")
 
-  standardise_gwas(input_file, output_file)
+  standardise_gwas(input_file, output_file, output_reference_build = reference_builds$GRCh37)
   result <- vroom::vroom(output_file, show_col_types = FALSE, col_types = vroom::cols(CHR = "c"))
 
   expect_equal(nrow(result), 2)
@@ -345,11 +345,8 @@ test_that("gwas_formatting.standardise_gwas fills CHR and BP from SNP identifier
 
 test_that("gwas_formatting.standardise_gwas looks up RSIDs in the output reference build", {
   local_mocked_bindings(
-    run_liftover = function(bed_file_input, bed_file_output, input_build, output_build, unmapped) {
-      fixture <- testthat::test_path("data/test_data_small_hg38.bed.gz")
-      writeLines(readLines(gzfile(fixture)), bed_file_output)
-      file.create(unmapped)
-    },
+    run_liftover = mock_liftover_shift(shift = 1000),
+    liftover_chain_available = function(...) TRUE,
     populate_rsid = function(gwas, option, build) {
       captured_build <<- build
       gwas

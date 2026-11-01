@@ -71,6 +71,7 @@ rule run_mr_against_qtl_datasets:
             --ancestry {params.ancestry} \
             --dataset {pipeline.qtl.dataset} \
             --subcategory {pipeline.qtl.subcategory} {params.exposures} \
+            --build {pipeline.output.build} \
             --output_file {output}
         """
 
@@ -115,6 +116,7 @@ rule run_coloc_analysis_of_significant_mr_results:
             --p2 {params.p2} \
             --p12 {params.p12} \
             --dataset {pipeline.qtl.dataset} {params.exposures} \
+            --build {pipeline.output.build} \
             --output_file {output}
         """
 

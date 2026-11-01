@@ -25,7 +25,7 @@ parser <- add_argument(parser, "--ld_reference",
 parser <- add_argument(parser, "--build",
                        help = "Reference build of the standardised GWAS (GRCh37 or GRCh38)",
                        type = "character",
-                       default = "GRCh37"
+                       default = "GRCh38"
 )
 parser <- add_argument(parser, "--N",
                        help = "GWAS sample size",

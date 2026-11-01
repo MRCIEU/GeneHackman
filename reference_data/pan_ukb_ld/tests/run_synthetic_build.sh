@@ -23,6 +23,7 @@ if [[ ! -d "$TEST_DIR/source/UKBB.CSA.ldadj.bm" ]]; then
 fi
 mkdir -p "$WORK_DIR/liftover_data/genomic_data/liftover"
 cp "$CHAIN_FILE" "$WORK_DIR/liftover_data/genomic_data/liftover/hg19ToHg38.over.chain.gz"
+cp "$(dirname "$CHAIN_FILE")/hg38ToHg19.over.chain.gz" "$WORK_DIR/liftover_data/genomic_data/liftover/"
 
 echo "=== phase 0, at a smaller radius than the full build (as when phase 0 ran at 500 kb and the full build at 1 Mb)"
 RADIUS_KB=30 "$HERE/../run_build.sh" phase0
@@ -44,6 +45,11 @@ grep -E "EUR chr21: [0-9,]+ variants, [0-9]+ chunks, [0-9]+ to do" "$TEST_DIR/fu
   | awk '{for (i = 1; i <= NF; i++) { if ($i == "chunks,") total = $(i - 1); if ($i == "to") todo = $(i - 1) } }
          END { print "resumed chr21: " todo " of " total " chunks redone"; exit !(todo == total - 3) }'
 "$HERE/../run_build.sh" status
+
+echo "=== refresh the GRCh38 keys of the finished pack (LD untouched)"
+ld_before=$(md5sum "$WORK_DIR/pack/EUR/ld_chr22.bin" | cut -d' ' -f1)
+"$HERE/../run_build.sh" update-keys EUR
+[[ "$(md5sum "$WORK_DIR/pack/EUR/ld_chr22.bin" | cut -d' ' -f1)" == "$ld_before" ]]
 
 echo "=== verify against truth"
 "$PYTHON" "$HERE/verify_synthetic_pack.py" "$TEST_DIR/source" "$WORK_DIR"

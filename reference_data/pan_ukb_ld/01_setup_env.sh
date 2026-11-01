@@ -44,14 +44,25 @@ if [[ -z "$LIFTOVER_BIN" ]] && ! command -v liftOver >/dev/null && [[ ! -x "$WOR
   chmod +x "$WORK_DIR/bin/liftOver"
 fi
 
-# --- chain file (GeneHackman's copy when available)
-chain="$WORK_DIR/liftover_data/genomic_data/liftover/hg19ToHg38.over.chain.gz"
+# --- chain files (GeneHackman's copies when available): hg19ToHg38 to lift, hg38ToHg19 for the
+# round-trip check that convert_reference_build_via_liftover() applies
+chain_dir="$WORK_DIR/liftover_data/genomic_data/liftover"
+mkdir -p "$chain_dir"
+chain="$chain_dir/hg19ToHg38.over.chain.gz"
 if [[ ! -s "$chain" ]]; then
   if [[ -n "$CHAIN_FILE" ]]; then cp "$CHAIN_FILE" "$chain"
   elif [[ -n "${PIPELINE_DATA_DIR:-}" && -s "$PIPELINE_DATA_DIR/genomic_data/liftover/hg19ToHg38.over.chain.gz" ]]; then
     cp "$PIPELINE_DATA_DIR/genomic_data/liftover/hg19ToHg38.over.chain.gz" "$chain"
   else
     curl -fsSL https://hgdownload.soe.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz -o "$chain"
+  fi
+fi
+reverse_chain="$chain_dir/hg38ToHg19.over.chain.gz"
+if [[ ! -s "$reverse_chain" ]]; then
+  if [[ -n "${PIPELINE_DATA_DIR:-}" && -s "$PIPELINE_DATA_DIR/genomic_data/liftover/hg38ToHg19.over.chain.gz" ]]; then
+    cp "$PIPELINE_DATA_DIR/genomic_data/liftover/hg38ToHg19.over.chain.gz" "$reverse_chain"
+  else
+    curl -fsSL https://hgdownload.soe.ucsc.edu/goldenPath/hg38/liftOver/hg38ToHg19.over.chain.gz -o "$reverse_chain"
   fi
 fi
 
@@ -77,6 +88,6 @@ echo "R side (GeneHackman load + liftOver):"
 # shellcheck disable=SC2086
 $R_CMD -e 'suppressMessages(pkgload::load_all(Sys.getenv("GENEHACKMAN_DIR"), quiet = TRUE)); cat("  GeneHackman loads; standardise_alleles available:", exists("standardise_alleles"), "\n")' \
   || echo "  R_CMD cannot load GeneHackman: set R_CMD to use the pipeline container (see config.sh)"
-ls -l "$chain"
+ls -l "$chain" "$reverse_chain"
 command -v liftOver || ls -l "$WORK_DIR/bin/liftOver" || echo "liftOver not found: set LIFTOVER_BIN"
 echo "Setup done."

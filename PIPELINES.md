@@ -55,7 +55,7 @@ Default logical names: `SNP`, `CHR`, `BP`, `EA`, `OA`, `EAF`, `BETA`, `SE`, `OR`
 
 | Value | Source | Variants are matched on | Ancestries |
 |---|---|---|---|
-| `1000genomes` (default) | 1000 Genomes Phase 3 genotypes, via PLINK | RSID | EUR, EAS, AFR, AMR, SAS |
+| `1000genomes` (default) | 1000 Genomes genotypes via PLINK, in the output build: the 30x high-coverage release for GRCh38, phase 3 for GRCh37 | RSID | EUR, EAS, AFR, AMR, SAS |
 | `pan_ukb` | Precomputed Pan-UKB LD: 6,000–420,000 people per ancestry, MAF ≥ 1%, ±1 Mb, GRCh37 and GRCh38 | SNP key (`CHR:BP_EA_OA`) | EUR, AFR, AMR, CSA, EAS, MID (`SAS` maps to `CSA`) |
 
 The Pan-UKB pack must be at `PIPELINE_DATA_DIR/genomic_data/pan_ukb_ld/`; see [`reference_data/pan_ukb_ld/README.md`](reference_data/pan_ukb_ld/README.md) for how it is built.
@@ -64,9 +64,11 @@ With `pan_ukb`:
 
 - **Clumping** follows PLINK 1.9's `--clump` rules on the stored LD, and `--clump-kb` is capped at the pack's radius (1,000 kb, so the default `--clump-kb 1000` is not cut).
 - **Fine-mapping:** variant pairs further apart than the radius are set to r = 0. Because r is stored rounded, the LD matrix is made positive semi-definite by setting its negative eigenvalues to 0. `finemap_regions.tsv` reports the share of pairs beyond the radius (`FRAC_BEYOND_LD_RADIUS`) and the smallest eigenvalue before that fix (`LD_MIN_EIGENVALUE`).
-- **`compare_gwases`** still needs 1000G ancestry codes, because LDSC uses the 1000 Genomes LD scores.
+**Genome build:** outputs are in `output.build`, **GRCh38 by default**. Each GWAS declares its own `build` (default GRCh37) and is lifted to the output build during standardisation, with QC: variants whose new position can't be trusted are dropped and counted (see [standardise_gwas.md](snakemake/standardise_gwas.md)). The declared build is checked against the Pan-UKB LD pack before lifting. Every reference resource is then used in the output build: the 1000 Genomes panel, the RSID maps, the Pan-UKB LD keys, the LocusZoom gene tracks (Ensembl 86 for GRCh38, 75 for GRCh37) and the QTL data. `output.build: GRCh37` is still supported, but needs the GRCh37 extras download. An already standardised `*_std.tsv.gz` input must declare `build` equal to `output.build`.
 
-**RSIDs and genome build:** RSIDs are looked up in the reference for the output build (`output.build`). Partial RSID population (the default for pipelines that clump) uses the GRCh37 1000 Genomes marker map, so for GRCh38 output it only works when the GWAS was lifted over from GRCh37; otherwise set `populate_rsid: true` to use the full dbSNP lookup for GRCh38.
+**RSIDs:** RSIDs are looked up in the reference for the output build. Partial RSID population (the default for pipelines that clump) uses the 1000 Genomes marker map of that build; `populate_rsid: true` uses the full dbSNP lookup.
+
+**LDSC** (`compare_gwases`): `ldsc.ld_scores` chooses the LD scores, `pan_ukb` (default: Pan-UKB HapMap3 LD scores for EUR, AFR, AMR, CSA/SAS, EAS, MID) or `1000genomes_b37` (the earlier 1000 Genomes scores, in the GRCh37 extras). LDSC matches variants on RSID, so either works with either output build.
 
 ---
 

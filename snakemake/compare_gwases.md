@@ -53,7 +53,7 @@ populate_rsid: false
 | `N` | **Yes** | Sample size; required for LDSC. |
 | `ancestry` | **Yes** | `AFR`, `AMR`, `EAS`, `EUR`, or `SAS` — LD reference for clumping and LDSC grouping. These 1000 Genomes codes are needed even with `ld_reference: pan_ukb`, because LDSC uses the 1000 Genomes LD scores (`SAS` clumps against Pan-UKB `CSA`). |
 | `columns` | No | Column map or preset. |
-| `build` | No | Input build. Default `GRCh37`; lifted to `output.build` if set. |
+| `build` | No | Input build. Default `GRCh37`; lifted to `output.build`. |
 | `populate_rsid` | No | Per-GWAS override; default inherits root `false`. With clumping and `false`, RSID population is **partial** unless overridden. |
 | `populate_eaf` | No | Fill missing `EAF` from 1000 Genomes (requires `ancestry`). |
 
@@ -69,7 +69,7 @@ populate_rsid: false
 | ----- | -------- | ----- |
 | `populate_rsid` | No | Default `false`. |
 | `populate_eaf` | No | Default `false`. |
-| `output.build` | No | Target build after standardisation. Default `GRCh37`. |
+| `output.build` | No | Target build after standardisation. Default `GRCh38` (`GRCh37` needs the GRCh37 extras download). |
 
 `flip_alleles: false` is **not** allowed.
 

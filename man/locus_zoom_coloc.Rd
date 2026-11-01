@@ -14,7 +14,7 @@ locus_zoom_coloc(
   window_kb = 500,
   completion_file = NULL,
   ld_reference = ld_reference_options$thousand_genomes,
-  build = reference_builds$GRCh37
+  build = reference_builds$GRCh38
 )
 }
 \arguments{

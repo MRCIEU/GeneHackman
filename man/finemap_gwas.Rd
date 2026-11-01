@@ -17,7 +17,7 @@ finemap_gwas(
   min_abs_corr = 0.5,
   max_region_kb = 3000,
   ld_reference = ld_reference_options$thousand_genomes,
-  build = reference_builds$GRCh37
+  build = reference_builds$GRCh38
 )
 }
 \arguments{

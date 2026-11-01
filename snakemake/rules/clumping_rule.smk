@@ -42,15 +42,18 @@ else:
             gwas = lambda wildcards: getattr(pipeline, wildcards.prefix).standardised_gwas
         params:
             ancestry = lambda wildcards: getattr(pipeline, wildcards.prefix).ancestry,
-            out_prefix = lambda wildcards: getattr(pipeline, wildcards.prefix).clumped_snp_prefix
+            out_prefix = lambda wildcards: getattr(pipeline, wildcards.prefix).clumped_snp_prefix,
+            panel_dir = thousand_genomes_dir(pipeline.output.build)
         output:
             clumped = CLUMPED_FILE_PATTERN
         shell:
             """
-            plink1.9 --bfile {THOUSAND_GENOMES_DIR}/{params.ancestry} \
+            plink1.9 --bfile {params.panel_dir}{params.ancestry} \
                 --threads {AVAILABLE_CPUS} \
                 --clump {input.gwas} \
                 --clump-snp-field RSID \
                 {pipeline.plink_clump_arguments} \
                 --out {params.out_prefix} || echo "{default_clump_headers}" > {output.clumped}
+            # PLINK reports the panel's positions; use the GWAS's own (same build, matched by RSID)
+            Rscript clumped_positions_from_gwas.R --clumped {output.clumped} --gwas {input.gwas}
             """

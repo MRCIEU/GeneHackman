@@ -8,7 +8,7 @@ populate_eaf_from_reference_panel(
   gwas,
   ancestry,
   ld_reference = ld_reference_options$thousand_genomes,
-  build = reference_builds$GRCh37
+  build = reference_builds$GRCh38
 )
 }
 \arguments{
@@ -19,7 +19,8 @@ populate_eaf_from_reference_panel(
 
 \item{ld_reference}{"1000genomes" (default) or "pan_ukb"}
 
-\item{build}{reference build of the GWAS positions (pan_ukb only)}
+\item{build}{reference build of the GWAS positions: the SNP key column for pan_ukb, the 1000 Genomes
+panel for 1000genomes}
 }
 \description{
 Expects the GWAS to have an \code{RSID} column (populated by \code{populate_rsid})

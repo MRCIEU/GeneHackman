@@ -6,6 +6,8 @@
 #   run_build.sh phase0           chr22 for every population + the dense test region + report
 #   run_build.sh full [POP ...]   whole genome, one population at a time (default: all of $POPS)
 #   run_build.sh status           progress, disk use and the last log lines
+#   run_build.sh update-keys [POP ...]  redo the GRCh38 keys (stage 20) of finished populations with the
+#                                 current GeneHackman liftover and copy them into the pack (LD untouched)
 #   run_build.sh finalise         (re)write info.tsv, MANIFEST.json and checksums for finished work
 #
 # Settings: config.sh (override with environment variables or local_config.sh).
@@ -177,6 +179,20 @@ full() {
   log "  rsync -av --progress $(hostname):$WORK_DIR/pack/ /Users/wt23152/Documents/Projects/scratch/020/data/genomic_data/pan_ukb_ld/"
 }
 
+update_keys() {
+  check_environment
+  local pops
+  if [[ $# -eq 0 ]]; then read -r -a pops <<< "$POPS"; else pops=("$@"); fi
+  for pop in "${pops[@]}"; do
+    rm -f "$WORK_DIR/state/$pop.annotate.done"
+    # shellcheck disable=SC2086
+    run_stage annotate "$pop" annotate $R_CMD "$HERE/20_annotate_variants.R" --pop "$pop"
+    "$PY" "$HERE/45_update_pack_keys.py" --pop "$pop" 2>&1 | tee -a "$LOG"
+  done
+  "$PY" "$HERE/40_finalise_pack.py" 2>&1 | tee -a "$LOG"
+  log "GRCh38 keys updated for: ${pops[*]}"
+}
+
 status() {
   echo "WORK_DIR=$WORK_DIR   POPS=$POPS   radius=${RADIUS_KB}kb maf>=$MAF_MIN deadzone=$DEADZONE"
   df -Ph "$WORK_DIR" | awk 'NR==2{print "disk: " $4 " free of " $2}'
@@ -207,6 +223,7 @@ case "${1:-}" in
   phase0) phase0 ;;
   full) shift; full "$@" ;;
   status) status ;;
+  update-keys) shift; update_keys "$@" ;;
   finalise) check_environment; "$PY" "$HERE/40_finalise_pack.py" ;;
   *) sed -n '2,13p' "$0"; exit 1 ;;
 esac

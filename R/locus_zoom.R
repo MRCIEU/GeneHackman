@@ -28,7 +28,7 @@ locus_zoom_coloc <- function(coloc_results_file,
                              window_kb = 500,
                              completion_file = NULL,
                              ld_reference = ld_reference_options$thousand_genomes,
-                             build = reference_builds$GRCh37) {
+                             build = reference_builds$GRCh38) {
   validate_ld_reference(ld_reference)
   coloc_res <- vroom::vroom(coloc_results_file, show_col_types = FALSE)
 
@@ -164,7 +164,7 @@ write_completion_file <- function(completion_file, content = "done") {
 #' @keywords internal
 find_index_snp_from_ld_panel <- function(chr, center_bp, window_bp, ancestry,
                                          ld_reference = ld_reference_options$thousand_genomes,
-                                         build = reference_builds$GRCh37) {
+                                         build = reference_builds$GRCh38) {
   if (ld_reference == ld_reference_options$pan_ukb) {
     variants <- load_ld_pack_variants(chr, ancestry)
     bp <- variants[[if (build == reference_builds$GRCh38) "BP38" else "BP37"]]
@@ -173,7 +173,7 @@ find_index_snp_from_ld_panel <- function(chr, center_bp, window_bp, ancestry,
     if (length(near) == 0) return(NULL)
     return(keys[near[which.min(abs(bp[near] - center_bp))]])
   }
-  bfile <- file.path(thousand_genomes_dir, ancestry)
+  bfile <- file.path(thousand_genomes_dir_for(build), ancestry)
   bim_file <- paste0(bfile, ".bim")
   if (!file.exists(bim_file)) return(NULL)
 
@@ -192,7 +192,7 @@ find_index_snp_from_ld_panel <- function(chr, center_bp, window_bp, ancestry,
 build_single_locus_plot <- function(gwas, chr, xrange, ens_db, ancestry,
                                     index_snp, trait_label,
                                     ld_reference = ld_reference_options$thousand_genomes,
-                                    build = reference_builds$GRCh37) {
+                                    build = reference_builds$GRCh38) {
   gwas_chr <- as.numeric(gwas$CHR)
   gwas_bp <- as.numeric(gwas$BP)
   keep <- !is.na(gwas_chr) & gwas_chr == chr &
@@ -270,7 +270,7 @@ build_single_locus_plot <- function(gwas, chr, xrange, ens_db, ancestry,
 #' @keywords internal
 compute_ld_r2_for_locus <- function(rsids, chr, ancestry, index_snp,
                                     ld_reference = ld_reference_options$thousand_genomes,
-                                    build = reference_builds$GRCh37) {
+                                    build = reference_builds$GRCh38) {
   if (is.null(index_snp) || !index_snp %in% rsids) return(NULL)
 
   rsids_unique <- unique(rsids[!is.na(rsids) & nchar(rsids) > 0])
@@ -288,4 +288,16 @@ compute_ld_r2_for_locus <- function(rsids, chr, ancestry, index_snp,
   r2_vec <- R[idx, ]^2
   names(r2_vec) <- snps
   r2_vec
+}
+
+
+#' Bioconductor EnsDb package holding gene annotation in a reference build, for LocusZoom gene tracks.
+#' @param build one of \code{reference_builds} (GRCh38: Ensembl 86; GRCh37: Ensembl 75)
+#' @keywords internal
+ensembl_db_for_build <- function(build = reference_builds$GRCh38) {
+  packages <- list(GRCh38 = "EnsDb.Hsapiens.v86", GRCh37 = "EnsDb.Hsapiens.v75")
+  if (is.null(packages[[build]])) {
+    stop("No gene annotation for reference build ", build, "; available: ", paste(names(packages), collapse = ", "))
+  }
+  return(packages[[build]])
 }

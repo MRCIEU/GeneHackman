@@ -52,7 +52,7 @@ output:
 | `file` | **Yes** | Input summary-statistics file. |
 | `ancestry` | **Yes** | LD reference for clumping. May differ between incident and subsequent. |
 | `columns` | No | Column map or preset. |
-| `build` | No | Input build. Default `GRCh37`. |
+| `build` | No | Input build. Default `GRCh37`; lifted to `output.build`. |
 | `populate_rsid` | No | Per-GWAS override; default inherits root `false`. |
 | `populate_eaf` | No | Fill missing `EAF` from 1000 Genomes (requires `ancestry`). |
 
@@ -74,7 +74,7 @@ output:
 | Field | Required | Notes |
 | ----- | -------- | ----- |
 | `populate_rsid` | No | Default `false`. |
-| `output.build` | No | Target build after standardisation. Default `GRCh37`. |
+| `output.build` | No | Target build after standardisation. Default `GRCh38` (`GRCh37` needs the GRCh37 extras download). |
 
 `flip_alleles: false` is **not** allowed.
 

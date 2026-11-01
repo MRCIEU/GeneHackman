@@ -4,7 +4,7 @@
 \alias{compute_ld_matrix}
 \title{Compute LD correlation matrix from 1000 Genomes via plink}
 \usage{
-compute_ld_matrix(rsids, chr, ancestry)
+compute_ld_matrix(rsids, chr, ancestry, build = reference_builds$GRCh38)
 }
 \arguments{
 \item{rsids}{character vector of RSIDs}
@@ -12,6 +12,8 @@ compute_ld_matrix(rsids, chr, ancestry)
 \item{chr}{chromosome number}
 
 \item{ancestry}{ancestry code (EUR, EAS, etc.)}
+
+\item{build}{reference build of the GWAS; selects the 1000 Genomes panel (GRCh38 or GRCh37)}
 }
 \value{
 list with components \code{matrix} (numeric LD matrix) and

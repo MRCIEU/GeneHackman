@@ -38,10 +38,11 @@ gene_name_to_ensembl_id <- function(gwas) {
 #' @param ancestry One of EUR, EAS, AFR, AMR, SAS matching the reference panel prefix
 #'   (pan_ukb: EUR, AFR, AMR, CSA or SAS, EAS, MID).
 #' @param ld_reference "1000genomes" (default) or "pan_ukb"
-#' @param build reference build of the GWAS positions (pan_ukb only)
+#' @param build reference build of the GWAS positions: the SNP key column for pan_ukb, the 1000 Genomes
+#'   panel for 1000genomes
 #' @export
 populate_eaf_from_reference_panel <- function(gwas, ancestry, ld_reference = ld_reference_options$thousand_genomes,
-                                              build = reference_builds$GRCh37) {
+                                              build = reference_builds$GRCh38) {
   if ("EAF" %in% colnames(gwas) && !all(is.na(gwas$EAF))) {
     if (sum(is.na(gwas$EAF)) == 0) {
       message("EAF column already fully populated; skipping reference panel lookup.")
@@ -56,12 +57,11 @@ populate_eaf_from_reference_panel <- function(gwas, ancestry, ld_reference = ld_
   if (!ancestry %in% allowed) {
     stop("ancestry must be one of: ", paste(allowed, collapse = ", "))
   }
-  frq_path <- paste0(file.path(thousand_genomes_dir, ancestry), ".frq")
+  panel <- file.path(thousand_genomes_dir_for(build, check = TRUE), ancestry)
+  frq_path <- paste0(panel, ".frq")
   if (!file.exists(frq_path)) {
     stop("LD reference .frq not found: ", frq_path,
-         "\nGenerate with: plink --bfile ",
-         file.path(thousand_genomes_dir, ancestry), " --freq --out ",
-         file.path(thousand_genomes_dir, ancestry))
+         "\nGenerate with: plink --bfile ", panel, " --freq --out ", panel)
   }
 
   if (!"RSID" %in% colnames(gwas) || all(is.na(gwas$RSID))) {
@@ -125,7 +125,7 @@ populate_eaf_from_reference_panel <- function(gwas, ancestry, ld_reference = ld_
 
 #' Fill missing EAF from the Pan-UKB LD pack, matching on GeneHackman SNP keys.
 #' @keywords internal
-populate_eaf_from_ld_pack <- function(gwas, ancestry, build = reference_builds$GRCh37,
+populate_eaf_from_ld_pack <- function(gwas, ancestry, build = reference_builds$GRCh38,
                                       pack_dir = default_ld_pack_dir()) {
   if (!"EAF" %in% names(gwas)) gwas$EAF <- NA_real_
   need <- which(is.na(gwas$EAF))
@@ -150,12 +150,12 @@ populate_eaf_from_ld_pack <- function(gwas, ancestry, build = reference_builds$G
 #' @param gwas dataframe with the following columns: SNP
 #' @param option option to populate the RSID column
 #' @param build reference build of the CHR/BP positions in \code{gwas} (one of \code{reference_builds});
-#'   RSIDs are looked up in the reference resource for this build. Defaults to GRCh37.
+#'   RSIDs are looked up in the reference resource for this build. Defaults to GRCh38.
 #' @return gwas with new column RSID
 
 
 #' @export
-populate_rsid <- function(gwas, option = populate_rsid_options$none, build = reference_builds$GRCh37) {
+populate_rsid <- function(gwas, option = populate_rsid_options$none, build = reference_builds$GRCh38) {
   gc()
   start_time <- Sys.time()
   if (option == populate_rsid_options$none || "RSID" %in% colnames(gwas)) {
@@ -174,15 +174,28 @@ populate_rsid <- function(gwas, option = populate_rsid_options$none, build = ref
   return(gwas)
 }
 
-#' Partial RSID population from the 1000 Genomes marker map.
-#' The marker map is keyed on GRCh37 \code{CHR:BP_A1_A2} identifiers (\code{HG37}). For GRCh38 positions,
-#' a \code{HG38} column is used if the map has one; otherwise the GRCh37 key is rebuilt from the
-#' \code{BP37} column that \code{convert_reference_build_via_liftover()} keeps when lifting from GRCh37.
+#' Partial RSID population from the 1000 Genomes marker map of the build.
+#' The GRCh37 map is keyed on \code{CHR:BP_A1_A2} identifiers in GRCh37 (\code{HG37}), the GRCh38 map
+#' (1000G 30x) on GRCh38 identifiers (\code{HG38}).  For GRCh38 positions without an \code{HG38} map, the
+#' GRCh37 key is rebuilt from the \code{BP37} column that \code{convert_reference_build_via_liftover()}
+#' keeps when lifting from GRCh37, and looked up in the GRCh37 map.
 #' @keywords internal
 populate_partial_rsids <- function(gwas,
-                                   build = reference_builds$GRCh37,
-                                   marker_to_rsid_file = file.path(thousand_genomes_dir, "marker_to_rsid.tsv.gz")) {
+                                   build = reference_builds$GRCh38,
+                                   marker_to_rsid_file = NULL) {
   message("populating RSIDs based on 1000genomes...")
+  if (is.null(marker_to_rsid_file)) {
+    marker_to_rsid_file <- file.path(thousand_genomes_dir_for(build), "marker_to_rsid.tsv.gz")
+    grch37_map <- file.path(thousand_genomes_dir_for(reference_builds$GRCh37), "marker_to_rsid.tsv.gz")
+    if (!file.exists(marker_to_rsid_file) && build == reference_builds$GRCh38 && "BP37" %in% colnames(gwas) &&
+        file.exists(grch37_map)) {
+      marker_to_rsid_file <- grch37_map
+    }
+  }
+  if (!file.exists(marker_to_rsid_file)) {
+    stop("1000 Genomes marker map not found: ", marker_to_rsid_file,
+         ". Download the reference data for ", build, ", or set populate_rsid: true for the full dbSNP lookup.")
+  }
   marker_columns <- colnames(vroom::vroom(marker_to_rsid_file, n_max = 0, show_col_types = F))
 
   if (build == reference_builds$GRCh37) {
@@ -191,7 +204,7 @@ populate_partial_rsids <- function(gwas,
   } else if (build == reference_builds$GRCh38 && "HG38" %in% marker_columns) {
     marker_column <- "HG38"
     gwas_keys <- gwas$SNP
-  } else if (build == reference_builds$GRCh38 && "BP37" %in% colnames(gwas)) {
+  } else if (build == reference_builds$GRCh38 && "BP37" %in% colnames(gwas) && "HG37" %in% marker_columns) {
     marker_column <- "HG37"
     gwas_keys <- toupper(paste0(gwas$CHR, ":", format(as.numeric(gwas$BP37), scientific = F, trim = T),
                                 "_", gwas$EA, "_", gwas$OA))
@@ -210,7 +223,7 @@ populate_partial_rsids <- function(gwas,
 
 
 populate_full_rsids <- function(gwas,
-                                build = reference_builds$GRCh37,
+                                build = reference_builds$GRCh38,
                                 dbsnp_dir = file.path(genomic_data_dir, "dbsnp")) {
   rsid_build <- rsid_builds[[build]]
   if (is.null(rsid_build)) {

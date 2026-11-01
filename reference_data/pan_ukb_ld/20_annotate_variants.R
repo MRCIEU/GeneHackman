@@ -9,12 +9,12 @@
 # character for character: EA is the alphabetically smaller allele, EAF its frequency, and
 # SIGN = +1 when EA is the ALT allele the source LD is counted on (-1 otherwise).
 #
-# GRCh38 positions come from UCSC liftOver with the same chain file and the same coordinate
-# convention as convert_reference_build_via_liftover() (BED start = BP, new BP = mapped start);
-# the result is cross-checked against that function on a sample of variants.  Variants that do not
-# map, map to the minus strand (alleles would be complemented) or to another chromosome, or that
-# collide on a GRCh38 key are kept as rows but get BP38/SNP38 = NA and a LIFT_STATUS.  Variants that
-# collide on a GRCh37 key (LIFT_STATUS duplicate_grch37) get neither key.
+# GRCh38 positions come from GeneHackman's convert_reference_build_via_liftover(), i.e. the same
+# liftOver chains, coordinate convention and QC that lift a GWAS.  Variants it drops (unmapped,
+# non_primary_contig, chrom_change, strand_flip, round_trip, or colliding on a GRCh38 key:
+# duplicate_grch38) are kept as rows but get BP38/SNP38 = NA and that LIFT_STATUS.  Variants that
+# collide on a GRCh37 key (LIFT_STATUS duplicate_grch37) get neither key.  The round-trip check needs
+# hg38ToHg19.over.chain.gz next to hg19ToHg38.over.chain.gz (01_setup_env.sh fetches both).
 
 args <- commandArgs(trailingOnly = TRUE)
 pop <- args[which(args == "--pop") + 1]
@@ -34,7 +34,11 @@ target_chain <- normalizePath(file.path(chain_dir, chain_name), mustWork = FALSE
 if (nzchar(chain_file) && normalizePath(chain_file) != target_chain) {
   file.copy(chain_file, file.path(chain_dir, chain_name), overwrite = TRUE)
 }
-if (!file.exists(file.path(chain_dir, chain_name))) stop("Chain file missing: ", file.path(chain_dir, chain_name))
+for (needed in c(chain_name, "hg38ToHg19.over.chain.gz")) {
+  if (!file.exists(file.path(chain_dir, needed))) {
+    stop("Chain file missing: ", file.path(chain_dir, needed), " (run 01_setup_env.sh, which fetches both chains)")
+  }
+}
 Sys.setenv(PIPELINE_DATA_DIR = liftover_data)
 liftover_bin <- Sys.getenv("LIFTOVER_BIN")
 if (nzchar(liftover_bin)) Sys.setenv(PATH = paste(dirname(liftover_bin), Sys.getenv("PATH"), sep = ":"))
@@ -77,31 +81,25 @@ if (any(duplicated37)) {
           paste0(examples$SNP37, " (", examples$REF37, ">", examples$ALT37, ")", collapse = ", "))
 }
 
-# --- GRCh38 positions: one strand-aware liftOver run over every variant
-bed_in <- tempfile(fileext = ".bed")
-bed_out <- tempfile(fileext = ".bed")
-unmapped <- tempfile(fileext = ".unmapped")
-data.table::fwrite(
-  data.table::data.table(paste0("chr", annot$CHR), format(annot$BP37, scientific = FALSE, trim = TRUE),
-                         format(annot$BP37 + 1, scientific = FALSE, trim = TRUE), annot$ROW_ID, 0, "+"),
-  bed_in, sep = "\t", col.names = FALSE, quote = FALSE
-)
-status <- system2(liftover_binary, c(bed_in, file.path(liftover_chain_dir, chain_name), bed_out, unmapped))
-if (status != 0) stop("liftOver failed with exit code ", status)
-lifted <- data.table::fread(bed_out, header = FALSE, colClasses = list(character = c(1, 6)),
-                            col.names = c("CHROM38", "START38", "END38", "ROW_ID", "SCORE", "STRAND38"))
-annot <- merge(annot, lifted[, .(ROW_ID, CHROM38 = sub("^chr", "", CHROM38), START38, STRAND38)],
-               by = "ROW_ID", all.x = TRUE)
-data.table::setorder(annot, ROW_ID)
-
-annot[, LIFT_STATUS := data.table::fcase(
-  is.na(START38), "unmapped",
-  CHROM38 != CHR, "chrom_change",
-  STRAND38 != "+", "strand_flip",
-  default = "ok"
-)]
+# --- GRCh38 positions, with GeneHackman's own liftover (the same function and QC that lift a GWAS)
+# convert_reference_build_via_liftover() keeps a variant only if it maps to the same chromosome on the
+# plus strand and lifts back to where it started; everything else is dropped with a reason, which
+# becomes LIFT_STATUS here (the variant keeps its row and LD, but gets no GRCh38 key).  So a GWAS lifted
+# by GeneHackman and the pack agree on which variants have GRCh38 keys.
+lift_in <- data.frame(CHR = annot$CHR, BP = annot$BP37, EA = annot$EA, OA = annot$OA, ROW_ID = annot$ROW_ID)
+report_prefix <- file.path(raw_dir, "liftover")
+lifted <- suppressMessages(convert_reference_build_via_liftover(
+  lift_in, reference_builds$GRCh37, reference_builds$GRCh38, max_drop_fraction = 1, report_prefix = report_prefix
+))
+dropped <- data.table::fread(paste0(report_prefix, ".liftover_dropped.tsv.gz"), select = c("ROW_ID", "LIFTOVER_DROP_REASON"))
+annot[, LIFT_STATUS := "ok"]
+annot[match(dropped$ROW_ID, ROW_ID), LIFT_STATUS := dropped$LIFTOVER_DROP_REASON]
+annot[LIFT_STATUS == "duplicate_target", LIFT_STATUS := "duplicate_grch38"]
+annot[, BP38 := NA_real_]
+annot[match(lifted$ROW_ID, ROW_ID), BP38 := as.numeric(lifted$BP)]
+stopifnot(all(is.na(annot$BP38) == (annot$LIFT_STATUS != "ok")))
 annot[duplicated37, LIFT_STATUS := "duplicate_grch37"]
-annot[, BP38 := data.table::fifelse(LIFT_STATUS == "ok", as.numeric(START38), NA_real_)]
+annot[LIFT_STATUS != "ok", BP38 := NA_real_]
 
 # --- GRCh38 keys, again via standardise_alleles (alleles are already canonical, so this only formats)
 ok <- annot$LIFT_STATUS == "ok"
@@ -113,20 +111,6 @@ annot[, SNP38 := NA_character_]
 annot[match(std38$ROW_ID, ROW_ID), SNP38 := std38$SNP]
 duplicated38 <- !is.na(annot$SNP38) & (duplicated(annot$SNP38) | duplicated(annot$SNP38, fromLast = TRUE))
 annot[duplicated38, `:=`(LIFT_STATUS = "duplicate_grch38", BP38 = NA_real_, SNP38 = NA_character_)]
-
-# --- cross-check against GeneHackman's own GWAS liftover on a sample
-set.seed(20261028)
-sample_rows <- sort(sample(which(annot$LIFT_STATUS == "ok"), min(200000L, sum(annot$LIFT_STATUS == "ok"))))
-check_in <- data.frame(CHR = annot$CHR[sample_rows], BP = annot$BP37[sample_rows], ROW_ID = annot$ROW_ID[sample_rows])
-check_out <- suppressMessages(convert_reference_build_via_liftover(check_in, reference_builds$GRCh37,
-                                                                   reference_builds$GRCh38))
-check <- merge(data.table::as.data.table(check_out)[, .(ROW_ID, BP_PACKAGE = BP)], annot[, .(ROW_ID, BP38)],
-               by = "ROW_ID")
-n_disagree <- sum(check$BP_PACKAGE != check$BP38)
-n_package_dropped <- length(sample_rows) - nrow(check)
-message(pop, ": liftover cross-check on ", length(sample_rows), " variants: ", n_disagree, " disagree, ",
-        n_package_dropped, " not returned by convert_reference_build_via_liftover()")
-if (n_disagree > 0) stop("GRCh38 positions disagree with convert_reference_build_via_liftover(); not writing keys")
 
 annot[LIFT_STATUS == "duplicate_grch37", SNP37 := NA_character_]
 
@@ -140,10 +124,6 @@ for (chrom in unique(annot$CHR)) {
 }
 lift_counts <- annot[, .N, by = LIFT_STATUS]
 summary_file <- file.path(raw_dir, "annotate_summary.tsv")
-data.table::fwrite(rbind(lift_counts,
-                         data.table::data.table(LIFT_STATUS = c("crosscheck_sampled", "crosscheck_disagree",
-                                                                "crosscheck_dropped_by_package"),
-                                                N = c(length(sample_rows), n_disagree, n_package_dropped))),
-                   summary_file, sep = "\t")
+data.table::fwrite(lift_counts, summary_file, sep = "\t")
 print(lift_counts)
 message(pop, ": wrote ", length(unique(annot$CHR)), " annotated chromosome files to ", raw_dir)

@@ -7,7 +7,7 @@
 populate_eaf_from_ld_pack(
   gwas,
   ancestry,
-  build = reference_builds$GRCh37,
+  build = reference_builds$GRCh38,
   pack_dir = default_ld_pack_dir()
 )
 }

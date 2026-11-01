@@ -14,7 +14,7 @@ parser <- add_argument(parser, "--ancestry",
 parser <- add_argument(parser, "--build",
                        help = "Reference build of the standardised GWAS (GRCh37 or GRCh38)",
                        type = "character",
-                       default = "GRCh37"
+                       default = "GRCh38"
 )
 parser <- add_argument(parser, "--clump_arguments",
                        help = "PLINK-style clumping arguments, e.g. '--clump-p1 5e-8 --clump-r2 0.01 --clump-kb 1000'",

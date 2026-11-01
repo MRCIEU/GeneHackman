@@ -10,7 +10,9 @@ rule standardise_gwases:
         populate_rsid = lambda wildcards: getattr(pipeline, wildcards.prefix).populate_rsid.value,
         ancestry = lambda wildcards: getattr(pipeline, wildcards.prefix).ancestry,
         populate_eaf_flag = lambda wildcards: "TRUE" if getattr(pipeline, wildcards.prefix).populate_eaf else "FALSE",
-        flip_alleles_flag = lambda wildcards: "TRUE" if getattr(pipeline, wildcards.prefix).flip_alleles else "FALSE"
+        flip_alleles_flag = lambda wildcards: "TRUE" if getattr(pipeline, wildcards.prefix).flip_alleles else "FALSE",
+        complement_minus_strand_flag = "TRUE" if pipeline.liftover.complement_minus_strand else "FALSE",
+        check_build_flag = "TRUE" if pipeline.liftover.check_build else "FALSE"
     threads: 8
     resources:
         mem = lambda wildcards: f"{getattr(pipeline, wildcards.prefix).standardised_memory}G",
@@ -37,6 +39,9 @@ rule standardise_gwases:
             --populate_eaf {params.populate_eaf_flag} \
             --ancestry '{params.ancestry}' \
             --ld_reference {pipeline.ld_reference} \
-            --flip_alleles {params.flip_alleles_flag}
+            --flip_alleles {params.flip_alleles_flag} \
+            --complement_minus_strand {params.complement_minus_strand_flag} \
+            --max_liftover_drop_fraction {pipeline.liftover.max_drop_fraction} \
+            --check_build {params.check_build_flag}
         """
 

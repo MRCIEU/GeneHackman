@@ -2,21 +2,23 @@
 % Please edit documentation in R/data_conversions.R
 \name{populate_partial_rsids}
 \alias{populate_partial_rsids}
-\title{Partial RSID population from the 1000 Genomes marker map.
-The marker map is keyed on GRCh37 \code{CHR:BP_A1_A2} identifiers (\code{HG37}). For GRCh38 positions,
-a \code{HG38} column is used if the map has one; otherwise the GRCh37 key is rebuilt from the
-\code{BP37} column that \code{convert_reference_build_via_liftover()} keeps when lifting from GRCh37.}
+\title{Partial RSID population from the 1000 Genomes marker map of the build.
+The GRCh37 map is keyed on \code{CHR:BP_A1_A2} identifiers in GRCh37 (\code{HG37}), the GRCh38 map
+(1000G 30x) on GRCh38 identifiers (\code{HG38}).  For GRCh38 positions without an \code{HG38} map, the
+GRCh37 key is rebuilt from the \code{BP37} column that \code{convert_reference_build_via_liftover()}
+keeps when lifting from GRCh37, and looked up in the GRCh37 map.}
 \usage{
 populate_partial_rsids(
   gwas,
-  build = reference_builds$GRCh37,
-  marker_to_rsid_file = file.path(thousand_genomes_dir, "marker_to_rsid.tsv.gz")
+  build = reference_builds$GRCh38,
+  marker_to_rsid_file = NULL
 )
 }
 \description{
-Partial RSID population from the 1000 Genomes marker map.
-The marker map is keyed on GRCh37 \code{CHR:BP_A1_A2} identifiers (\code{HG37}). For GRCh38 positions,
-a \code{HG38} column is used if the map has one; otherwise the GRCh37 key is rebuilt from the
-\code{BP37} column that \code{convert_reference_build_via_liftover()} keeps when lifting from GRCh37.
+Partial RSID population from the 1000 Genomes marker map of the build.
+The GRCh37 map is keyed on \code{CHR:BP_A1_A2} identifiers in GRCh37 (\code{HG37}), the GRCh38 map
+(1000G 30x) on GRCh38 identifiers (\code{HG38}).  For GRCh38 positions without an \code{HG38} map, the
+GRCh37 key is rebuilt from the \code{BP37} column that \code{convert_reference_build_via_liftover()}
+keeps when lifting from GRCh37, and looked up in the GRCh37 map.
 }
 \keyword{internal}

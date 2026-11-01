@@ -8,7 +8,7 @@ get_ld_matrix_from_pack(
   snps,
   chr,
   ancestry,
-  build = reference_builds$GRCh37,
+  build = reference_builds$GRCh38,
   pack_dir = default_ld_pack_dir()
 )
 }

@@ -56,9 +56,15 @@ populate_rsid: false
 | `ancestry` | **Yes** | LD reference for clumping and fine-mapping. |
 | `N` | **Yes** | GWAS sample size (used for fine-mapping). |
 | `columns` | No | Column map or preset. |
-| `build` | No | Input build. Default `GRCh37`. |
+| `build` | No | Input build. Default `GRCh37`; lifted to `output.build`. |
 | `populate_rsid` | No | Per-GWAS override; default inherits root `false`. |
 | `populate_eaf` | No | Fill missing `EAF` from 1000 Genomes (requires `ancestry`). |
+
+### `output`
+
+| Field | Required | Notes |
+| ----- | -------- | ----- |
+| `output.build` | No | Build of all outputs (GWAS, clumps, fine-mapping, plots, MR and coloc). Default `GRCh38` (`GRCh37` needs the GRCh37 extras download, and QTL data in that build). |
 
 ### `plink_clump_arguments`
 

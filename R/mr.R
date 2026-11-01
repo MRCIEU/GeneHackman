@@ -4,16 +4,20 @@ mr_list_files <- function(dir, pattern, full.names = FALSE) {
 }
 
 #'
-perform_mr_on_metabrain_datasets <- function(gwas_filename, ancestry="EUR", subcategory=NULL, exposures=c(), results_output) {
+perform_mr_on_metabrain_datasets <- function(gwas_filename, ancestry="EUR", subcategory=NULL, exposures=c(), results_output,
+                                             build = reference_builds$GRCh38) {
   file_pattern <- paste0(tolower(subcategory), "_", tolower(ancestry))
-  metabrain_top_hits <- mr_list_files(metabrain_top_hits_dir, pattern = file_pattern, full.names = T)
+  metabrain_top_hits <- mr_list_files(qtl_dataset_dir(qtl_datasets$metabrain, "top_hits", build),
+                                      pattern = file_pattern, full.names = T)
 
   run_mr_on_qtl_data(gwas_filename, qtl_files = metabrain_top_hits, results_output = results_output, exposures = exposures)
 }
 
-perform_mr_on_eqtlgen_datasets <- function(gwas_filename, subcategory=NULL, exposures=c(), results_output) {
+perform_mr_on_eqtlgen_datasets <- function(gwas_filename, subcategory=NULL, exposures=c(), results_output,
+                                           build = reference_builds$GRCh38) {
   file_pattern <- tolower(subcategory)
-  eqtlgen_top_hits <- mr_list_files(eqtlgen_top_hits_dir, pattern = file_pattern, full.names = T)
+  eqtlgen_top_hits <- mr_list_files(qtl_dataset_dir(qtl_datasets$eqtlgen, "top_hits", build),
+                                    pattern = file_pattern, full.names = T)
 
   run_mr_on_qtl_data(gwas_filename, results_output = results_output, qtl_files = eqtlgen_top_hits, exposures = exposures)
 }

@@ -10,7 +10,7 @@ find_index_snp_from_ld_panel(
   window_bp,
   ancestry,
   ld_reference = ld_reference_options$thousand_genomes,
-  build = reference_builds$GRCh37
+  build = reference_builds$GRCh38
 )
 }
 \description{

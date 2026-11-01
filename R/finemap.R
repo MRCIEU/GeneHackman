@@ -56,7 +56,7 @@ finemap_gwas <- function(gwas,
                          min_abs_corr = 0.5,
                          max_region_kb = 3000,
                          ld_reference = ld_reference_options$thousand_genomes,
-                         build = reference_builds$GRCh37) {
+                         build = reference_builds$GRCh38) {
   validate_ld_reference(ld_reference)
   id_column <- ld_reference_id_column(ld_reference)
   use_pack <- ld_reference == ld_reference_options$pan_ukb
@@ -445,10 +445,11 @@ finemap_completion_file <- function(output_finemap_dir, completion_file = NULL) 
 #' @param rsids character vector of RSIDs
 #' @param chr chromosome number
 #' @param ancestry ancestry code (EUR, EAS, etc.)
+#' @param build reference build of the GWAS; selects the 1000 Genomes panel (GRCh38 or GRCh37)
 #' @return list with components \code{matrix} (numeric LD matrix) and
 #'   \code{snps} (character vector of SNP IDs in matrix order), or NULL on failure
-compute_ld_matrix <- function(rsids, chr, ancestry) {
-  bfile <- file.path(thousand_genomes_dir, ancestry)
+compute_ld_matrix <- function(rsids, chr, ancestry, build = reference_builds$GRCh38) {
+  bfile <- file.path(thousand_genomes_dir_for(build, check = TRUE), ancestry)
   tmpdir <- tempdir()
   snp_file <- tempfile(tmpdir = tmpdir, fileext = ".snps")
   out_prefix <- tempfile(tmpdir = tmpdir, pattern = "ld_")

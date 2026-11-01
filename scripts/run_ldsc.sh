@@ -3,13 +3,14 @@ set -e
 source /home/scripts/conda_init.sh
 conda activate ldsc
 
-if [[ $# -ne 4 ]] ; then
+if [[ $# -lt 4 || $# -gt 5 ]] ; then
   echo """
-  You gotta give 4 arguments
+  You gotta give 4 or 5 arguments
   1. Comma separated list of (standardised) GWAS
   2. Comma separated list of Corresponding N (sample size) of GWAS
-  3. Ancestry (ex: EUR)
+  3. Ancestry: the LD score folder (ex: EUR; CSA for South Asian with the Pan-UKB scores)
   4. output file prefix
+  5. LD score directory holding <ancestry>/ and w_hm3.snplist (default: \$PIPELINE_DATA_DIR/LDSCORE/pan_ukb)
   """
   exit 0
 fi
@@ -19,7 +20,8 @@ NS=$2
 ANCESTRY=$3
 OUTPUT=$4
 
-LDSC_DIR=$PIPELINE_DATA_DIR/LDSCORE/b37_dbsnp156
+LDSC_DIR=${5:-$PIPELINE_DATA_DIR/LDSCORE/pan_ukb}
+LDSC_DIR=${LDSC_DIR%/}
 LDSC_DATA=$DATA_DIR/ldsc
 
 N_LIST=(${NS//,/ })
@@ -54,6 +56,14 @@ for gwas in ${GWASES//,/ } ; do
   i=$((i+1))
 done
 
+# LD scores either per chromosome (<ancestry>/1.l2.ldscore.gz ...) or genome-wide in one file
+# (<ancestry>/ld.l2.ldscore.gz, as reference_data/ldscores_pan_ukb writes the Pan-UKB scores)
+if [[ -f "$LDSC_DIR/$ANCESTRY/ld.l2.ldscore.gz" ]]; then
+  LD_SCORE_ARGS=(--ref-ld "$LDSC_DIR/$ANCESTRY/ld" --w-ld "$LDSC_DIR/$ANCESTRY/ld")
+else
+  LD_SCORE_ARGS=(--ref-ld-chr "$LDSC_DIR/$ANCESTRY/" --w-ld-chr "$LDSC_DIR/$ANCESTRY/")
+fi
+
 SUMSTATS_STRING=${SUMSTATS_FILES[@]}
 SUMSTATS_STRING=${SUMSTATS_STRING// /,}
 SUMSTATS_STRING=$(echo $SUMSTATS_STRING| sed '0,/,/{s///}')
@@ -61,16 +71,14 @@ SUMSTATS_STRING=$(echo $SUMSTATS_STRING| sed '0,/,/{s///}')
 if [[ $GWASES =~ "," ]]; then
   python2.7 /home/ldsc/ldsc.py \
     --rg "$SUMSTATS_STRING" \
-    --ref-ld-chr "$LDSC_DIR"/"$ANCESTRY"/ \
-    --w-ld-chr "$LDSC_DIR"/"$ANCESTRY"/ \
+    "${LD_SCORE_ARGS[@]}" \
     --out $OUTPUT_PREFIX
 
     ldsc_rg_log="$OUTPUT_PREFIX".log
 else
   python2.7 /home/ldsc/ldsc.py \
     --h2 "$SUMSTATS" \
-    --ref-ld-chr "$LDSC_DIR"/"$ANCESTRY"/ \
-    --w-ld-chr "$LDSC_DIR"/"$ANCESTRY"/ \
+    "${LD_SCORE_ARGS[@]}" \
     --out $OUTPUT_PREFIX
 fi
 

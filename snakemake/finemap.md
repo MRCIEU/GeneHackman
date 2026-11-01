@@ -52,7 +52,7 @@ Add more entries under `gwases:` for additional traits or ancestries.
 | `ancestry` | **Yes** | LD reference population for clumping and fine-mapping: `AFR`, `AMR`, `EAS`, `EUR`, `SAS` with `ld_reference: 1000genomes`; also `CSA` and `MID` with `ld_reference: pan_ukb` (`SAS` maps to `CSA`). |
 | `N` | Recommended | Sample size passed to SuSiE / MultiSuSiE. |
 | `columns` | No | Column map or preset. |
-| `build` | No | Input build. Default `GRCh37`. |
+| `build` | No | Input build. Default `GRCh37`; lifted to `output.build`. |
 | `populate_rsid` | No | Per-GWAS override; default inherits root `false`. |
 | `populate_eaf` | No | Fill missing `EAF` from 1000 Genomes (requires `ancestry`). |
 
@@ -78,7 +78,7 @@ Add more entries under `gwases:` for additional traits or ancestries.
 | ----- | -------- | ----- |
 | `populate_rsid` | No | Default `false`. With clumping and `false`, RSID population is **partial** unless overridden per GWAS. |
 | `populate_eaf` | No | Default `false`. |
-| `output.build` | No | Target build after standardisation. Default `GRCh37`. |
+| `output.build` | No | Target build after standardisation. Default `GRCh38` (`GRCh37` needs the GRCh37 extras download). |
 | `ld_reference` | No | `1000genomes` (default; PLINK on the 1000 Genomes panel) or `pan_ukb` (precomputed Pan-UKB LD pack, see [PIPELINES.md](../PIPELINES.md#common-conventions)). |
 
 `flip_alleles: false` is **not** allowed.

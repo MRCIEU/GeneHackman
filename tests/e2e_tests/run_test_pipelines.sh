@@ -17,6 +17,12 @@ set -e
 ./run_pipeline.sh snakemake/finemap.smk tests/testthat/data/snakemake_inputs/finemap_multi_ancestry_pan_ukb.yaml -F
 ./run_pipeline.sh snakemake/coloc.smk tests/testthat/data/snakemake_inputs/coloc_pan_ukb.yaml -F
 
+# GRCh37 output (opt-in; needs the GRCh37 extras download), with both LD references
+./run_pipeline.sh snakemake/finemap.smk tests/testthat/data/snakemake_inputs/finemap_grch37.yaml -F
+./run_pipeline.sh snakemake/coloc.smk tests/testthat/data/snakemake_inputs/coloc_grch37.yaml -F
+./run_pipeline.sh snakemake/finemap.smk tests/testthat/data/snakemake_inputs/finemap_pan_ukb_grch37.yaml -F
+./run_pipeline.sh snakemake/coloc.smk tests/testthat/data/snakemake_inputs/coloc_pan_ukb_grch37.yaml -F
+
 if [[ -n "${QTL_DATA_DIR}" ]]; then
   ./run_pipeline.sh snakemake/qtl_mr.smk tests/testthat/data/snakemake_inputs/qtl_mr_eqtlgen.yaml -F
 fi

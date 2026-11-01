@@ -7,7 +7,7 @@
 clump_gwas_with_ld_pack(
   gwas,
   ancestry,
-  build = reference_builds$GRCh37,
+  build = reference_builds$GRCh38,
   clump_arguments = "",
   output_file = NULL,
   pack_dir = default_ld_pack_dir()

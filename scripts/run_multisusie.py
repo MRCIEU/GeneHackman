@@ -98,7 +98,7 @@ def parse_args():
                         help="LD source: 1000 Genomes genotypes via PLINK, or the precomputed Pan-UKB LD pack")
     parser.add_argument("--ld_pack_dir", default=None,
                         help="Pan-UKB LD pack directory (ld_reference pan_ukb)")
-    parser.add_argument("--build", choices=["GRCh37", "GRCh38"], default="GRCh37",
+    parser.add_argument("--build", choices=["GRCh37", "GRCh38"], default="GRCh38",
                         help="Reference build of the standardised GWAS (selects the pack's SNP keys)")
     parser.add_argument("--completion_file", required=True,
                         help="Sentinel file written on success")

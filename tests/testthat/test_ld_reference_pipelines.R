@@ -87,7 +87,7 @@ test_that("ld_reference.standardise_gwas fills EAF from the LD pack without popu
     gwas <- pack_gwas()[1:15]
     expected <- gwas$EAF
     gwas$EAF <- NULL
-    standardised <- standardise_gwas(gwas, populate_eaf = TRUE, ancestry = "EUR", ld_reference = "pan_ukb")
+    standardised <- standardise_gwas(gwas, populate_eaf = TRUE, ancestry = "EUR", ld_reference = "pan_ukb", output_reference_build = reference_builds$GRCh37)
     expect_false("RSID" %in% names(standardised))
     expect_equal(standardised$EAF[match(gwas$SNP, standardised$SNP)], expected)
   })

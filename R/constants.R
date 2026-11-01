@@ -74,8 +74,10 @@ qtl_directory <- sub("/+$", "", get_env_var("QTL_DATA_DIR", ""))
 is_on_cluster <- nzchar(Sys.getenv("SLURM_JOB_ID")) || nzchar(Sys.getenv("PBS_JOBID"))
 
 genomic_data_dir <- file.path(pipeline_data_dir, "genomic_data")
-# Must match snakemake/util/constants.smk THOUSAND_GENOMES_DIR (used by clumping + LD).
-thousand_genomes_dir <- file.path(genomic_data_dir, "1000genomes", "b37_dbsnp156")
+# 1000 Genomes genotype panels (PLINK bfiles, .frq, marker_to_rsid) per reference build; must match
+# thousand_genomes_dir() in snakemake/util/constants.smk.  GRCh38 is the 1000G 30x release (main reference
+# data download); GRCh37 is phase 3 (the optional GRCh37 extras download).
+thousand_genomes_builds <- list(GRCh38 = "b38_dbsnp156", GRCh37 = "b37_dbsnp156")
 # Must match snakemake/util/constants.smk LD_PACK_DIR (precomputed Pan-UKB LD, see reference_data/pan_ukb_ld).
 ld_pack_dir <- file.path(genomic_data_dir, "pan_ukb_ld")
 
@@ -85,13 +87,43 @@ if (!nzchar(liftover_binary)) {
   liftover_binary <- "/usr/local/bin/liftOver"
 }
 pqtl_top_hits_dir <- file.path(qtl_directory, "pqtl")
-metabrain_top_hits_dir <- file.path(qtl_directory, "metabrain", "top_hits")
-metabrain_gwas_dir <- file.path(qtl_directory, "metabrain", "gwas")
-eqtlgen_top_hits_dir <- file.path(qtl_directory, "eqtlgen", "top_hits")
-eqtlgen_gwas_dir <- file.path(qtl_directory, "eqtlgen", "gwas")
 
 qtl_datasets <- list(metabrain="metabrain", eqtlgen="eqtlgen")
 populate_rsid_options <- list(none="none", partial="partial", full="full")
 populate_chr_bp_options <- list(none="none", partial="partial", full="full")
 rsid_builds <- list(GRCh37="b37_dbsnp156", GRCh38="b38_dbsnp156")
 study_types <- list(continuous="continuous", categorical="categorical")
+#' Directory of the 1000 Genomes panel for a reference build.
+#'
+#' @param build reference build of the positions the panel is used with (one of \code{reference_builds})
+#' @param check if TRUE, stop with download instructions when the panel is not installed
+#' @keywords internal
+thousand_genomes_dir_for <- function(build = reference_builds$GRCh38, check = FALSE) {
+  subdir <- thousand_genomes_builds[[build]]
+  if (is.null(subdir)) {
+    stop("No 1000 Genomes panel for reference build ", build, "; available: ",
+         paste(names(thousand_genomes_builds), collapse = ", "))
+  }
+  dir <- file.path(genomic_data_dir, "1000genomes", subdir)
+  if (check && !dir.exists(dir)) {
+    stop("1000 Genomes ", build, " panel not found at ", dir, ". ",
+         if (build == reference_builds$GRCh37) "GRCh37 output needs the GRCh37 extras download (see README.md)."
+         else "Download the reference data (see README.md).")
+  }
+  return(dir)
+}
+
+#' Directories of a QTL dataset's files for a reference build: \verb{QTL_DATA_DIR/<dataset>/<build>/<kind>}.
+#'
+#' @param dataset one of \code{qtl_datasets}
+#' @param kind "top_hits" (MR instruments) or "gwas" (full summary statistics, for coloc)
+#' @param build reference build of the GWAS the QTLs are compared with
+#' @keywords internal
+qtl_dataset_dir <- function(dataset, kind, build = reference_builds$GRCh38) {
+  dir <- file.path(qtl_directory, dataset, build, kind)
+  if (!dir.exists(dir)) {
+    stop("QTL data for ", dataset, " in ", build, " not found at ", dir,
+         ". Download the QTL data for this build (see README.md).")
+  }
+  return(dir)
+}

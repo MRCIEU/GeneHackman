@@ -27,6 +27,11 @@ parser <- add_argument(parser, "--exposures",
                        default = "",
                        nargs = Inf
 )
+parser <- add_argument(parser, "--build",
+                       help = "Reference build of the GWAS; QTL files of the same build are used (GRCh38 or GRCh37)",
+                       type = "character",
+                       default = "GRCh38"
+)
 parser <- add_argument(parser, "--output_file",
                        help = "Output file name of results from MR",
                        type = "character"
@@ -37,7 +42,9 @@ create_dir_for_files(args$output_file)
 exposures <- split_string_into_vector(args$exposures)
 
 if (args$dataset == qtl_datasets$metabrain) {
-  perform_mr_on_metabrain_datasets(args$gwas_filename, args$ancestry, args$subcategory, exposures, args$output_file)
+  perform_mr_on_metabrain_datasets(args$gwas_filename, args$ancestry, args$subcategory, exposures, args$output_file,
+                                   build = args$build)
 } else if (args$dataset == qtl_datasets$eqtlgen) {
-  perform_mr_on_eqtlgen_datasets(args$gwas_filename, args$subcategory, exposures, args$output_file)
+  perform_mr_on_eqtlgen_datasets(args$gwas_filename, args$subcategory, exposures, args$output_file,
+                                 build = args$build)
 }

@@ -34,7 +34,7 @@ parser <- add_argument(parser, "--input_build",
 parser <- add_argument(parser, "--output_build",
                        help = paste(c("Output reference builds, options:", reference_builds), collapse = " "),
                        type = "character",
-                       default = reference_builds$GRCh37
+                       default = reference_builds$GRCh38
 )
 parser <- add_argument(parser, "--populate_rsid",
 											 help = paste(c("Should GWAS Populate RSID, options:", populate_rsid_options), collapse = " "),
@@ -68,6 +68,21 @@ parser <- add_argument(parser, "--flip_alleles",
 											 type = "logical",
 											 default = TRUE
 )
+parser <- add_argument(parser, "--complement_minus_strand",
+                       help = "Liftover: keep non-palindromic minus-strand variants with complemented alleles",
+                       type = "logical",
+                       default = FALSE
+)
+parser <- add_argument(parser, "--max_liftover_drop_fraction",
+                       help = "Liftover: stop if more than this fraction of variants is dropped",
+                       type = "numeric",
+                       default = 0.05
+)
+parser <- add_argument(parser, "--check_build",
+                       help = "Check positions against the Pan-UKB LD pack's GRCh37/GRCh38 keys before lifting",
+                       type = "logical",
+                       default = TRUE
+)
 
 args <- parse_args(parser)
 create_dir_for_files(args$output_gwas)
@@ -85,5 +100,8 @@ invisible(standardise_gwas(
                  populate_eaf = args$populate_eaf,
                  ancestry = args$ancestry,
                  flip_alleles = args$flip_alleles,
-                 ld_reference = args$ld_reference
+                 ld_reference = args$ld_reference,
+                 complement_minus_strand = args$complement_minus_strand,
+                 max_liftover_drop_fraction = args$max_liftover_drop_fraction,
+                 check_build = args$check_build
 ))

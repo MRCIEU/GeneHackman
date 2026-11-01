@@ -10,14 +10,17 @@ standardise_gwas(
   N = 0,
   populate_rsid_option = populate_rsid_options$none,
   input_reference_build = reference_builds$GRCh37,
-  output_reference_build = reference_builds$GRCh37,
+  output_reference_build = reference_builds$GRCh38,
   input_columns = "default",
   output_columns = "default",
   remove_extra_columns = F,
   populate_eaf = FALSE,
   ancestry = NULL,
   flip_alleles = TRUE,
-  ld_reference = ld_reference_options$thousand_genomes
+  ld_reference = ld_reference_options$thousand_genomes,
+  complement_minus_strand = FALSE,
+  max_liftover_drop_fraction = 0.05,
+  check_build = TRUE
 )
 }
 \arguments{
@@ -31,7 +34,7 @@ standardise_gwas(
 
 \item{input_reference_build}{reference build of CHR and BP of data.  Defaults to GRCh37}
 
-\item{output_reference_build}{reference build of CHR and BP of data.  Defaults to GRCh37}
+\item{output_reference_build}{reference build of CHR and BP of the output.  Defaults to GRCh38}
 
 \item{input_columns}{column header map used for renaming GWAS:
 can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values}
@@ -53,9 +56,18 @@ are restored before saving; all internal steps still operate on the canonical
 (alphabetically flipped) representation.}
 
 \item{ld_reference}{reference for \code{populate_eaf}: "1000genomes" or "pan_ukb"}
+
+\item{complement_minus_strand}{liftover: keep non-palindromic variants that map to the minus strand,
+with complemented alleles (by default they are dropped)}
+
+\item{max_liftover_drop_fraction}{liftover: stop if more than this fraction of variants is dropped}
+
+\item{check_build}{if TRUE, check the positions against the Pan-UKB LD pack's GRCh37 and GRCh38 keys
+and stop when they match the other build much better than \code{input_reference_build}}
 }
 \value{
-modified gwas: saves new gwas in output_file if present
+modified gwas: saves new gwas in output_file if present; a liftover QC report is written
+beside it (\verb{<output>.liftover_qc.tsv}, \verb{<output>.liftover_dropped.tsv.gz}) when the build changes
 }
 \description{
 standardise_gwas: takes an input gwas, changes headers, standardises allelic input, adds RSID, makes life easier

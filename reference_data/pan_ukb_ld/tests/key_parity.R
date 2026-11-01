@@ -23,6 +23,9 @@ raw <- data.table(CHR = as.character(gwas$CHR), BP37 = gwas$BP,
 raw <- raw[order(as.integer(CHR), BP37)]
 raw[, IDX_GLOBAL := seq_len(.N) - 1]
 fwrite(raw, file.path(raw_dir, "variants_raw.tsv.gz"), sep = "\t")
+chain_dir <- file.path(work_dir, "liftover_data", "genomic_data", "liftover")
+dir.create(chain_dir, recursive = TRUE, showWarnings = FALSE)
+file.copy(file.path(dirname(Sys.getenv("CHAIN_FILE")), "hg38ToHg19.over.chain.gz"), chain_dir, overwrite = TRUE)
 
 status <- system2(file.path(R.home("bin"), "Rscript"), c(file.path(here, "20_annotate_variants.R"), "--pop", "TST"))
 if (status != 0) stop("20_annotate_variants.R failed")
@@ -31,7 +34,8 @@ annot <- rbindlist(lapply(list.files(raw_dir, "^variants_annot_chr", full.names 
 Sys.setenv(PIPELINE_DATA_DIR = file.path(work_dir, "liftover_data"))
 suppressMessages(pkgload::load_all(gh_dir, quiet = TRUE))
 std37 <- as.data.table(suppressMessages(standardise_gwas(gwas, output_reference_build = "GRCh37")))
-std38 <- as.data.table(suppressMessages(standardise_gwas(gwas, output_reference_build = "GRCh38")))
+std38 <- as.data.table(suppressMessages(standardise_gwas(gwas, output_reference_build = "GRCh38",
+                                                         max_liftover_drop_fraction = 1)))
 hg38_fixture <- fread(file.path(gh_dir, "tests/testthat/data/test_data_small_hg38.tsv.gz"))
 
 report <- function(label, ok) {
@@ -46,8 +50,10 @@ ok <- c(
   report(sprintf("GRCh38 keys: %d of %d standardised (lifted) GWAS keys are pack keys; %d pack variants not ok (%s)",
                  sum(std38$SNP %in% annot$SNP38), nrow(std38), sum(annot$LIFT_STATUS != "ok"),
                  paste(names(table(annot$LIFT_STATUS)), table(annot$LIFT_STATUS), collapse = ", ")),
-         all(std38$SNP[std38$SNP %in% annot$SNP38] %in% annot$SNP38) &&
-           mean(std38$SNP %in% annot$SNP38) > 0.999),
+         all(std38$SNP %in% annot$SNP38)),
+  report(sprintf("every pack GRCh38 key is produced by standardise_gwas(): %d of %d",
+                 sum(annot[LIFT_STATUS == "ok"]$SNP38 %in% std38$SNP), sum(annot$LIFT_STATUS == "ok")),
+         all(annot[LIFT_STATUS == "ok"]$SNP38 %in% std38$SNP)),
   report(sprintf("GRCh38 keys agree with the committed hg38 test GWAS: %d of %d",
                  sum(hg38_fixture$SNP %in% annot$SNP38), nrow(hg38_fixture)),
          mean(hg38_fixture$SNP %in% annot$SNP38) > 0.999)

@@ -107,7 +107,7 @@ test_that("ld_reference.make_ld_positive_semidefinite clips negative eigenvalues
 
 test_that("ld_reference.get_ld_matrix dispatches to PLINK for 1000genomes", {
   local_mocked_bindings(
-    compute_ld_matrix = function(rsids, chr, ancestry) list(matrix = diag(length(rsids)), snps = rsids,
+    compute_ld_matrix = function(rsids, chr, ancestry, ...) list(matrix = diag(length(rsids)), snps = rsids,
                                                              ancestry = ancestry)
   )
   result <- get_ld_matrix(c("rs1", "rs2"), 1, "EUR", ld_reference = "1000genomes")

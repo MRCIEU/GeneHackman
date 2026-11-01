@@ -13,5 +13,5 @@ gwases:
     ancestry: EUR
     populate_eaf: false
 output:
-  build: GRCh37
+  build: GRCh38
 populate_rsid: false

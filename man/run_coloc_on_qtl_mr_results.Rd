@@ -14,7 +14,8 @@ run_coloc_on_qtl_mr_results(
   output_file,
   p1 = 1e-04,
   p2 = 1e-04,
-  p12 = 5e-06
+  p12 = 5e-06,
+  build = reference_builds$GRCh38
 )
 }
 \arguments{
@@ -38,6 +39,8 @@ log Bayes factors ("continuous" or "categorical"); molecular QTL traits are norm
 \item{p2}{prior probability a SNP is associated with the QTL trait}
 
 \item{p12}{prior probability a SNP is associated with both traits}
+
+\item{build}{reference build of the GWAS; the QTL files of the same build are used}
 }
 \description{
 For each significant MR result, loads the finemapped GWAS locus that covers

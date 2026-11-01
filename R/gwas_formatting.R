@@ -4,7 +4,7 @@
 #' @param N sample size of GWAS (if GWAS has defined N column, defaults to that value)
 #' @param populate_rsid_option if you want RSID populated or not
 #' @param input_reference_build reference build of CHR and BP of data.  Defaults to GRCh37
-#' @param output_reference_build reference build of CHR and BP of data.  Defaults to GRCh37
+#' @param output_reference_build reference build of CHR and BP of the output.  Defaults to GRCh38
 #' @param input_columns column header map used for renaming GWAS:
 #'   can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values
 #' @param output_columns column header map used for renaming GWAS:
@@ -19,7 +19,13 @@
 #'   are restored before saving; all internal steps still operate on the canonical
 #'   (alphabetically flipped) representation.
 #' @param ld_reference reference for \code{populate_eaf}: "1000genomes" or "pan_ukb"
-#' @return modified gwas: saves new gwas in output_file if present
+#' @param complement_minus_strand liftover: keep non-palindromic variants that map to the minus strand,
+#'   with complemented alleles (by default they are dropped)
+#' @param max_liftover_drop_fraction liftover: stop if more than this fraction of variants is dropped
+#' @param check_build if TRUE, check the positions against the Pan-UKB LD pack's GRCh37 and GRCh38 keys
+#'   and stop when they match the other build much better than \code{input_reference_build}
+#' @return modified gwas: saves new gwas in output_file if present; a liftover QC report is written
+#'   beside it (\verb{<output>.liftover_qc.tsv}, \verb{<output>.liftover_dropped.tsv.gz}) when the build changes
 
 
 #' @export
@@ -28,14 +34,17 @@ standardise_gwas <- function(gwas,
                              N=0,
                              populate_rsid_option=populate_rsid_options$none,
                              input_reference_build=reference_builds$GRCh37,
-                             output_reference_build=reference_builds$GRCh37,
+                             output_reference_build=reference_builds$GRCh38,
                              input_columns="default",
                              output_columns="default",
                              remove_extra_columns=F,
                              populate_eaf=FALSE,
                              ancestry=NULL,
                              flip_alleles=TRUE,
-                             ld_reference=ld_reference_options$thousand_genomes) {
+                             ld_reference=ld_reference_options$thousand_genomes,
+                             complement_minus_strand=FALSE,
+                             max_liftover_drop_fraction=0.05,
+                             check_build=TRUE) {
   input_gwas_columns <- resolve_column_map(input_columns)
   output_gwas_columns <- resolve_column_map(output_columns)
 
@@ -46,8 +55,19 @@ standardise_gwas <- function(gwas,
   gwas <- get_file_or_dataframe(gwas) |>
     change_column_names(input_gwas_columns, remove_extra_columns) |>
     standardise_columns(N) |>
-    filter_incomplete_rows() |>
-    convert_reference_build_via_liftover(input_reference_build, output_reference_build)
+    filter_incomplete_rows()
+
+  if (isTRUE(check_build)) {
+    check_declared_build(gwas, input_reference_build)
+  }
+  report_prefix <- NULL
+  if (!missing(output_file) && shiny::isTruthy(output_file)) {
+    report_prefix <- sub("\\.(tsv|txt|csv)(\\.gz)?$", "", output_file)
+  }
+  gwas <- convert_reference_build_via_liftover(gwas, input_reference_build, output_reference_build,
+                                               complement_minus_strand = complement_minus_strand,
+                                               max_drop_fraction = max_liftover_drop_fraction,
+                                               report_prefix = report_prefix)
 
   gwas <- standardise_alleles(gwas)
 

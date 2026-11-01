@@ -93,6 +93,7 @@ The build is meant to run on **ieup1**, in `WORK_DIR=/local-scratch/data/pan_ukb
 | Progress, disk and last log lines | `reference_data/pan_ukb_ld/run_build.sh status` |
 | Logs | `$WORK_DIR/logs/`: `run_build_<date>.log`, per-stage `<POP>_<stage>.log`, Hail logs |
 | Resume | start the same `run_in_tmux.sh …` command again (if the old tmux session is still there, `tmux kill-session -t ldpack` first) |
+| Refresh GRCh38 keys | `run_build.sh update-keys [POP ...]` after the build: re-runs stage 20 with the current GeneHackman liftover and rewrites `variants_chr*.tsv.gz` (LD untouched) |
 
 **Changing settings after a stage has run:** LD chromosomes record the settings they were built with, and `full` rebuilds any built with other `RADIUS_KB`, `DEADZONE`, `MAF_MIN` or `CHUNK_ROWS`. Other stages stop with a message naming the marker and outputs to remove. Settings are never silently mixed.
 
@@ -121,9 +122,10 @@ Every setting can be overridden with an environment variable or in `local_config
 |---|---|
 | `05_fetch_source.py` | download tables; plan or download the needed LD blocks; delete blocks |
 | `10_extract_variants.py` | Hail: join the variant index to AF, keep biallelic autosomal MAF ≥ 1% variants |
-| `20_annotate_variants.R` | GeneHackman `standardise_alleles()` for EA/OA/EAF/SNP37; liftOver to GRCh38 (strand-aware, cross-checked against `convert_reference_build_via_liftover()`) for SNP38 |
+| `20_annotate_variants.R` | GeneHackman `standardise_alleles()` for EA/OA/EAF/SNP37; GeneHackman's `convert_reference_build_via_liftover()` (with its liftover QC) for BP38/SNP38 |
 | `30_extract_ld.py` | Hail: read r, cut the ±radius band, orient, quantise, compress, checkpoint; `dense` for the phase 0 region |
 | `40_finalise_pack.py` | `info.tsv`, `MANIFEST.json` with checksums, the pack README |
+| `45_update_pack_keys.py` | copy re-annotated GRCh38 keys into a finished pack without touching its LD (`run_build.sh update-keys`) |
 | `50_validate_pack.py` | structure checks, and sampled chunks byte-identical to re-reading the source |
 | `60_phase0_report.py`, `61_compare_1000g.py`, `62_truncation_finemap.R` | phase 0 measurements |
 | `ldpack_writer.py` | the pack writer (the reader is `scripts/ld_reference.py`) |

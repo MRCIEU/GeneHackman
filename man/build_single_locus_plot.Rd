@@ -13,7 +13,7 @@ build_single_locus_plot(
   index_snp,
   trait_label,
   ld_reference = ld_reference_options$thousand_genomes,
-  build = reference_builds$GRCh37
+  build = reference_builds$GRCh38
 )
 }
 \description{

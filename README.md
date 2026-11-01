@@ -27,7 +27,7 @@ There are **six** Snakemake pipelines (grouped as two tables of three). Each pip
 | standardise_gwas.smk                                  | compare_gwases.smk                                                        | disease_progression.smk                                               |
 |-------------------------------------------------------|---------------------------------------------------------------------------|----------------------------------------------------------------------|
 | Takes in any of: VCF, CSV, TSV, TXT (also zip/gz)     | Runs **standardise_gwas** for each GWAS, then pairwise comparison tooling | Runs **standardise_gwas** for incident and subsequent GWASes        |
-| Optional liftover (e.g. GRCh38 → GRCh37)              | PLINK clumping                                                           | Runs collider-bias-aware analyses (e.g. SlopeHunter, MR-IVW) and compares results |
+| Liftover with QC to GRCh38 (default) or GRCh37        | PLINK clumping                                                           | Runs collider-bias-aware analyses (e.g. SlopeHunter, MR-IVW) and compares results |
 | Optional RSID and EAF fill from reference panels      | Heterogeneity across GWASes; LDSC *h*² and *r*<sub>g</sub>                | Miami plots of unadjusted vs adjusted GWAS                          |
 | Converts z-scores and odds ratios to BETA/SE          | Expected vs observed replication metrics                                 | Expected vs observed (before and after collider adjustment)          |
 | Harmonised SNP ID = `CHR:BP_EA_OA` (EA/OA sorted)     | HTML report of LDSC, plots, and tables                                    | HTML report; optional instructions to refit subsequent GWAS from collider output    |
@@ -62,15 +62,23 @@ conda activate genehackman
 
 ### 3. Download reference data
 
-Reference files (1000 Genomes LD panels, liftover chains, LDSC weights) are hosted on Google Cloud Storage under a **version prefix** that matches the pipeline release, e.g. `gs://genehackman/1.1.0. [Install gsutil](https://docs.cloud.google.com/storage/docs/gsutil_install) if needed.
+Reference files (1000 Genomes LD panels, dbSNP RSID maps, liftover chains, LD scores) are hosted on Google Cloud Storage under a **version prefix** that matches the pipeline release, e.g. `gs://genehackman/1.2.0`. [Install gsutil](https://docs.cloud.google.com/storage/docs/gsutil_install) if needed.
 
-**Required for most pipelines**
+**Required for most pipelines** (GRCh38: outputs are GRCh38 by default from release 1.2.0)
 
 ```bash
-gsutil -m rsync -r "gs://genehackman/1.1.0/" /path/to/my_pipeline_data/
+gsutil -m rsync -r "gs://genehackman/1.2.0/" /path/to/my_pipeline_data/
 ```
 
 Set `PIPELINE_DATA_DIR=/path/to/my_pipeline_data/` in `.env`.
+
+**Optional: GRCh37 extras** (only for `output.build: GRCh37`): the 1000 Genomes phase 3 panel, the GRCh37 dbSNP RSID map and the earlier GRCh37 LD scores, into the same directory:
+
+```bash
+gsutil -m rsync -r "gs://genehackman/1.2.0-grch37/" /path/to/my_pipeline_data/
+```
+
+Release 1.1.0 (GRCh37 only) stays at `gs://genehackman/1.1.0/` for reproducing earlier results.
 
 **Pan-UKB LD pack** (for `ld_reference: pan_ukb`, and needed by the end-to-end tests)
 
@@ -79,10 +87,10 @@ Precomputed LD from the Pan-UK Biobank for six ancestries, built with [`referenc
 **Optional — QTL MR pipeline only**
 
 ```bash
-gsutil -m rsync -r "gs://genehackman-qtl/1.1.0/" /path/to/my_qtl_data/
+gsutil -m rsync -r "gs://genehackman-qtl/1.2.0/" /path/to/my_qtl_data/
 ```
 
-Set `QTL_DATA_DIR=/path/to/my_qtl_data/`, or place QTL data under `PIPELINE_DATA_DIR/qtl_datasets/` (see [PLATFORM_SETUP.md](PLATFORM_SETUP.md)).
+QTL data are kept per build (`<dataset>/GRCh38/...` and `<dataset>/GRCh37/...`), and the pipeline uses the one matching `output.build`. Set `QTL_DATA_DIR=/path/to/my_qtl_data/`, or place QTL data under `PIPELINE_DATA_DIR/qtl_datasets/` (see [PLATFORM_SETUP.md](PLATFORM_SETUP.md)).
 
 Example `.env` paths:
 
@@ -106,7 +114,7 @@ Variables match [.env_example](.env_example):
 | Variable | Purpose |
 |----------|---------|
 | **`PROJECT_DIR`** | Root folder for this analysis. The pipeline writes inputs under **`PROJECT_DIR/data/`** and results under **`PROJECT_DIR/results/`**. |
-| **`PIPELINE_DATA_DIR`** | Directory containing **`genomic_data/`** and **`LDSCORE/`** (from step 3). Also used for the Apptainer image cache: **`PIPELINE_DATA_DIR/genomic_data/pipeline/genehackman_<version>.sif`**, where `<version>` comes from **`DOCKER_VERSION`** or defaults to **`Version:`** in [`DESCRIPTION`](DESCRIPTION). Download reference data from **`gs://genehackman/1.1.0/`** with the same version string. If the SIF is missing and the directory is writable, `run_pipeline.sh` builds it from `docker://mrcieu/genehackman:<version>`. |
+| **`PIPELINE_DATA_DIR`** | Directory containing **`genomic_data/`** and **`LDSCORE/`** (from step 3). Also used for the Apptainer image cache: **`PIPELINE_DATA_DIR/genomic_data/pipeline/genehackman_<version>.sif`**, where `<version>` comes from **`DOCKER_VERSION`** or defaults to **`Version:`** in [`DESCRIPTION`](DESCRIPTION). Download reference data from **`gs://genehackman/<version>/`** with the same version string. If the SIF is missing and the directory is writable, `run_pipeline.sh` builds it from `docker://mrcieu/genehackman:<version>`. |
 
 **Optional**
 

@@ -217,7 +217,7 @@ ld_pack_matrix_for_rows <- function(rows, chr, ancestry, pack_dir = default_ld_p
 #'   plus \code{beyond_band_fraction}: the share of variant pairs further apart than the stored
 #'   radius, which are returned as r = 0; or NULL when fewer than two keys are in the pack
 #' @keywords internal
-get_ld_matrix_from_pack <- function(snps, chr, ancestry, build = reference_builds$GRCh37,
+get_ld_matrix_from_pack <- function(snps, chr, ancestry, build = reference_builds$GRCh38,
                                     pack_dir = default_ld_pack_dir()) {
   variants <- load_ld_pack_variants(chr, ancestry, pack_dir)
   key_column <- ld_pack_key_column(build)
@@ -270,17 +270,18 @@ make_ld_positive_semidefinite <- function(R, tolerance = -1e-6) {
 #' @param ids variant identifiers: GeneHackman SNP keys for \code{pan_ukb}, RSIDs for \code{1000genomes}
 #' @param chr chromosome
 #' @param ancestry ancestry code
-#' @param build reference build of the SNP keys (only used for \code{pan_ukb})
+#' @param build reference build of the GWAS: the SNP key column for \code{pan_ukb}, the 1000 Genomes panel
+#'   for \code{1000genomes}
 #' @param ld_reference one of \code{ld_reference_options}
 #' @return list with \code{matrix} and \code{snps} (identifiers in matrix order), or NULL on failure
 #' @keywords internal
-get_ld_matrix <- function(ids, chr, ancestry, build = reference_builds$GRCh37,
+get_ld_matrix <- function(ids, chr, ancestry, build = reference_builds$GRCh38,
                           ld_reference = ld_reference_options$thousand_genomes) {
   validate_ld_reference(ld_reference)
   if (ld_reference == ld_reference_options$pan_ukb) {
     return(get_ld_matrix_from_pack(ids, chr, ancestry, build, default_ld_pack_dir()))
   }
-  return(compute_ld_matrix(ids, chr, resolve_ld_ancestry(ancestry, ld_reference)))
+  return(compute_ld_matrix(ids, chr, resolve_ld_ancestry(ancestry, ld_reference), build))
 }
 
 #' Identifier column used to match a GWAS to the LD reference.

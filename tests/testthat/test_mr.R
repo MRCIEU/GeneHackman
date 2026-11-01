@@ -4,7 +4,8 @@ test_that("mr.perform_mr_on_pqtl_datasets runs cis only mr against a gwas", {
   local_mocked_bindings(
     mr_list_files = function(dir, pattern, full.names) {
       return("data/some_eqtlgen_hits.tsv.gz")
-    }
+    },
+    qtl_dataset_dir = function(dataset, kind, build) file.path("qtl", dataset, build, kind)
   )
   perform_mr_on_eqtlgen_datasets("data/test_data_small.tsv.gz", results_output = mr_results)
 

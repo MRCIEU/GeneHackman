@@ -2,7 +2,7 @@ test_that("finemap.finemap_gwas stops when sample size cannot be resolved", {
   # Mock LD so we reach the N check; otherwise plink failure skips the locus
   # before default_n is validated.
   local_mocked_bindings(
-    compute_ld_matrix = function(rsids, chr, ancestry) {
+    compute_ld_matrix = function(rsids, chr, ancestry, ...) {
       n <- length(rsids)
       list(matrix = diag(n), snps = rsids)
     }
@@ -79,7 +79,8 @@ test_that("finemap.compute_ld_matrix returns NULL when plink fails", {
     run_system = function(command, wait = TRUE, intern = FALSE,
                           ignore.stdout = FALSE, ignore.stderr = FALSE) {
       1L
-    }
+    },
+    thousand_genomes_dir_for = function(...) tempdir()
   )
   expect_null(compute_ld_matrix(c("rs1", "rs2"), 1L, "EUR"))
 })
@@ -119,7 +120,7 @@ test_that("finemap.run_susie_for_locus maps per-CS LBF_k and credible sets", {
 
 test_that("finemap.finemap_gwas runs end-to-end with mocked LD and SuSiE", {
   local_mocked_bindings(
-    compute_ld_matrix = function(rsids, chr, ancestry) {
+    compute_ld_matrix = function(rsids, chr, ancestry, ...) {
       n <- length(rsids)
       list(matrix = diag(n), snps = rsids)
     },
@@ -279,7 +280,7 @@ test_that("finemap.define_finemap_regions caps merged regions without overlappin
 
 test_that("finemap.finemap_gwas fine-maps nearby leads once and writes region and credible-set tables", {
   local_mocked_bindings(
-    compute_ld_matrix = function(rsids, chr, ancestry) {
+    compute_ld_matrix = function(rsids, chr, ancestry, ...) {
       n <- length(rsids)
       list(matrix = diag(n), snps = rsids)
     },
