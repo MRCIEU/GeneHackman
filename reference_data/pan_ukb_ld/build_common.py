@@ -228,11 +228,37 @@ def download_files(store, items, dest_root, strip_prefix, logger, threads=16, re
 
 # --------------------------------------------------------------------------- Hail
 
+def limit_hail_retries(max_tries=5):
+    """Make Hail give up after a few failed calls to its Java backend instead of retrying forever.
+
+    Hail retries every "transient" error, including "Connection refused", with no limit; when the Java process
+    has died (usually out of memory) that turns into an endless retry loop.  With a limit the error reaches the
+    build script, which stops; every finished chunk is checkpointed, so a restart resumes where it stopped."""
+    import hail.backend.py4j_backend as backend
+    from hailtop.utils import is_transient_error
+
+    def bounded_retry(f, *args, **kwargs):
+        for attempt in range(1, max_tries + 1):
+            try:
+                return f(*args, **kwargs)
+            except KeyboardInterrupt:
+                raise
+            except Exception as error:  # noqa: BLE001 - same contract as hailtop's retry helper
+                if attempt == max_tries or not is_transient_error(error):
+                    raise
+                time.sleep(min(2 ** attempt, 30))
+
+    backend.sync_retry_transient_errors = bounded_retry
+
+
 def init_hail(paths, log_name):
     import hail as hl
+    limit_hail_retries(int(env("HAIL_MAX_TRIES", "5")))
     cores = env("HAIL_CORES", "8")
     memory = env("HAIL_DRIVER_MEMORY", "32g")
-    os.environ.setdefault("PYSPARK_SUBMIT_ARGS", f"--driver-memory {memory} pyspark-shell")
+    # -XX:+ExitOnOutOfMemoryError: on running out of memory the JVM exits at once (and the hail log says so)
+    os.environ.setdefault("PYSPARK_SUBMIT_ARGS", f"--driver-memory {memory} "
+                          f"--driver-java-options -XX:+ExitOnOutOfMemoryError pyspark-shell")
     os.makedirs(paths.tmp, exist_ok=True)
     hl.init(master=f"local[{cores}]", quiet=True, tmp_dir=paths.tmp, local_tmpdir=paths.tmp,
             log=os.path.join(paths.logs, f"hail_{log_name}_{time.strftime('%Y%m%d_%H%M%S')}.log"),

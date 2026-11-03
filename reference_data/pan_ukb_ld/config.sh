@@ -13,7 +13,8 @@ export MAF_MIN="${MAF_MIN:-0.01}"          # keep variants with minor allele fre
 export RADIUS_KB="${RADIUS_KB:-1000}"      # store r for variant pairs at most this far apart (GRCh37)
 export DEADZONE="${DEADZONE:-0.02}"        # store |r| below this as 0
 export CHUNK_ROWS="${CHUNK_ROWS:-2048}"    # rows per compressed chunk in the pack
-export FETCH_ROWS="${FETCH_ROWS:-8192}"    # rows fetched from the source matrix per Hail job
+export FETCH_ROWS="${FETCH_ROWS:-4096}"    # rows fetched from the source matrix per Hail job (memory ~ rows x (rows + 2 x variants per Mb))
+export EXTRACT_ATTEMPTS="${EXTRACT_ATTEMPTS:-5}"  # restarts of the LD extraction after a crash (each resumes from checkpoints)
 
 # Source: Pan-UKB LD release, public AWS bucket (anonymous access).  SOURCE_URI may also be a local
 # directory laid out like the bucket (used by the tests).

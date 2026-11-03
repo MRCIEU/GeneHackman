@@ -145,6 +145,21 @@ remaining_chroms() {  # chromosomes with kept variants whose LD is not finished 
   echo "$out"
 }
 
+# Run the LD extraction, restarting it (with a fresh Hail/Java process) if it crashes, e.g. out of memory.
+# Every finished chunk is checkpointed, so each attempt carries on where the previous one stopped.
+extract_with_restarts() {
+  local pop="$1" attempt status; shift
+  for (( attempt = 1; attempt <= EXTRACT_ATTEMPTS; attempt++ )); do
+    status=0
+    "$PY" "$HERE/30_extract_ld.py" band --pop "$pop" --chroms "$@" 2>&1 | tee -a "$WORK_DIR/logs/${pop}_ld.log" || status=$?
+    [[ $status -eq 0 ]] && return 0
+    log "$pop: LD extraction stopped (exit $status, attempt $attempt of $EXTRACT_ATTEMPTS); restarting from the checkpoints"
+    sleep 30
+  done
+  log "ERROR: $pop LD extraction failed $EXTRACT_ATTEMPTS times. See $WORK_DIR/logs/${pop}_ld.log and the latest hail_ld_${pop}_*.log"
+  exit 1
+}
+
 full() {
   check_environment
   local pops
@@ -162,8 +177,7 @@ full() {
       if [[ -n "${todo// /}" ]]; then
         # shellcheck disable=SC2086
         run_stage blocks_all "$pop" ld "$PY" "$HERE/05_fetch_source.py" blocks --pop "$pop" --chroms $todo
-        # shellcheck disable=SC2086
-        "$PY" "$HERE/30_extract_ld.py" band --pop "$pop" --chroms $todo 2>&1 | tee -a "$WORK_DIR/logs/${pop}_ld.log"
+        extract_with_restarts "$pop" $todo
         # shellcheck disable=SC2086
         run_stage validate_all "$pop" ld "$PY" "$HERE/50_validate_pack.py" --pop "$pop" --chroms $todo
       fi

@@ -70,7 +70,7 @@ def run_band(args, paths, logger, hl):
     pop = args.pop
     radius_bp = int(float(env("RADIUS_KB", "1000")) * 1000)
     chunk_rows = int(env("CHUNK_ROWS", "2048"))
-    fetch_rows = int(env("FETCH_ROWS", "8192"))
+    fetch_rows = int(env("FETCH_ROWS", "4096"))
     deadzone = float(env("DEADZONE", "0.02"))
     bm = BlockMatrix.read(paths.block_matrix(pop))
     pop_pack = os.path.join(paths.pack, pop)
@@ -104,7 +104,14 @@ def run_band(args, paths, logger, hl):
             r0, r1 = writer.bounds[group[0]][0], writer.bounds[group[-1]][1]
             c_end = max(writer.column_end(k) for k in group)
             fetch_start = time.time()
-            rect = bm.filter(gidx[r0:r1].tolist(), gidx[r0:c_end].tolist()).to_numpy()
+            try:
+                rect = bm.filter(gidx[r0:r1].tolist(), gidx[r0:c_end].tolist()).to_numpy()
+            except Exception as error:  # noqa: BLE001 - report and stop; finished chunks are checkpointed
+                logger.error(f"{pop} chr{chrom}: reading rows {r0:,}-{r1:,} failed ({type(error).__name__}: {error}). "
+                             f"If the hail log in {paths.logs} ends in OutOfMemoryError, lower FETCH_ROWS "
+                             f"(now {fetch_rows}) or raise HAIL_DRIVER_MEMORY. Finished chunks are kept; "
+                             f"re-running resumes here.")
+                sys.exit(4)
             fetch_seconds = time.time() - fetch_start
             for k in group:
                 k0, k1 = writer.bounds[k]
