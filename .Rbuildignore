@@ -19,3 +19,4 @@ venv
 ^\.cursorrules$
 ^reference_data$
 ^tests/python$
+^REVISION1_HANDOFF\.md$
