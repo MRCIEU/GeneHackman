@@ -18,9 +18,17 @@ export NEW_QTL_DATA_DIR="${NEW_QTL_DATA_DIR:-$WORK_DIR/qtl_1.2.0}"
 export GPM_STUDIES="${GPM_STUDIES:-/local-scratch/projects/genotype-phenotype-map/results/1.0.0/studies_processed.tsv.gz}"
 export GPM_GENE_RANGES="${GPM_GENE_RANGES:-/local-scratch/projects/genotype-phenotype-map/data/gene_ranges_hg38.tsv}"
 
-# 1000 Genomes 30x on GRCh38 (NYGC; Byrska-Bishop et al. 2022): phased SNV/INDEL/SV panel
+# 1000 Genomes 30x on GRCh38 (NYGC; Byrska-Bishop et al. 2022).  Two sources of the same release:
+#   plink2: PLINK 2's prebuilt all_hg38 fileset (3,202 people, multiallelic sites split; ~5 GB download).  Default.
+#   vcf:    the per-chromosome phased SNV/INDEL/SV panel VCFs from the 1000 Genomes FTP (~30 GB download).
+export KG30X_SOURCE="${KG30X_SOURCE:-plink2}"
+export PLINK2_HG38_PGEN_URL="${PLINK2_HG38_PGEN_URL:-https://www.dropbox.com/s/j72j6uciq5zuzii/all_hg38.pgen.zst?dl=1}"
+export PLINK2_HG38_PVAR_URL="${PLINK2_HG38_PVAR_URL:-https://www.dropbox.com/scl/fi/id642dpdd858uy41og8qi/all_hg38_rs_noannot.pvar.zst?rlkey=sskyiyam1bsqweujjmxqv1h55&dl=1}"
+export PLINK2_HG38_PSAM_URL="${PLINK2_HG38_PSAM_URL:-https://www.dropbox.com/scl/fi/u5udzzaibgyvxzfnjcvjc/hg38_corrected.psam?rlkey=oecjnk4vmbhc8b1p202l0ih4x&dl=1}"
 export KG30X_URL="${KG30X_URL:-https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000G_2504_high_coverage/working/20220422_3202_phased_SNV_INDEL_SV}"
-export KG30X_FILE_PATTERN="${KG30X_FILE_PATTERN:-1kGP_high_coverage_Illumina.chr{CHR}.filtered.SNV_INDEL_SV_phased_panel.vcf.gz}"
+# (the default goes through a variable: a literal "{CHR}" inside ${...:-...} would end the expansion at its "}")
+_kg30x_file_pattern='1kGP_high_coverage_Illumina.chr{CHR}.filtered.SNV_INDEL_SV_phased_panel.vcf.gz'
+export KG30X_FILE_PATTERN="${KG30X_FILE_PATTERN:-$_kg30x_file_pattern}"
 # The 2,504 unrelated phase 3 samples with their populations (the same people as GeneHackman's GRCh37 panel)
 export KG_PANEL_URL="${KG_PANEL_URL:-https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel}"
 export SUPERPOPULATIONS="${SUPERPOPULATIONS:-EUR EAS AFR AMR SAS}"

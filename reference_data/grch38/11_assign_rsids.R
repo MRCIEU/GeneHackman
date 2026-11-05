@@ -30,9 +30,18 @@ variants <- unique(rbindlist(lapply(bims, fread, header = FALSE, select = c(1, 2
                                     colClasses = list(character = c(1, 2, 5, 6)))))
 message(nrow(variants), " distinct variants across ", length(bims), " population/chromosome files")
 
-with_rsid <- as.data.table(chrpos_to_rsid(variants, "CHR", "BP", "A1", "A2", flip = "allow",
-                                          build = basename(dbsnp_dir), dbsnp_dir = dirname(dbsnp_dir),
-                                          parallel_cores = max(1, parallel::detectCores() %/% 2)))
+# one forked process per chromosome (chrpos_to_rsid's own parallelism starts new R sessions, which can't load a
+# GeneHackman that is only load_all()ed)
+cores <- as.integer(Sys.getenv("THREADS", "8"))
+per_chrom <- parallel::mclapply(split(variants, by = "CHR"), function(d) {
+  as.data.table(chrpos_to_rsid(d, "CHR", "BP", "A1", "A2", flip = "allow", build = basename(dbsnp_dir),
+                               dbsnp_dir = dirname(dbsnp_dir), parallel_cores = 1, verbose = FALSE))
+}, mc.cores = cores, mc.preschedule = FALSE)
+failed <- vapply(per_chrom, function(x) inherits(x, "try-error"), logical(1))
+if (any(failed)) stop("rsID lookup failed for chromosome(s) ", paste(names(per_chrom)[failed], collapse = ", "), ": ",
+                      per_chrom[[which(failed)[1]]])
+with_rsid <- rbindlist(per_chrom)
+message(sum(!is.na(with_rsid$RSID)), " of ", nrow(with_rsid), " variants have a dbSNP 156 rsID")
 with_rsid <- with_rsid[!is.na(RSID)]
 shared <- with_rsid[, .N, by = RSID][N > 1, RSID]
 with_rsid <- with_rsid[!RSID %in% shared]

@@ -10,8 +10,9 @@ https://pan.ukbb.broadinstitute.org/docs/ld), and writes for each population
 and $BUNDLE_DIR/LDSCORE/pan_ukb/w_hm3.snplist (copied from the GRCh37 LD score set; it is keyed by rsID).
 
 LDSC matches variants on rsID, so the scores work with GRCh37 and GRCh38 GWAS alike.  The archive's layout and
-SNP column aren't documented, so the script looks for one *.l2.ldscore.gz per population and, if its SNP column
-is not rsIDs, maps CHR:BP:REF:ALT (GRCh37) to rsIDs with the Pan-UKB LD pack's RSID_UKB column.  It prints what
+SNP column aren't documented, so the script picks each population's single-annotation scores (UKBB.<POP>.rsid.l2...,
+else UKBB.<POP>.l2...; the stratified 8LDMS/25LDMS sets are skipped) and, if the SNP column is not rsIDs, maps
+CHR:BP:REF:ALT (GRCh37) to rsIDs with the Pan-UKB LD pack's RSID_UKB column.  It prints what
 it found; check that output (see RUNBOOK.md).
 """
 
@@ -33,11 +34,22 @@ def env(name, default=None):
 
 
 def find_population_files(extract_dir, pop):
-    files = glob.glob(os.path.join(extract_dir, "**", f"*{pop}*.l2.ldscore.gz"), recursive=True)
-    if len(files) != 1:
-        raise SystemExit(f"{pop}: expected one *{pop}*.l2.ldscore.gz in the archive, found {files}")
-    prefix = files[0][: -len(".l2.ldscore.gz")]
-    return prefix
+    """The single-annotation LD scores of a population: (ldscore file, prefix of its .l2.M files).
+
+    The archive (UKBB.ALL.ldscore/) has, per population, UKBB.<POP>.l2.ldscore.gz (SNP = CHR:BP:REF:ALT),
+    UKBB.<POP>.rsid.l2.ldscore.gz (the same scores with SNP = rsID) and UKBB.<POP>.l2.M / .l2.M_5_50, plus MAF/LD
+    stratified sets (<POP>.8LDMS, <POP>.25LDMS) for S-LDSC, which are not used.  The rsID file is preferred."""
+    def matches(pattern):
+        files = glob.glob(os.path.join(extract_dir, "**", pattern), recursive=True)
+        return [f for f in files if "LDMS" not in os.path.basename(f)]
+    for pattern in (f"*.{pop}.rsid.l2.ldscore.gz", f"*.{pop}.l2.ldscore.gz", f"*{pop}*.l2.ldscore.gz"):
+        files = matches(pattern)
+        if len(files) == 1:
+            ldscore = files[0]
+            return ldscore, ldscore[: -len(".l2.ldscore.gz")].replace(".rsid", "")
+        if len(files) > 1:
+            raise SystemExit(f"{pop}: expected one {pattern} in the archive, found {files}")
+    raise SystemExit(f"{pop}: no *{pop}*.l2.ldscore.gz in the archive")
 
 
 def rsid_lookup(pack_dir, pop):
@@ -52,9 +64,9 @@ def rsid_lookup(pack_dir, pop):
     return dict(zip(keys, table["RSID_UKB"]))
 
 
-def convert_population(prefix, pop, out_dir, pack_dir):
-    scores = pd.read_csv(prefix + ".l2.ldscore.gz", sep=r"\s+")
-    print(f"{pop}: {os.path.basename(prefix)}.l2.ldscore.gz, {len(scores):,} rows, columns {list(scores.columns)}")
+def convert_population(ldscore_file, prefix, pop, out_dir, pack_dir):
+    scores = pd.read_csv(ldscore_file, sep=r"\s+")
+    print(f"{pop}: {os.path.basename(ldscore_file)}, {len(scores):,} rows, columns {list(scores.columns)}")
     print(scores.head(3).to_string(index=False))
     snp_column = "SNP" if "SNP" in scores.columns else next(c for c in scores.columns if c.lower() in ("rsid", "snp"))
     l2_columns = [c for c in scores.columns if c.endswith("L2")]
@@ -116,7 +128,7 @@ def main():
     else:
         print(f"WARNING: {snplist_source} not found: copy w_hm3.snplist into {out_dir} by hand", file=sys.stderr)
     for pop in POPULATIONS:
-        out = convert_population(find_population_files(extract_dir, pop), pop, out_dir, pack_dir)
+        out = convert_population(*find_population_files(extract_dir, pop), pop, out_dir, pack_dir)
         if hm3:
             print(f"{pop}: {out['SNP'].isin(hm3).mean():.1%} of the LD score SNPs are in w_hm3.snplist")
     return 0

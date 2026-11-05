@@ -35,8 +35,10 @@ panel37 <- file.path(old_data, "genomic_data", "1000genomes", "b37_dbsnp156", po
 read_panel <- function(prefix) {
   bim <- fread(paste0(prefix, ".bim"), header = FALSE, col.names = c("CHR", "RSID", "CM", "BP", "A1", "A2"),
                colClasses = list(character = c(1, 2, 5, 6)))
-  frq <- fread(paste0(prefix, ".frq"), select = c("SNP", "A1", "MAF"))
-  bim[, EAF := frq$MAF[match(RSID, frq$SNP)]]  # A1 is the alphabetical EA, and .frq gives the A1 frequency
+  frq <- fread(paste0(prefix, ".frq"), select = c("SNP", "A1", "MAF"), colClasses = list(character = c("SNP", "A1")))
+  # .bim A1 is the alphabetical EA; .frq A1 is the minor allele (PLINK 1.9 --freq), so flip MAF where they differ
+  i <- match(bim$RSID, frq$SNP)
+  bim[, EAF := ifelse(frq$A1[i] == A1, frq$MAF[i], 1 - frq$MAF[i])]
   bim[, KEY := toupper(paste0(CHR, ":", BP, "_", pmin(A1, A2), "_", pmax(A1, A2)))]
   bim
 }

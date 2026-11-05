@@ -21,16 +21,9 @@ When you're done, send me `$WORK_DIR/validation_report.md`, the output of step 3
 
 ---
 
-## 0. Set up, without disturbing the running pack build
+## 0. Set up
 
-The Pan-UKB pack build is running from `/home/wt23152/GeneHackman` in tmux. **Don't `git pull` in that checkout while it runs**: bash reads `run_build.sh` as it goes, and changing it under a running script can break the build. Use a second checkout instead:
-
-```bash
-cd /home/wt23152/GeneHackman
-git fetch origin                     # after pushing feature/1.1.1-reviewer-feedback from the laptop
-git worktree add ../GeneHackman_grch38 origin/feature/1.1.1-reviewer-feedback
-cd ../GeneHackman_grch38
-```
+Work in `/home/wt23152/GeneHackman`. If a Pan-UKB pack build is still running from that checkout, use a second checkout instead (`git worktree add ../GeneHackman_grch38 feature/1.1.1-reviewer-feedback`): bash reads `run_build.sh` as it goes, so changing the code under a running build can break it.
 
 Create the tools environment (plink2, PLINK 1.9, bcftools). R comes from the GeneHackman container, as for the pack build:
 
@@ -50,17 +43,19 @@ export LD_PACK_DIR=/local-scratch/data/pan_ukb_ld/pack
 export R_CMD="apptainer exec --bind /local-scratch,/home/wt23152,/path/to/data /local-scratch/data/pan_ukb_ld/genehackman_develop.sif Rscript"
 export PATH=/local-scratch/data/genehackman_grch38/env/bin:$PATH
 export THREADS=16
+# optional: PLINK2=/usr/local/bin/plink2 (any recent plink2 works), PLINK19=<plink 1.9 binary or wrapper>
 ```
 
 R loads GeneHackman from this checkout (`GENEHACKMAN_DIR`), so the container only has to provide the R packages. Make sure every directory above is in the apptainer `--bind` list.
 
-**In every new shell**, from `GeneHackman_grch38`, run `source reference_data/grch38/config.sh`. The R and Python steps read their settings from the environment, and apptainer passes it through.
+**In every new shell**, from the checkout, run `source reference_data/grch38/config.sh`. The R and Python steps read their settings from the environment, and apptainer passes it through.
 
 Check that the download links still work. The scripts use these URLs. If one has moved, set the matching variable in `local_config.sh`; the names are in `config.sh`.
 
 ```bash
 source reference_data/grch38/config.sh
-curl -sI "$KG30X_URL/${KG30X_FILE_PATTERN//\{CHR\}/22}" | head -1    # 1000G 30x phased panel, chr22
+curl -sIL "$PLINK2_HG38_PSAM_URL" | grep -i "^HTTP" | tail -1        # PLINK 2's 1000G 30x fileset (KG30X_SOURCE=plink2)
+curl -sI "$KG30X_URL/${KG30X_FILE_PATTERN//\{CHR\}/22}" | head -1    # 1000G 30x phased panel VCF, chr22 (KG30X_SOURCE=vcf)
 curl -sI "$KG_PANEL_URL" | head -1                                   # 2,504-person panel file
 curl -sI "$PAN_UKB_LDSCORE_URL" | head -1                            # Pan-UKB LD scores
 curl -sI https://hgdownload.soe.ucsc.edu/goldenPath/hg18/liftOver/hg18ToHg38.over.chain.gz | head -1
@@ -80,7 +75,7 @@ cat("b37 files:", sort(list.files(old)), "\nb38 files:", sort(list.files(new)), 
 for (d in c(old, new)) { f <- fst::fst(file.path(d, "chr22.fst")); print(names(f)); print(head(f[1:3, ])) }'
 ```
 
-Both should have the same columns (`RSID`, `CHR`, `BP`, `REF`, `ALT`, …) and the same file names, including `chr23`/`chr24` if the b37 set has them. rs4965031 is a quick check: it is at chr22 16052080 in GRCh37 and should sit about 0.5 Mb lower in GRCh38. If the layout differs, stop and send me the output.
+Both should have the same columns (`RSID`, `CHR`, `BP`, `REF`, `ALT`, …) and the same file names, including `chr23`/`chr24` if the b37 set has them. rs4965031 is a quick check: it is at chr22 16052080 in GRCh37 and sits about 126 kb lower in GRCh38, near 15.93 Mb (that region of chr22 is also inverted relative to GRCh37, so the strand may flip). If the layout differs, stop and send me the output.
 
 ## 2. Build the GRCh38 1000 Genomes panel
 
@@ -89,7 +84,7 @@ tmux new -s grch38
 bash reference_data/grch38/10_build_1000g_panel.sh 2>&1 | tee $WORK_DIR/panel.log
 ```
 
-This builds the panel from the 1000G 30x phased panel (native GRCh38), with the same rules as today's GRCh37 panel:
+This builds the panel from the 1000G 30x release (native GRCh38; Byrska-Bishop et al. 2022). By default (`KG30X_SOURCE=plink2`) it downloads PLINK 2's prebuilt `all_hg38` fileset of that release once (~4 GB, 3,202 people, multiallelic sites split into biallelic records) instead of 22 per-chromosome VCFs (~30 GB); `KG30X_SOURCE=vcf` uses the VCFs. Either way, it applies the same rules as today's GRCh37 panel:
 
 - the 2,504 unrelated people;
 - autosomes;
@@ -102,7 +97,9 @@ It writes `$WORK_DIR/bundle_1.2.0/genomic_data/1000genomes/b38_dbsnp156/{EUR,EAS
 - People should be EUR 503, EAS 504, AFR 661, AMR 347 and SAS 489, the same as the GRCh37 panel.
 - Variant counts should be close to the GRCh37 panel's, for example EUR about 8.5 M.
 
-Once the panel is checked (step 6), you can delete `$WORK_DIR/1000g_30x/vcf` and `pgen`.
+Once the panel is checked (step 6), you can delete `$WORK_DIR/1000g_30x/` except `state/` (the downloads and per-chromosome files).
+
+If the disk is slow, `$WORK_DIR/1000g_30x` can be a symlink to a directory in `/dev/shm` (it peaks at about 30 GB with the PLINK 2 source); only the finished panel is written to `$BUNDLE_DIR`.
 
 ## 3. Import the Pan-UKB LD scores
 
@@ -153,17 +150,15 @@ The pipeline reads `<dataset>/<build>/` according to `output.build`.
 The pack's GRCh38 keys were made with the old liftover, which had no round-trip check. Re-annotating with GeneHackman's new liftover makes them match a GWAS lifted by GeneHackman exactly. The LD files aren't touched. Only once `run_build.sh status` shows every ancestry finished:
 
 ```bash
-cd /home/wt23152/GeneHackman_grch38          # the new code
-bash reference_data/pan_ukb_ld/01_setup_env.sh   # fetches hg38ToHg19 (for the round trip) into the pack's WORK_DIR
+# the round trip needs hg38ToHg19 next to the pack build's chains
+cp $OLD_PIPELINE_DATA_DIR/genomic_data/liftover/hg38ToHg19.over.chain.gz /local-scratch/data/pan_ukb_ld/liftover_data/genomic_data/liftover/
 bash reference_data/pan_ukb_ld/run_build.sh update-keys     # all ancestries; or: update-keys EUR
 bash reference_data/pan_ukb_ld/run_build.sh status
 ```
 
-`logs/update_keys_<POP>.log` shows the `LIFT_STATUS` counts before and after for each chromosome. Expect `round_trip` to appear, at about 0.03% of variants.
+`logs/update_keys_<POP>.log` shows the `LIFT_STATUS` counts before and after for each chromosome. Expect `round_trip` (about 0.005% of variants) and `non_primary_contig` to appear, with row counts unchanged.
 
-`01_setup_env.sh` re-runs quickly when the environment already exists. If you'd rather not run it, copy `hg38ToHg19.over.chain.gz` into `/local-scratch/data/pan_ukb_ld/liftover_data/genomic_data/liftover/`.
-
-When this has finished, you can switch the original checkout to the new code: `cd /home/wt23152/GeneHackman && git pull`.
+Done on ieup1 on 4 Nov 2026 (see REVISION1_PLAN.md, part A1).
 
 ## 6. Validation report
 
@@ -172,7 +167,9 @@ $R_CMD reference_data/grch38/40_validate_grch38.R --pop EUR --chrom 22
 $R_CMD reference_data/grch38/40_validate_grch38.R --pop EAS --chrom 22   # optional, other ancestries
 ```
 
-This writes `$WORK_DIR/validation_report.md`. What to expect:
+This writes `$WORK_DIR/validation_report.md`; each run overwrites it, so copy it aside between populations. The script runs inside the container (`$R_CMD`), so `PLINK19` must be a PLINK 1.9 that works there: set `PLINK19=plink1.9`, not a wrapper that calls `apptainer`. Before step 7, `BUNDLE_DIR` holds only the panel and LD scores; to check a live data dir instead, set `BUNDLE_DIR` to it.
+
+What to expect:
 
 1. **Pan-UKB GRCh38 keys vs the native GRCh38 panel.** This is the first check of the pack's lifted keys against native GRCh38 data. Most pack keys should be in the panel, with EAF r > 0.95 and almost no |EAF difference| > 0.2.
 2. **GeneHackman liftover vs native positions.** The GRCh37 panel is lifted with the new liftover and compared by rsID. Expect close to 100% the same position.
