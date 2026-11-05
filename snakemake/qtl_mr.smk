@@ -26,7 +26,13 @@ if qtl_study_type not in ("continuous", "categorical"):
     raise ValueError(f"qtl.study_type must be 'continuous' or 'categorical', not '{qtl_study_type}'")
 qtl_n = getattr(qtl_opts, "N", 0)
 
-qtl_name = pipeline.qtl.dataset + "_" + pipeline.qtl.subcategory
+qtl_dataset = getattr(qtl_opts, "dataset", "")
+if qtl_dataset not in qtl_dataset_options:
+    raise ValueError(f"qtl.dataset must be one of {qtl_dataset_options}, not '{qtl_dataset}'")
+# Only cis QTLs are supported; subcategory is optional and kept for older input files
+if (getattr(qtl_opts, "subcategory", None) or qtl_subcategory) != qtl_subcategory:
+    raise ValueError(f"qtl.subcategory: only '{qtl_subcategory}' QTLs are supported, not '{qtl_opts.subcategory}'")
+qtl_name = qtl_dataset + "_" + qtl_subcategory
 if not hasattr(pipeline.qtl, "exposures"): pipeline.qtl.exposures = []
 exposures_string = " ".join(pipeline.qtl.exposures)
 
@@ -61,16 +67,13 @@ rule run_mr_against_qtl_datasets:
     input:
         gwas = gwas.standardised_gwas
     params:
-        ancestry = gwas.ancestry,
         exposures = f"--exposures {exposures_string}" if exposures_string else ""
     output: mr_results
     shell:
         """
         Rscript run_mr_against_qtl_data.R \
             --gwas_filename {input.gwas} \
-            --ancestry {params.ancestry} \
-            --dataset {pipeline.qtl.dataset} \
-            --subcategory {pipeline.qtl.subcategory} {params.exposures} \
+            --dataset {qtl_dataset} {params.exposures} \
             --build {pipeline.output.build} \
             --output_file {output}
         """
@@ -85,7 +88,7 @@ rule create_volcano_plot_of_mr_results:
         """
         Rscript volcano.R \
             --results_filename {input} \
-            --title "Volcano Plot of MR results against {pipeline.qtl.dataset}" \
+            --title "Volcano Plot of MR results against {qtl_dataset} cis QTLs" \
             --output_file {output}
         """
 
@@ -115,7 +118,7 @@ rule run_coloc_analysis_of_significant_mr_results:
             --p1 {params.p1} \
             --p2 {params.p2} \
             --p12 {params.p12} \
-            --dataset {pipeline.qtl.dataset} {params.exposures} \
+            --dataset {qtl_dataset} {params.exposures} \
             --build {pipeline.output.build} \
             --output_file {output}
         """

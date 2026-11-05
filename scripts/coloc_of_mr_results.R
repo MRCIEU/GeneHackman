@@ -26,7 +26,6 @@ parser <- add_argument(parser, "--exposures",
 )
 parser <- add_argument(parser, "--dataset",
                        help = paste(c("QTL dataset, options:", qtl_datasets), collapse = " "),
-                       default = "exposure",
                        type = "character"
 )
 parser <- add_argument(parser, "--p1",

@@ -86,9 +86,12 @@ liftover_binary <- Sys.which("liftOver")
 if (!nzchar(liftover_binary)) {
   liftover_binary <- "/usr/local/bin/liftOver"
 }
-pqtl_top_hits_dir <- file.path(qtl_directory, "pqtl")
-
-qtl_datasets <- list(metabrain="metabrain", eqtlgen="eqtlgen")
+# QTL datasets, cis QTLs only, each kept per build at QTL_DATA_DIR/<dataset>/<build>/{top_hits,gwas}/cis...
+# (built from the genotype-phenotype-map 1.0.0 study data by reference_data/grch38/31_qtl_from_gpm.R).
+# Must match qtl_dataset_options in snakemake/util/constants.smk.
+qtl_datasets <- list(eqtlgen="eqtlgen", brainmeta="brainmeta", ukb_pqtl="ukb_pqtl")
+# Only cis QTLs are used as instruments: trans QTLs are too often pleiotropic for MR.
+qtl_subcategory <- "cis"
 populate_rsid_options <- list(none="none", partial="partial", full="full")
 populate_chr_bp_options <- list(none="none", partial="partial", full="full")
 rsid_builds <- list(GRCh37="b37_dbsnp156", GRCh38="b38_dbsnp156")

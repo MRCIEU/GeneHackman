@@ -24,7 +24,9 @@ set -e
 ./run_pipeline.sh snakemake/coloc.smk tests/testthat/data/snakemake_inputs/coloc_pan_ukb_grch37.yaml -F
 
 if [[ -n "${QTL_DATA_DIR}" ]]; then
-  ./run_pipeline.sh snakemake/qtl_mr.smk tests/testthat/data/snakemake_inputs/qtl_mr_eqtlgen.yaml -F
+  for qtl_dataset in eqtlgen brainmeta ukb_pqtl; do
+    ./run_pipeline.sh snakemake/qtl_mr.smk "tests/testthat/data/snakemake_inputs/qtl_mr_${qtl_dataset}.yaml" -F
+  done
 fi
 
 branch_name=$(git rev-parse --abbrev-ref HEAD)

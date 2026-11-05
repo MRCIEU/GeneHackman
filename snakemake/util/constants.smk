@@ -119,6 +119,9 @@ def thousand_genomes_dir(build):
 # Precomputed Pan-UKB LD (built by reference_data/pan_ukb_ld); used when a pipeline sets ld_reference: pan_ukb
 LD_PACK_DIR = format_dir_string(GENOMIC_DATA_DIR + "pan_ukb_ld")
 ld_reference_options = ["1000genomes", "pan_ukb"]
+# QTL datasets for qtl_mr (cis QTLs only); must match qtl_datasets in R/constants.R
+qtl_dataset_options = ["eqtlgen", "brainmeta", "ukb_pqtl"]
+qtl_subcategory = "cis"
 default_ld_reference = "1000genomes"
 thousand_genomes_ancestries = ["EUR", "EAS", "AFR", "AMR", "SAS"]
 pan_ukb_ancestries = ["EUR", "AFR", "AMR", "CSA", "EAS", "MID"]

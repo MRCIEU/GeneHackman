@@ -19,8 +19,7 @@ finemap:
   coverage: 0.95
   min_abs_corr: 0.5
 qtl:
-  dataset: ""
-  subcategory: ""
+  dataset: ""            # eqtlgen, brainmeta or ukb_pqtl (cis QTLs)
   exposures: []
   study_type: continuous
 populate_rsid: false

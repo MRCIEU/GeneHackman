@@ -4,8 +4,7 @@ gwases:
     ancestry: EUR
 plink_clump_arguments: "--clump-p1 0.00000005"
 qtl:
-  dataset: metabrain
-  subcategory: cortex
+  dataset: ukb_pqtl
   exposures: []
 populate_rsid: false
 is_test: true

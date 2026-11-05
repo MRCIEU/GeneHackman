@@ -5,6 +5,6 @@ gwases:
 plink_clump_arguments: "--clump-p1 0.00000005"
 qtl:
   dataset: eqtlgen
-  subcategory: cis
+  exposures: []
 populate_rsid: false
 is_test: true

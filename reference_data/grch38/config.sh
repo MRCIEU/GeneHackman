@@ -12,9 +12,11 @@ export OLD_PIPELINE_DATA_DIR="${OLD_PIPELINE_DATA_DIR:-}"
 export DBSNP_B38_DIR="${DBSNP_B38_DIR:-}"
 # The finished Pan-UKB LD pack (for the build check and the GRCh38 key concordance check)
 export LD_PACK_DIR="${LD_PACK_DIR:-/local-scratch/data/pan_ukb_ld/pack}"
-# QTL data in the 1.1.0 layout (<dataset>/top_hits, <dataset>/gwas), to be lifted
-export OLD_QTL_DATA_DIR="${OLD_QTL_DATA_DIR:-}"
+# QTL data (cis only): built from the genotype-phenotype map 1.0.0 study data into
+# NEW_QTL_DATA_DIR/<dataset>/<build>/{top_hits,gwas}
 export NEW_QTL_DATA_DIR="${NEW_QTL_DATA_DIR:-$WORK_DIR/qtl_1.2.0}"
+export GPM_STUDIES="${GPM_STUDIES:-/local-scratch/projects/genotype-phenotype-map/results/1.0.0/studies_processed.tsv.gz}"
+export GPM_GENE_RANGES="${GPM_GENE_RANGES:-/local-scratch/projects/genotype-phenotype-map/data/gene_ranges_hg38.tsv}"
 
 # 1000 Genomes 30x on GRCh38 (NYGC; Byrska-Bishop et al. 2022): phased SNV/INDEL/SV panel
 export KG30X_URL="${KG30X_URL:-https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000G_2504_high_coverage/working/20220422_3202_phased_SNV_INDEL_SV}"

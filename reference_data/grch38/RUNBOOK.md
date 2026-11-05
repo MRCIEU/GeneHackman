@@ -10,7 +10,7 @@ Each step is resumable: re-running a command skips finished work. Run the long s
 | 1 | Check the dbSNP GRCh38 files | 5 min | — |
 | 2 | Build the 1000G 30x GRCh38 panel | 0.5–1 day | ~60 GB temporary, ~10 GB kept |
 | 3 | Import the Pan-UKB LD scores | 30 min | ~5 GB |
-| 4 | Make GRCh38 copies of the QTL data | hours | as large as the QTL data |
+| 4 | Build the QTL data (GRCh38, then a GRCh37 copy) | 3–4 h | ~4 GB per build |
 | 5 | Refresh the Pan-UKB pack's GRCh38 keys (after the pack build) | 1–2 h per ancestry | — |
 | 6 | Validation report | 30 min | — |
 | 7 | Assemble bundle 1.2.0 and the GRCh37 extras | 30 min | hard links, ~0 |
@@ -47,7 +47,6 @@ export WORK_DIR=/local-scratch/data/genehackman_grch38
 export OLD_PIPELINE_DATA_DIR=/path/to/genehackman_1.1.0_reference_data   # has genomic_data/ and LDSCORE/
 export DBSNP_B38_DIR=/path/to/b38_dbsnp156                              # chr1.fst ... (step 1)
 export LD_PACK_DIR=/local-scratch/data/pan_ukb_ld/pack
-export OLD_QTL_DATA_DIR=/path/to/genehackman_qtl_1.1.0                  # eqtlgen/, metabrain/
 export R_CMD="apptainer exec --bind /local-scratch,/home/wt23152,/path/to/data /local-scratch/data/pan_ukb_ld/genehackman_develop.sif Rscript"
 export PATH=/local-scratch/data/genehackman_grch38/env/bin:$PATH
 export THREADS=16
@@ -121,30 +120,33 @@ This writes `bundle_1.2.0/LDSCORE/pan_ukb/<POP>/ld.l2.ldscore.gz` (+ `.M`, `.M_5
 
 If the script stops because it can't find one file per population, send me the "Archive contents" line.
 
-## 4. GRCh38 copies of the QTL data
+## 4. QTL data from the genotype-phenotype map
+
+GeneHackman 1.2.0 uses the cis QTLs of three datasets, all taken from the genotype-phenotype map 1.0.0 standardised study data (GRCh38, EUR, before imputation and fine-mapping): eQTLGen (blood eQTLs), BrainMeta (brain eQTLs) and UKB-PPP (plasma pQTLs). MetaBrain and trans QTLs are no longer supported.
 
 ```bash
-CHAIN_DIR=$OLD_PIPELINE_DATA_DIR/genomic_data/liftover \
-  $R_CMD reference_data/grch38/30_lift_qtl_data.R --datasets eqtlgen,metabrain --cores $THREADS
+GENEHACKMAN_DIR=$PWD $R_CMD reference_data/grch38/31_qtl_from_gpm.R --cores $THREADS                 # GRCh38, ~2 h
+GENEHACKMAN_DIR=$PWD CHAIN_DIR=$OLD_PIPELINE_DATA_DIR/genomic_data/liftover \
+  $R_CMD reference_data/grch38/30_lift_qtl_data.R --from GRCh38 --to GRCh37 --cores $THREADS          # GRCh37 copy
 ```
 
-For each dataset, the script:
+For each study, `31_qtl_from_gpm.R`:
 
-1. works out the build of the files by matching variants against the pack (eQTLGen should be GRCh37; MetaBrain is unknown);
-2. lifts GRCh37 files with GeneHackman's liftover and QC, or copies files already in GRCh38;
-3. writes `$NEW_QTL_DATA_DIR/<dataset>/GRCh38/{top_hits,gwas}/...`, with a `liftover_summary.tsv`.
+1. takes the study's cis leads (`cis_trans == "cis"` in `extracted_snps.tsv`). For UKB-PPP, a lead must also lie within 1 Mb of the gene, the usual pQTL cis definition. The genotype-phenotype map's own cis label is wider: about 14% of its UKB-PPP cis leads are 1–5 Mb away from the gene.
+2. joins the leads' standardised LD-block regions into `gwas/cis/<EXPOSURE>.tsv.gz` (for coloc);
+3. adds every cis lead with P < 5e-8 to `top_hits/cis.tsv.gz` as an MR instrument, with its rsID from dbSNP b38.
 
-Then put the GRCh37 originals beside them as hard links, which use no extra disk:
+It writes `$NEW_QTL_DATA_DIR/<dataset>/GRCh38/{top_hits,gwas}/...`, `exposures.tsv` (status per study) and `summary.tsv`. Expect about these counts:
 
-```bash
-for d in eqtlgen metabrain; do cp -al "$OLD_QTL_DATA_DIR/$d" "$NEW_QTL_DATA_DIR/$d/GRCh37"; done
-# keep anything else in the old QTL directory (e.g. pqtl/) as it was
-for item in "$OLD_QTL_DATA_DIR"/*; do
-  name=$(basename "$item"); [[ "$name" == eqtlgen || "$name" == metabrain ]] || cp -al "$item" "$NEW_QTL_DATA_DIR/"
-done
-```
+| Dataset | Studies | With a cis lead | Exposures with an instrument |
+|---|---|---|---|
+| eqtlgen | 18,280 | 16,917 | 14,630 |
+| brainmeta | 16,729 | 16,711 | 15,287 |
+| ukb_pqtl | 2,850 | 2,364 (323 more leads dropped as > 1 Mb from the gene) | 1,658 |
 
-The new layout is `<dataset>/<build>/{top_hits,gwas}`, which the pipeline now reads using `output.build`.
+`30_lift_qtl_data.R` then lifts every file to `<dataset>/GRCh37/` with GeneHackman's liftover QC, and writes `liftover_summary.tsv`. Expect well under 1% of variants to be dropped.
+
+The pipeline reads `<dataset>/<build>/` according to `output.build`.
 
 ## 5. Refresh the Pan-UKB pack's GRCh38 keys (after the pack build has finished)
 

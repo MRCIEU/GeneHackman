@@ -23,7 +23,7 @@ run_coloc_on_qtl_mr_results(
 
 \item{finemap_dir}{directory containing finemapped GWAS locus files}
 
-\item{qtl_dataset}{QTL dataset name (metabrain or eqtlgen)}
+\item{qtl_dataset}{QTL dataset name, one of \code{qtl_datasets}}
 
 \item{study_type}{study type of the QTL trait, used to convert the QTL summary statistics to
 log Bayes factors ("continuous" or "categorical"); molecular QTL traits are normally continuous}

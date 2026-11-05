@@ -55,7 +55,7 @@ run_coloc_on_list_of_datasets <- function(first_gwas_list=list(),
 #'
 #' @param mr_results_file MR results file
 #' @param finemap_dir directory containing finemapped GWAS locus files
-#' @param qtl_dataset QTL dataset name (metabrain or eqtlgen)
+#' @param qtl_dataset QTL dataset name, one of \code{qtl_datasets}
 #' @param study_type study type of the QTL trait, used to convert the QTL summary statistics to
 #'   log Bayes factors ("continuous" or "categorical"); molecular QTL traits are normally continuous
 #' @param exposures optional character vector of exposures to filter
@@ -86,7 +86,7 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
     dplyr::filter(p.adjusted < 0.05)
 
   if (length(exposures) > 0) {
-    mr_results <- subset(mr_results, exposure %in% exposures)
+    mr_results <- dplyr::filter(mr_results, EXPOSURE %in% exposures)
   }
 
   empty_result <- tibble::tibble(
@@ -139,18 +139,10 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
 #' Load the QTL GWAS file for an MR result row
 #' @keywords internal
 load_qtl_gwas_for_mr_result <- function(mr_result, qtl_dataset, build = reference_builds$GRCh38) {
-  if (qtl_dataset == qtl_datasets$metabrain) {
-    outcome <- unlist(strsplit(mr_result[["outcome"]], "_"))
-    brain_region <- outcome[1]
-    ancestry <- toupper(outcome[2])
-    qtl_gwas_file <- paste0(qtl_dataset_dir(qtl_datasets$metabrain, "gwas", build), "/", brain_region, "/",
-                            mr_result[["EXPOSURE"]], "_", ancestry, ".tsv.gz")
-  } else if (qtl_dataset == qtl_datasets$eqtlgen) {
-    qtl_gwas_file <- paste0(qtl_dataset_dir(qtl_datasets$eqtlgen, "gwas", build), "/", mr_result[["outcome"]], "/",
-                            mr_result[["EXPOSURE"]], ".tsv.gz")
-  } else {
-    stop("Error: qtl dataset not supported for coloc right now")
-  }
+  check_qtl_dataset(qtl_dataset)
+  # gwas/<top hits file prefix, i.e. cis>/<EXPOSURE>.tsv.gz: the exposure's cis region
+  qtl_gwas_file <- file.path(qtl_dataset_dir(qtl_dataset, "gwas", build), mr_result[["outcome"]],
+                             paste0(mr_result[["EXPOSURE"]], ".tsv.gz"))
 
   if (!file.exists(qtl_gwas_file)) {
     message(paste("QTL GWAS file not found:", qtl_gwas_file))

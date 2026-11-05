@@ -1,6 +1,6 @@
 # qtl_mr
 
-Standardise, clump, and fine-map **one** outcome GWAS, run Mendelian randomization against a QTL panel, plot MR results, and run colocalisation on significant MR hits.
+Standardise, clump, and fine-map **one** outcome GWAS, run Mendelian randomization against the **cis** QTLs of a QTL dataset, plot MR results, and run colocalisation on significant MR hits.
 
 **Workflow file:** [`qtl_mr.smk`](qtl_mr.smk)
 
@@ -41,8 +41,7 @@ finemap:
   coverage: 0.95
   min_abs_corr: 0.5
 qtl:
-  dataset: metabrain
-  subcategory: cortex
+  dataset: eqtlgen
   exposures: []
   study_type: continuous
 populate_rsid: false
@@ -86,8 +85,8 @@ populate_rsid: false
 
 | Field | Required | Notes |
 | ----- | -------- | ----- |
-| `qtl.dataset` | **Yes** | QTL source, e.g. `metabrain`, `eqtlgen`. |
-| `qtl.subcategory` | **Yes** | Sub-panel, e.g. `cortex` (MetaBrain) or `cis` (eQTLGen). Combined with `dataset` in output names. |
+| `qtl.dataset` | **Yes** | QTL dataset: `eqtlgen`, `brainmeta` or `ukb_pqtl` (see [QTL datasets](#qtl-datasets)). |
+| `qtl.subcategory` | No | Only `cis` is supported (the default). Trans QTLs are not offered: they are too often pleiotropic to be MR instruments. |
 | `qtl.exposures` | No | List of exposure names to test; if empty (`[]`), all exposures in the panel are run. |
 | `qtl.study_type` | No | Trait type of the **QTL** data, used to convert QTL summary statistics to log Bayes factors in the coloc step: `continuous` (default; expression and protein levels) or `categorical`. |
 | `qtl.N` | No | QTL sample size, used in the coloc step only when the QTL files have no `N` column. If neither is available, coloc is skipped for that exposure. |
@@ -100,12 +99,17 @@ populate_rsid: false
 | `coloc.p2` | No | Prior: SNP associated with the QTL trait. Default `1e-4`. |
 | `coloc.p12` | No | Prior: SNP associated with both traits. Default `5e-6`. |
 
-**Example subcategories:**
+### QTL datasets
 
-| `dataset` | Example `subcategory` values |
-| --------- | ------------------------------ |
-| `metabrain` | `basalganglia`, `cerebellum`, `cortex`, `hippocampus`, `spinalcord` |
-| `eqtlgen` | `cis` |
+All three are cis QTLs in European-ancestry samples. They are kept in GRCh38 and GRCh37 (`QTL_DATA_DIR/<dataset>/<build>/`), and the pipeline uses the build matching `output.build`. They were built from the standardised (pre-imputation) study data of the genotype-phenotype map 1.0.0 by [`reference_data/grch38/31_qtl_from_gpm.R`](../reference_data/grch38/31_qtl_from_gpm.R).
+
+| `dataset` | Exposures | Tissue | N used | Source |
+| --------- | --------- | ------ | - | ------ |
+| `eqtlgen` | gene expression (cis-eQTLs) | blood | 27,750 | eQTLGen (Võsa et al., *Nat Genet* 2021) |
+| `brainmeta` | gene expression (cis-eQTLs) | brain (meta-analysis) | 2,443 | BrainMeta v2 (Qi et al., *Nat Genet* 2022) |
+| `ukb_pqtl` | plasma protein levels (cis-pQTLs, ±1 Mb of the gene) | plasma | 34,557 | UK Biobank Pharma Proteomics Project (Sun et al., *Nature* 2023) |
+
+Instruments are each exposure's cis lead variants with P < 5e-8, one per LD block. An exposure with several instruments gets an IVW estimate, otherwise a Wald ratio. For coloc, the QTL summary statistics of the lead's LD block are used. N is one value per dataset, as recorded by the genotype-phenotype map (eQTLGen's per-variant N, up to 31,684, is not available there).
 
 ### Root fields
 
@@ -121,14 +125,14 @@ populate_rsid: false
 1. Standardise outcome GWAS
 2. PLINK clump
 3. SuSiE RSS fine-mapping (`run_finemap.R`)
-4. MR vs QTL panel (`run_mr_against_qtl_data.R`)
+4. MR vs the cis QTLs of the dataset (`run_mr_against_qtl_data.R`)
 5. Volcano plot of MR results
 6. Coloc on significant MR results (GWAS LBF vs QTL LBF from `convert_z_to_lbf`)
 7. HTML report
 
 ## Output
 
-Let `<prefix>` = outcome GWAS file prefix, `<qtl>` = `{dataset}_{subcategory}`.
+Let `<prefix>` = outcome GWAS file prefix, `<qtl>` = `{dataset}_cis`.
 
 ### Data (`data/`)
 
