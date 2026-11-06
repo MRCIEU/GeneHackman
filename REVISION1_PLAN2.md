@@ -13,7 +13,7 @@ Each part can be started on its own ("start part C4"), in this order:
 | Part | What | Needs | Rough time |
 |---|---|---|---|
 | **C0** | Get the code onto ieup1 | Branch pushed, or a bundle | 10 min |
-| **C1** | Container 1.2.0: EnsDb v86, version checks | C0 | 1–2 h (build) |
+| **C1** | Check the existing container (EnsDb v86, susieR); rebuild only if something is missing | C0 | 5 min (2 h if a rebuild is needed) |
 | **C2** | Unit tests, Python tests and dry runs on ieup1 | C0, C1 | 30 min |
 | **C3** | HF data in place; fill in case and control counts | C0 | 30 min plus reading |
 | **C4** | HF re-analysis: 14 pipeline runs | C1–C3 | 1–2 days of machine time |
@@ -44,39 +44,32 @@ git log --oneline -1                         # expect the "REVISION1_PLAN2" comm
 
 If ieup1 has uncommitted changes (e.g. `reference_data/grch38/local_config.sh`, which is git-ignored), `git status` shows them. Commit or stash anything else before pulling.
 
-## C1. Container 1.2.0
+## C1. Container: check first, rebuild only if needed
 
-**Why.** LocusZoom in GRCh38 needs `EnsDb.Hsapiens.v86`, which is already in `docker/requirements.R`. Bumping the version also gives the paper an immutable image tag to cite (audit B32).
+**Not needed for the new code.** The pipelines bind the repository's `R/` and `scripts/` into the container, so the code changes take effect without a new image. MungeSumstats isn't part of the pipeline and never goes in the image; it is installed separately, only for the validation script (C6).
 
-1. **Version.** Set `Version: 1.2.0` in `DESCRIPTION` and commit.
-2. **Build and push** from a machine with Docker. `--platform linux/amd64` is needed on the Mac.
-   ```bash
-   docker build --platform linux/amd64 -f docker/Dockerfile -t mrcieu/genehackman:1.2.0 .
-   docker push mrcieu/genehackman:1.2.0
-   docker inspect --format '{{index .RepoDigests 0}}' mrcieu/genehackman:1.2.0   # the digest to cite in the paper
-   ```
-3. **SIF on ieup1.** `run_pipeline.sh` builds the SIF itself if it's missing and the directory is writable. To build it by hand:
-   ```bash
-   apptainer build /home/wt23152/pipeline_data/genomic_data/pipeline/genehackman_1.2.0.sif docker://mrcieu/genehackman:1.2.0
-   ```
-4. **Check the packages the new code relies on:**
-   ```bash
-   SIF=/home/wt23152/pipeline_data/genomic_data/pipeline/genehackman_1.2.0.sif
-   apptainer exec $SIF Rscript -e 'for (p in c("susieR","coloc","EnsDb.Hsapiens.v86","EnsDb.Hsapiens.v75","data.table","knitr","prettydoc")) cat(p, as.character(packageVersion(p)), "\n"); stopifnot(exists("kriging_rss", asNamespace("susieR")), exists("estimate_s_rss", asNamespace("susieR")))'
-   apptainer exec $SIF python -c "import MultiSuSiE, scipy, numpy, pandas; print('python ok', scipy.__version__)"
-   apptainer exec $SIF bash -c 'which plink1.9 liftOver; ls /home/ldsc/ldsc.py'
-   ```
-   - `kriging_rss` and `estimate_s_rss` need susieR ≥ 0.12; the tests here used 0.14.2.
-   - The MultiSuSiE LD-mismatch check needs scipy, which is in `docker/requirements.txt`.
-5. **`.env`:** `DOCKER_VERSION=1.2.0`, or unset it now that `DESCRIPTION` says 1.2.0.
+**Possibly needed for one package.** GRCh38 gene tracks in LocusZoom (coloc, QTL MR) need `EnsDb.Hsapiens.v86`. It was added to `docker/requirements.R` on 1 Nov (`0e6b977`), so an image built before then lacks it. Check the image you already use:
 
-**Done when** all three checks print without errors.
+```bash
+SIF=/local-scratch/data/pan_ukb_ld/genehackman_develop.sif   # or the one .env's DOCKER_VERSION points at
+apptainer exec $SIF Rscript -e 'for (p in c("EnsDb.Hsapiens.v86","susieR","coloc")) cat(p, tryCatch(as.character(packageVersion(p)), error = function(e) "MISSING"), "\n"); cat("kriging_rss:", exists("kriging_rss", asNamespace("susieR")), "\n")'
+apptainer exec $SIF python -c "import MultiSuSiE, scipy; print('python ok')"
+```
+
+- **All present** (susieR ≥ 0.12 has `kriging_rss`): use that image for everything below and skip the rest of C1.
+- **`EnsDb.Hsapiens.v86` missing:** everything except coloc and QTL MR still runs. Rebuild before those (and before the end-to-end tests):
+  ```bash
+  docker build --platform linux/amd64 -f docker/Dockerfile -t mrcieu/genehackman:develop . && docker push mrcieu/genehackman:develop
+  apptainer build --force $SIF docker://mrcieu/genehackman:develop
+  ```
+
+**Don't bump `DESCRIPTION` to 1.2.0 yet.** `run_pipeline.sh` would then look for `genehackman_1.2.0.sif` and try to pull an image that doesn't exist. Keep `DOCKER_VERSION` pointing at the image you checked until the release (C7), where the 1.2.0 tag and its digest are what the paper cites.
 
 ## C2. Tests and dry runs on ieup1
 
 ```bash
 cd /home/wt23152/GeneHackman
-SIF=/home/wt23152/pipeline_data/genomic_data/pipeline/genehackman_1.2.0.sif
+SIF=/local-scratch/data/pan_ukb_ld/genehackman_develop.sif   # the image checked in C1
 apptainer exec -B /local-scratch $SIF Rscript -e 'pkgload::load_all("."); r <- testthat::test_dir("tests/testthat", reporter = "summary", stop_on_failure = FALSE); df <- as.data.frame(r); cat("tests:", nrow(df), "failed:", sum(df$failed > 0), "errors:", sum(df$error), "\n")'
 apptainer exec $SIF python -m unittest discover tests/python
 ```
@@ -91,14 +84,16 @@ Then dry-run each HF config (they're written in C3) with `--dry-run`, for exampl
 
 ### C3.1 Input files
 
-The submitted analysis read the files from BluePebble (`/user/work/wt23152/020/`). The configs in `paper/revision1_hf/` use the relative path `hf_data/…`, so the supplementary YAMLs have no local paths (Reviewer 1 m20). Copy the files to ieup1 and link the folder into the repository root (`hf_data` is git-ignored):
+The HERMES and BBJ files are already on ieup1 in `~/genehackman_project_dir` (`FORMAT-METAL_Pheno{1,3,4}_EUR.tsv.gz`, `hf_japan_GCST90668009.tsv.gz`). The configs in `paper/revision1_hf/` use the relative path `hf_data/…`, so the supplementary YAMLs have no local paths (Reviewer 1 m20). Link that folder into the repository root (`hf_data` is git-ignored):
 
 ```bash
-HF_DIR=/local-scratch/data/genehackman_hf            # any folder with ~10 GB free
-mkdir -p $HF_DIR && rsync -av bp1:/user/work/wt23152/020/{FORMAT-METAL_Pheno1_EUR.tsv.gz,FORMAT-METAL_Pheno3_EUR.tsv.gz,FORMAT-METAL_Pheno4_EUR.tsv.gz,hf_progression_allcause_death.autosomes.gz} $HF_DIR/
-rsync -av <laptop>:~/Documents/Projects/GeneHackman/hf_japan_GCST90668009.tsv.gz $HF_DIR/   # BBJ; also in the laptop repo folder
-cd /home/wt23152/GeneHackman && ln -sfn $HF_DIR hf_data
+cd /home/wt23152/GeneHackman && ln -sfn ~/genehackman_project_dir hf_data
+ls hf_data/
 ```
+
+**Missing:** `hf_progression_allcause_death.autosomes.gz`, the subsequent-event GWAS for disease progression (runs 7 and 8). Put it in `~/genehackman_project_dir` if it's elsewhere on ieup1; otherwise copy it from BluePebble (`/user/work/wt23152/020/`). Everything else can run without it.
+
+`FORMAT-METAL_Pheno1_ALL` and `Pheno5-DCM` aren't used in the paper's analyses.
 
 ### C3.2 Check the headers and builds
 
@@ -210,7 +205,7 @@ gsutil -u <billing-project> cp gs://broad-alkesgroup-public-requester-pays/LDSCO
 - writes `<prefix>_h2.tsv` and `<prefix>_rg.tsv`.
 
 ```bash
-WORK_DIR=/local-scratch/data/genehackman_grch38; SIF=/home/wt23152/pipeline_data/genomic_data/pipeline/genehackman_1.2.0.sif
+WORK_DIR=/local-scratch/data/genehackman_grch38; SIF=/local-scratch/data/pan_ukb_ld/genehackman_develop.sif   # the image checked in C1
 STD=$OUT/hf_1000g/data/gwas
 G=$STD/FORMAT-METAL_Pheno1_EUR_std.tsv.gz,$STD/FORMAT-METAL_Pheno3_EUR_std.tsv.gz,$STD/FORMAT-METAL_Pheno4_EUR_std.tsv.gz
 NS=<Neff1>,<Neff3>,<Neff4>                 # fallback only: the standardised files have N_EFF, which is used
@@ -240,7 +235,7 @@ The script is `scripts/validation/compare_with_mungesumstats.R`, and `scripts/va
 **1. Install MungeSumstats into a user library for the container's R.** This is about 6 GB and needs internet.
 
 ```bash
-SIF=/home/wt23152/pipeline_data/genomic_data/pipeline/genehackman_1.2.0.sif
+SIF=/local-scratch/data/pan_ukb_ld/genehackman_develop.sif   # the image checked in C1
 export R_LIBS_USER=/local-scratch/data/genehackman_validation/Rlib; mkdir -p $R_LIBS_USER
 apptainer exec --env R_LIBS_USER=$R_LIBS_USER -B /local-scratch $SIF Rscript -e '
   if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager", repos = "https://cloud.r-project.org")
@@ -287,7 +282,7 @@ These steps come from RUNBOOK §7 and §9:
    ```
    Before uploading the QTL bucket, decide on the eQTLGen, BrainMeta and UKB-PPP terms (REVISION1_PLAN §12 doesn't cover them).
 2. **End-to-end tests** with the published data, installed the way users will install it (RUNBOOK §9), then `./tests/e2e_tests/run_test_pipelines.sh`. The finemap runs now also produce the HTML report, which is a quick check that `finemap.Rmd` renders in the container.
-3. **Release.** Commit `tests/testing_complete.txt`, tag `1.2.0`, and record the image digest from C1.
+3. **Release.** Set `Version: 1.2.0` in `DESCRIPTION`, build and push `mrcieu/genehackman:1.2.0` (`docker build --platform linux/amd64 -f docker/Dockerfile -t mrcieu/genehackman:1.2.0 . && docker push mrcieu/genehackman:1.2.0`), record its digest (`docker inspect --format '{{index .RepoDigests 0}}' mrcieu/genehackman:1.2.0`) for the paper, commit `tests/testing_complete.txt` and tag `1.2.0`.
 
 ## C8. What to send back, and what it fills
 
