@@ -16,8 +16,9 @@ compute_ld_matrix(rsids, chr, ancestry, build = reference_builds$GRCh38)
 \item{build}{reference build of the GWAS; selects the 1000 Genomes panel (GRCh38 or GRCh37)}
 }
 \value{
-list with components \code{matrix} (numeric LD matrix) and
-\code{snps} (character vector of SNP IDs in matrix order), or NULL on failure
+list with components \code{matrix} (numeric LD matrix),
+\code{snps} (character vector of SNP IDs in matrix order) and the panel's alleles \code{a1} (the allele r
+refers to) and \code{a2}, or NULL on failure
 }
 \description{
 Compute LD correlation matrix from 1000 Genomes via plink

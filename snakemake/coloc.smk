@@ -38,7 +38,11 @@ std_file_pattern = standardised_gwas_name("{prefix}")
 for g in pipeline.gwases:
     g.finemap_dir = RESULTS_DIR + "finemap/" + g.prefix
 
-trait_names = [g.prefix for g in pipeline.gwases]
+gwas_prefixes = [g.prefix for g in pipeline.gwases]
+# names of the traits in coloc results and plots: label: in the input YAML, else the file name
+trait_names = [re.sub(r"\s+", "_", g.label) for g in pipeline.gwases]
+if len(set(trait_names)) < len(trait_names):
+    stop_with_message(f"Each GWAS needs a different label (labels: {', '.join(trait_names)}).")
 finemap_dirs_str = " ".join([g.finemap_dir for g in pipeline.gwases])
 trait_names_str = " ".join(trait_names)
 
@@ -55,8 +59,8 @@ ancestry_bar = "|".join([g.ancestry for g in pipeline.gwases])
 
 rule all:
     input:
-        expand(std_file_pattern, prefix=trait_names),
-        expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=trait_names),
+        expand(std_file_pattern, prefix=gwas_prefixes),
+        expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=gwas_prefixes),
         coloc_results,
         results_file,
         locus_zoom_done
@@ -70,7 +74,7 @@ rule run_coloc:
         mem = "16G",
         time = "02:00:00"
     input:
-        finemap_complete = expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=trait_names)
+        finemap_complete = expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=gwas_prefixes)
     params:
         finemap_dirs = finemap_dirs_str,
         trait_names = trait_names_str,

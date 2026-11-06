@@ -158,6 +158,10 @@ Snakemake profiles live under **`snakemake/profiles/`** — see [PLATFORM_SETUP.
 - `run_pipeline.sh` is a convenience wrapper around **`snakemake`**; see the [Snakemake documentation](https://snakemake.readthedocs.io/) for advanced options.
 - Long jobs: consider a terminal multiplexer (e.g. `tmux`) so SSH disconnects do not kill the run.
 
+### Usage logging (opt-in)
+
+GeneHackman doesn't send anything anywhere by default. If you set `GENEHACKMAN_USAGE_LOGGING=true` in `.env` and the developers' credentials file is installed, each run appends one row to the developers' usage sheet: user name, host name, pipeline, start time, run time and outcome, and for failed runs the input YAML and the error log, so the developers can help. Leave it unset to log nothing.
+
 ### Platform setup
 
 See **[PLATFORM_SETUP.md](PLATFORM_SETUP.md)** for Linux, HPC (Slurm), and macOS setup (macOS is not officially supported).

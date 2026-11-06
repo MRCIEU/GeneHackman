@@ -88,3 +88,15 @@ test_that("coloc.find_finemap_locus_for_region prefers the fine-mapping region t
   locus <- find_finemap_locus_for_region(finemap_dir, 1, 1500000)
   expect_equal(locus$REGION, "A")
 })
+
+test_that("coloc_dataset uses BETA, its variance and the case fraction for case-control traits", {
+  gwas <- data.frame(SNP = c("a", "b"), BETA = c(0.1, -0.2), SE = c(0.05, 0.04), P = c(0.04, 1e-6), EAF = c(0.2, 0.4))
+  cc <- coloc_dataset(gwas, n = 1000, type = "binary", s = 0.25)
+  expect_equal(cc$type, "cc")
+  expect_equal(cc$varbeta, c(0.05, 0.04)^2)
+  expect_equal(cc$s, 0.25)
+  expect_error(coloc_dataset(gwas, 1000, "cc"), "fraction of cases")
+  quant <- coloc_dataset(gwas, n = 1000)
+  expect_equal(quant$type, "quant")
+  expect_equal(quant$pvalues, gwas$P)
+})

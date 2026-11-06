@@ -98,6 +98,16 @@ parser <- add_argument(parser, "--N_control",
                        type = "numeric",
                        default = NA
 )
+parser <- add_argument(parser, "--strand_check",
+                       help = "Check alleles and strand against the LD reference (needs --ancestry) and fix strand flips",
+                       type = "logical",
+                       default = TRUE
+)
+parser <- add_argument(parser, "--drop_ambiguous_palindromic",
+                       help = "Remove A/T and C/G SNVs whose strand can't be told from allele frequency",
+                       type = "logical",
+                       default = FALSE
+)
 
 args <- parse_args(parser)
 create_dir_for_files(args$output_gwas)
@@ -121,5 +131,7 @@ invisible(standardise_gwas(
                  check_build = args$check_build,
                  study_type = args$study_type,
                  n_case = args$N_case,
-                 n_control = args$N_control
+                 n_control = args$N_control,
+                 strand_check = args$strand_check,
+                 drop_ambiguous_palindromic = args$drop_ambiguous_palindromic
 ))

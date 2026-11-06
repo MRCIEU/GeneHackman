@@ -43,7 +43,9 @@ populate_rsid: false
 | Field | Required | Notes |
 | ----- | -------- | ----- |
 | `file` | **Yes** | Path to VCF, CSV, TSV, or TXT (`.gz` / `.zip` supported). |
-| `columns` | No | Maps logical names to file headers, or a preset (`metal`, `gwama`, `opengwas_phewas`, …). See [`inst/extdata/predefined_column_maps.csv`](../inst/extdata/predefined_column_maps.csv). |
+| `columns` | No | Maps logical names to file headers, or a preset (`metal`, `gwama`, `opengwas`, `opengwas_phewas`, `gwas_catalog` for the GWAS Catalog's GWAS-SSF format, …). See [`inst/extdata/predefined_column_maps.csv`](../inst/extdata/predefined_column_maps.csv). **Column names are not detected automatically**: without `columns`, the file must already use GeneHackman's names (`CHR`, `BP`, `EA`, `OA`, `BETA`, `SE`, `EAF`, `P`, `N`, …). |
+| `study_type` | No | `continuous` (default) or `binary`. Binary traits get an effective sample size column `N_EFF`: kept from the file if present, else from `N_CASES`/`N_CONTROLS` columns, else from `N_case`/`N_control` below. |
+| `N_case`, `N_control` | No | Binary traits: numbers of cases and controls. |
 | `build` | No | Input reference build: `GRCh36`, `GRCh37`, `GRCh38`. Default `GRCh37`, because most published GWAS still are; standardisation stops if the positions match the other build much better (checked against the Pan-UKB LD pack). An already standardised `*_std.tsv.gz` input must declare `build` equal to `output.build`. |
 | `ancestry` | If `populate_eaf: true` | One of `AFR`, `AMR`, `EAS`, `EUR`, `SAS`; with `ld_reference: pan_ukb` EAF comes from the Pan-UKB LD pack (matched on SNP keys) and `CSA`, `MID` are also allowed. |
 | `populate_rsid` | No | Per-GWAS override of root `populate_rsid`. |
@@ -82,6 +84,16 @@ All paths are under **`PROJECT_DIR/data/`** (see `.env`).
 | `gwas/<prefix>_std.tsv.gz` | One harmonised file per input GWAS (`<prefix>` = basename of input file). |
 
 Intermediate VCF inputs are converted to TSV under `data/gwas/` before standardisation.
+
+## Harmonisation rules
+
+- **Alleles** are put in alphabetical order (`EA` < `OA`, also for indels and I/D coding), flipping `BETA`, `Z` and `EAF`; the `SNP` key is `CHR:BP_EA_OA`. `flip_alleles: false` restores the input orientation on output.
+- **Effects:** `OR` with `OR_LB`/`OR_UB` gives `BETA = log(OR)` and its SE; `Z` alone (no `BETA`/`SE`) gives standardised effects `SE = 1/sqrt(2p(1-p)(N + Z²))`, `BETA = Z × SE` (needs `EAF` and `N`); `LOG_P` gives `P`; `P = 0` is set to the smallest positive double, with a warning.
+- **Sample size:** a per-variant `N` in the file takes precedence; the input `N` only fills missing values.
+- **Strand** (when `ancestry` is given and its LD reference is installed; `harmonise.strand_check`, default true): alleles are compared with the reference panel (`<output>.allele_qc.tsv` gives the counts). Non-palindromic SNVs that match only on the other strand are complemented; A/T and C/G SNVs are flipped when their EAF is on the other side of 0.5 from the reference's, and are ambiguous when either minor allele frequency is 0.42 or more (kept, or removed with `harmonise.drop_ambiguous_palindromic: true`); variants whose EAF differs from the reference's by more than 0.2 are reported. Without `EAF` in the file, palindromic SNVs can't be checked.
+- **Build:** liftover with QC, see the liftover section of [PIPELINES.md](../PIPELINES.md).
+
+The rules are tested against known answers in `tests/testthat/test_harmonisation_known_answers.R`.
 
 ## Notes
 

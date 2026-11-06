@@ -35,6 +35,9 @@ def ld_score_population(ancestry):
     return ancestry
 
 
+# labels for plots and tables (label: in the input YAML, else the file name), without spaces for the command line
+gwas_labels = " ".join(re.sub(r"\s+", "_", g.label) for g in pipeline.gwases)
+
 #List of output files
 expected_vs_observed_results = RESULTS_DIR + "gwas_comparison/expected_vs_observed_outcomes.tsv"
 expected_vs_observed_variants = RESULTS_DIR + "gwas_comparison/expected_vs_observed_variants.tsv"
@@ -99,6 +102,7 @@ rule heterogeneity_between_gwases:
             --gwas_filenames {input.gwases} \
             --clumped_filenames {input.clumped_files} \
             --ancestry_list {ancestries} \
+            --labels {gwas_labels} \
             --heterogeneity_scores_output {output.heterogeneity_scores} \
             --heterogeneity_plot_output {output.heterogeneity_plot} \
             --heterogeneity_plot_per_snp_output {output.heterogeneity_snp_comparison}

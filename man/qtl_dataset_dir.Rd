@@ -2,7 +2,8 @@
 % Please edit documentation in R/constants.R
 \name{qtl_dataset_dir}
 \alias{qtl_dataset_dir}
-\title{Directories of a QTL dataset's files for a reference build: \verb{QTL_DATA_DIR/<dataset>/<build>/<kind>}.}
+\title{Directories of a QTL dataset's files for a reference build: \verb{QTL_DATA_DIR/<dataset>/<build>/<kind>}.
+The published QTL data are GRCh38 only.}
 \usage{
 qtl_dataset_dir(dataset, kind, build = reference_builds$GRCh38)
 }
@@ -15,5 +16,6 @@ qtl_dataset_dir(dataset, kind, build = reference_builds$GRCh38)
 }
 \description{
 Directories of a QTL dataset's files for a reference build: \verb{QTL_DATA_DIR/<dataset>/<build>/<kind>}.
+The published QTL data are GRCh38 only.
 }
 \keyword{internal}

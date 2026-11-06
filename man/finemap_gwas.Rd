@@ -17,7 +17,11 @@ finemap_gwas(
   min_abs_corr = 0.5,
   max_region_kb = 3000,
   ld_reference = ld_reference_options$thousand_genomes,
-  build = reference_builds$GRCh38
+  build = reference_builds$GRCh38,
+  region_strategy = "merge",
+  max_n_ratio = 10,
+  ld_bfile = NULL,
+  remove_ld_outliers = FALSE
 )
 }
 \arguments{
@@ -39,17 +43,28 @@ EAS or MID for the Pan-UKB LD pack}
 
 \item{window_kb}{half-width of the fine-mapping window around each lead SNP in kb}
 
-\item{max_causal}{maximum number of causal signals per locus (SuSiE L, default 10)}
+\item{max_causal}{SuSiE L: "auto" (default) for L = 1 when the GWAS sample size is more than \code{max_n_ratio}
+times the LD reference's and 10 otherwise (see \code{choose_max_causal()}), or a number}
 
 \item{coverage}{credible set coverage (default 0.95)}
 
 \item{min_abs_corr}{minimum absolute correlation for credible sets (default 0.5)}
 
-\item{max_region_kb}{maximum width of a merged fine-mapping region in kb (default 3000)}
+\item{max_region_kb}{maximum width of a merged fine-mapping region, or the tile width, in kb (default 3000)}
 
 \item{ld_reference}{LD source, one of \code{ld_reference_options} ("1000genomes" or "pan_ukb")}
 
 \item{build}{reference build of the GWAS positions (used to match SNP keys in the Pan-UKB LD pack)}
+
+\item{region_strategy}{"merge" (default), "none" or "tile"; see \code{define_finemap_regions()}}
+
+\item{max_n_ratio}{for \code{max_causal = "auto"}: largest GWAS N / LD reference N that still uses L = 10}
+
+\item{ld_bfile}{PLINK prefix of in-sample (or other user-supplied) genotypes in \code{build}; when given, LD
+comes from these instead of \code{ld_reference}}
+
+\item{remove_ld_outliers}{if TRUE, variants flagged by the LD-mismatch check (\code{ld_mismatch_qc()}) are
+removed and SuSiE is run again; by default they are only reported}
 }
 \value{
 invisibly, the combined per-SNP finemap data.table (LD-matched SNPs only)

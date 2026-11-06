@@ -4,7 +4,7 @@
 \alias{ld_reference_id_column}
 \title{Identifier column used to match a GWAS to the LD reference.}
 \usage{
-ld_reference_id_column(ld_reference)
+ld_reference_id_column(ld_reference, bfile = NULL)
 }
 \description{
 Identifier column used to match a GWAS to the LD reference.

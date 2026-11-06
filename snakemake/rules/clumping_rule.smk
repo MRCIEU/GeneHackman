@@ -53,7 +53,16 @@ else:
                 --clump {input.gwas} \
                 --clump-snp-field RSID \
                 {pipeline.plink_clump_arguments} \
-                --out {params.out_prefix} || echo "{default_clump_headers}" > {output.clumped}
+                --out {params.out_prefix}
+            # PLINK exits without a .clumped file when no variant passes --clump-p1; any other failure stops above
+            if [[ ! -f {output.clumped} ]]; then
+                if grep -q "No significant --clump results" {params.out_prefix}.log; then
+                    echo "{default_clump_headers}" > {output.clumped}
+                else
+                    echo "PLINK clumping produced no output; see {params.out_prefix}.log" >&2
+                    exit 1
+                fi
+            fi
             # PLINK reports the panel's positions; use the GWAS's own (same build, matched by RSID)
             Rscript clumped_positions_from_gwas.R --clumped {output.clumped} --gwas {input.gwas}
             """

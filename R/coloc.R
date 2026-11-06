@@ -34,7 +34,7 @@ run_coloc_on_list_of_datasets <- function(first_gwas_list=list(),
   )
 
   coloc_results <- apply(data_for_coloc,1, function(row) {
-    coloc_columns <- c("SNP", "CHR", "BP", "P", "SE", "N", "EAF")
+    coloc_columns <- c("SNP", "CHR", "BP", "BETA", "P", "SE", "N", "EAF")
     first_gwas <- get_file_or_dataframe(row[['first_gwas']], columns = coloc_columns)
     second_gwas <- get_file_or_dataframe(row[['second_gwas']], columns = coloc_columns)
 
@@ -381,6 +381,20 @@ parse_bf_bf_result <- function(result, exposure_name, locus_name, n_snps) {
   )
 }
 
+#' coloc.abf dataset for one GWAS: a continuous trait from P, SE, N and MAF; a case-control trait from BETA and
+#' its variance with the case fraction s (coloc's type = "cc").
+#' @keywords internal
+coloc_dataset <- function(gwas, n, type = "quant", s = NA) {
+  type <- if (normalise_study_type(type) == study_types$binary || identical(type, "cc")) "cc" else "quant"
+  if (type == "cc") {
+    if (is.na(s) || s <= 0 || s >= 1) stop("A case-control dataset needs the fraction of cases (s) for coloc")
+    if (!"BETA" %in% colnames(gwas)) stop("A case-control dataset needs BETA for coloc")
+    return(list(beta = as.numeric(gwas$BETA), varbeta = as.numeric(gwas$SE)^2, N = n, type = "cc", s = s,
+                snp = gwas$SNP, MAF = gwas$EAF))
+  }
+  list(pvalues = gwas$P, N = n, varbeta = gwas$SE^2, type = "quant", snp = gwas$SNP, MAF = gwas$EAF)
+}
+
 #' run_coloc_analysis takes two already harmonised gwases, and runs coloc on the results
 #' @param first_gwas first gwas to be run through coloc.  This is the gwas that results will be based off
 #' @param second_gwas second gwas to be run through coloc
@@ -389,11 +403,15 @@ parse_bf_bf_result <- function(result, exposure_name, locus_name, n_snps) {
 #' @param bp base pair position to perform coloc on
 #' @param range range to filter in base pairs
 #' @param default_n default sample size
+#' @param first_type,second_type "quant" (continuous trait) or "cc" (case-control); for "cc" coloc uses BETA and
+#'   its variance with the case fraction \code{s}, instead of treating the trait as continuous
+#' @param first_s,second_s fraction of cases, for "cc" datasets
 #' @return tibble of coloc results (h0 - h4)
 
 
 #' @export
-coloc_analysis <- function(first_gwas, second_gwas, exposure_name, chr=NA, bp=NA, range=NA, default_n=NA) {
+coloc_analysis <- function(first_gwas, second_gwas, exposure_name, chr=NA, bp=NA, range=NA, default_n=NA,
+                           first_type="quant", second_type="quant", first_s=NA, second_s=NA) {
   numeric_columns <- c("P", "SE", "EAF")
   first_gwas[,numeric_columns] <- lapply(first_gwas[,numeric_columns,drop=FALSE], as.numeric)
   second_gwas[,numeric_columns] <- lapply(second_gwas[,numeric_columns,drop=FALSE], as.numeric)
@@ -417,23 +435,8 @@ coloc_analysis <- function(first_gwas, second_gwas, exposure_name, chr=NA, bp=NA
     stop("Error: N (sample size) must be present to complete coloc analysis.  Please include N in gwas or populate default_n param")
   }
 
-  first_coloc_dataset <- list(
-    pvalues = first_gwas$P,
-    N = first_n,
-    varbeta = first_gwas$SE^2,
-    type = "quant",
-    snp = first_gwas$SNP,
-    MAF = first_gwas$EAF
-  )
-
-  second_coloc_dataset <- list(
-    pvalues = second_gwas$P,
-    N = second_n,
-    varbeta = second_gwas$SE^2,
-    type = "quant",
-    snp = second_gwas$SNP,
-    MAF = second_gwas$EAF
-  )
+  first_coloc_dataset <- coloc_dataset(first_gwas, first_n, first_type, first_s)
+  second_coloc_dataset <- coloc_dataset(second_gwas, second_n, second_type, second_s)
 
   result <- coloc::coloc.abf(dataset1 = first_coloc_dataset, dataset2 = second_coloc_dataset)
   coloc_results <- tibble::tribble(

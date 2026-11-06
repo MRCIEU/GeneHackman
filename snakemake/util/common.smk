@@ -118,6 +118,12 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
     if not hasattr(lo, "max_drop_fraction"): lo.max_drop_fraction = 0.05
     if not hasattr(lo, "check_build"): lo.check_build = True
 
+    if not hasattr(pipeline, "harmonise"):
+        pipeline.harmonise = SimpleNamespace()
+    hm = pipeline.harmonise
+    if not hasattr(hm, "strand_check"): hm.strand_check = True
+    if not hasattr(hm, "drop_ambiguous_palindromic"): hm.drop_ambiguous_palindromic = False
+
     if not hasattr(pipeline, "coloc"):
         pipeline.coloc = SimpleNamespace()
     cl = pipeline.coloc

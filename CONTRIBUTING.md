@@ -189,6 +189,35 @@ Run the full e2e script before opening a PR and commit the updated **`tests/test
 - [ ] New Python deps added to `docker/requirements.txt`; note in the PR if a new Docker image is required.
 - [ ] Completion markers and other Snakemake targets are **run-specific** when outputs share a directory across analyses.
 
+## Adding a method to an existing pipeline
+
+Most new methods (another fine-mapping method, an LD-mismatch check, a colocalisation variant) belong inside an existing pipeline rather than in a new one. Each analysis stage has a fixed interface, so a new method only has to read and write the same files.
+
+### Stage interfaces
+
+| Stage | Input | Output that later stages read |
+| ----- | ----- | ----------------------------- |
+| Standardisation (`standardise_gwas()`) | raw summary statistics and a column map | `data/gwas/<prefix>_std.tsv.gz`: `SNP` (`CHR:BP_EA_OA`, alleles in alphabetical order), `CHR`, `BP`, `EA`, `OA`, `BETA`, `SE`, `P`, `EAF`, `N` (and `N_EFF`, `RSID` when available), in the output build |
+| Clumping | standardised GWAS | `data/clumped_snps/<prefix>.clumped`: lead `SNP` (RSID or key), `CHR`, `BP` (GWAS positions), `P` |
+| Fine-mapping regions (`define_finemap_regions()`) | lead SNPs | one row per region: `LOCUS`, `CHR`, `START`, `END`, lead SNP(s) |
+| LD (`get_ld_matrix()`) | variant identifiers, chromosome, ancestry, build, `ld_reference` or `ld_bfile` | `list(matrix, snps)`: r for the GWAS effect allele (or the panel's alleles `a1`/`a2`, aligned by `align_ld_to_gwas()`) |
+| Fine-mapping (per region) | z-scores (or BETA/SE), LD matrix, sample size, `L` | per-variant table: `PIP`, `CS`, `LBF_1..LBF_L`; credible-set summary: size, coverage, purity, lead variant, `LOG_BF` |
+| Colocalisation (`coloc_bf.R`) | per-region fine-mapping files of two traits | one row per pair of credible sets with PP.H0–H4 |
+
+Colocalisation uses only the `LBF_*` columns, so any fine-mapping method that writes per-signal log Bayes factors in this format works with it unchanged.
+
+### Worked example: a fine-mapping method
+
+To add, say, CARMA (Yang et al. 2023) as an alternative to SuSiE for single-ancestry fine-mapping:
+
+1. **Function.** In `R/finemap.R`, add `run_carma_for_locus(z_scores, ld_matrix, snp_info, n, ...)` returning the same data.table as `run_susie_for_locus()`: `SNP`, `CHR`, `BP`, `RSID`, `Z`, `PIP`, `CS`, `LBF_1..` and the `cs_summary` attribute (use `empty_credible_set_summary()` for its columns).
+2. **Option.** Add a `finemap.method` field (`susie` default, `carma`) to `parse_pipeline_input()` in `snakemake/util/common.smk`, pass it through `snakemake/rules/finemap_rule.smk` and `scripts/run_finemap.R`, and call the matching function in `process_one_locus()` inside `finemap_gwas()`. Region definition, LD alignment and the LD-mismatch check stay as they are.
+3. **Container.** Add the package to `docker/requirements.R` and rebuild the image.
+4. **Test.** In `tests/testthat/`, simulate a region with a known causal variant (see `simulate_genotypes()` in `test_sample_size_and_finemap_options.R`) and check that the method puts most of the PIP on it; mock the method in a `finemap_gwas()` test to check the outputs have the standard columns.
+5. **Document** the option in `snakemake/finemap.md`, with the method's citation.
+
+An LD-mismatch method (e.g. SLALOM, DENTIST) is added the same way next to `ld_mismatch_qc()`, recording its result as columns of `finemap_regions.tsv`.
+
 ## Docker changes
 
 The pipeline runs inside **`mrcieu/genehackman`** (Apptainer/Singularity on HPC, Docker locally).

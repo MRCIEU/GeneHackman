@@ -135,7 +135,8 @@ compare_heterogeneity_across_ancestries <- function(gwas_filenames = c(),
                                                     ancestry_list = c(),
                                                     heterogeneity_score_file,
                                                     heterogeneity_plot_file,
-                                                    heterogeneity_plots_per_snp_file) {
+                                                    heterogeneity_plots_per_snp_file,
+                                                    labels = NULL) {
 
   if (length(gwas_filenames) < 2) {
     empty_dataframe <- data.frame(SNP=c())
@@ -149,10 +150,10 @@ compare_heterogeneity_across_ancestries <- function(gwas_filenames = c(),
   clumped_snps <- data.table::rbindlist(lapply(clumped_filenames, data.table::fread))$SNP
   clumped_snps <- unique(clumped_snps)
 
-  dataset_labels <- make.unique(
-    vapply(gwas_filenames, dataset_label_from_gwas_path, character(1)),
-    sep = "_"
-  )
+  if (is.null(labels) || length(labels) != length(gwas_filenames)) {
+    labels <- vapply(gwas_filenames, dataset_label_from_gwas_path, character(1))
+  }
+  dataset_labels <- make.unique(unname(labels), sep = "_")
 
   gwases <- lapply(gwas_filenames, function(gwas_filename) {
     get_file_or_dataframe(gwas_filename, columns = comparison_columns) |>

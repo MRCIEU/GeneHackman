@@ -3,11 +3,16 @@ gwases:
     columns: {}
     N: 0
     ancestry: EUR
+    label: ""            # name in plots and reports (default: file name)
+    study_type: continuous   # or binary, with N_case and N_control (effective sample size)
+    # ld_bfile: /path/to/in_sample_genotypes   # PLINK prefix for in-sample LD (output build)
 ld_reference: 1000genomes   # or pan_ukb: precomputed Pan-UKB LD (see PIPELINES.md)
 plink_clump_arguments: "--clump-p1 5e-8 --clump-r2 0.01 --clump-kb 1000"
 finemap:
   window_kb: 1000
-  max_causal: 10
+  max_causal: auto   # L = 1 when GWAS N > 10 x LD reference N (e.g. 1000 Genomes); a number to override
   coverage: 0.95
   min_abs_corr: 0.5
+  region_strategy: merge   # merge (capped at max_region_kb), none, or tile
+  max_region_kb: 3000
 populate_rsid: false

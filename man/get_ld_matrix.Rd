@@ -9,11 +9,13 @@ get_ld_matrix(
   chr,
   ancestry,
   build = reference_builds$GRCh38,
-  ld_reference = ld_reference_options$thousand_genomes
+  ld_reference = ld_reference_options$thousand_genomes,
+  bfile = NULL
 )
 }
 \arguments{
-\item{ids}{variant identifiers: GeneHackman SNP keys for \code{pan_ukb}, RSIDs for \code{1000genomes}}
+\item{ids}{variant identifiers: GeneHackman SNP keys for \code{pan_ukb} and for a user-supplied \code{bfile},
+RSIDs for \code{1000genomes}}
 
 \item{chr}{chromosome}
 
@@ -23,9 +25,13 @@ get_ld_matrix(
 for \code{1000genomes}}
 
 \item{ld_reference}{one of \code{ld_reference_options}}
+
+\item{bfile}{PLINK prefix of user-supplied genotypes (e.g. in-sample), in the GWAS's build; when given it is
+used instead of \code{ld_reference}}
 }
 \value{
-list with \code{matrix} and \code{snps} (identifiers in matrix order), or NULL on failure
+list with \code{matrix} and \code{snps} (identifiers in matrix order), or NULL on failure.  For
+1000 Genomes the panel's alleles are returned too (\code{a1}, \code{a2}), for \code{align_ld_to_gwas()}.
 }
 \description{
 LD matrix for a set of variants from the configured LD reference.

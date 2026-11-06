@@ -142,6 +142,32 @@ get_docker_image_tag <- function() {
   as.character(utils::packageVersion("GeneHackman"))
 }
 
+#' Software and reference-data versions for the end of each HTML report.
+#'
+#' Lists the container image tag, R and the versions of the main analysis packages, and the reference data
+#' directory with its version file (\code{PIPELINE_DATA_DIR/VERSION}) when there is one, so a report records
+#' what produced it.
+#' @return markdown bullet list
+#' @keywords internal
+report_provenance <- function() {
+  package_version <- function(p) tryCatch(as.character(utils::packageVersion(p)), error = function(e) "not installed")
+  packages <- c("susieR", "coloc", "TwoSampleMR", "SlopeHunter", "data.table")
+  version_file <- file.path(pipeline_data_dir, "VERSION")
+  reference_version <- if (nzchar(pipeline_data_dir) && file.exists(version_file)) {
+    readLines(version_file, n = 1, warn = FALSE)
+  } else {
+    "not recorded"
+  }
+  lines <- c(
+    paste0("* GeneHackman image: docker://mrcieu/genehackman:", get_docker_image_tag()),
+    paste0("* ", R.version.string),
+    paste0("* ", packages, " ", vapply(packages, package_version, character(1))),
+    paste0("* Reference data: ", if (nzchar(pipeline_data_dir)) basename(pipeline_data_dir) else "not set",
+           " (version ", reference_version, ")")
+  )
+  paste(lines, collapse = "\n")
+}
+
 #' Generate log Bayes Factor from Z-score
 #'
 #' @param z Z-score

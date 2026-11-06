@@ -20,7 +20,12 @@ standardise_gwas(
   ld_reference = ld_reference_options$thousand_genomes,
   complement_minus_strand = FALSE,
   max_liftover_drop_fraction = 0.05,
-  check_build = TRUE
+  check_build = TRUE,
+  study_type = study_types$continuous,
+  n_case = NA,
+  n_control = NA,
+  strand_check = TRUE,
+  drop_ambiguous_palindromic = FALSE
 )
 }
 \arguments{
@@ -28,7 +33,8 @@ standardise_gwas(
 
 \item{output_file}{file to save standardised gwas}
 
-\item{N}{sample size of GWAS (if GWAS has defined N column, defaults to that value)}
+\item{N}{sample size of GWAS: fills the N column where it is missing; a per-variant N column in the file
+takes precedence}
 
 \item{populate_rsid_option}{if you want RSID populated or not}
 
@@ -64,6 +70,17 @@ with complemented alleles (by default they are dropped)}
 
 \item{check_build}{if TRUE, check the positions against the Pan-UKB LD pack's GRCh37 and GRCh38 keys
 and stop when they match the other build much better than \code{input_reference_build}}
+
+\item{study_type}{"continuous" (default) or "binary" (case-control); for binary traits an effective
+sample size column N_EFF is added, see \code{populate_effective_n()}}
+
+\item{n_case, n_control}{number of cases and controls of a binary trait (whole study), used for N_EFF
+when the file has no per-variant N_CASES and N_CONTROLS}
+
+\item{strand_check}{if TRUE and \code{ancestry} is given, check alleles and strand against the LD reference and
+fix strand flips (\code{harmonise_against_reference()}); counts are written to \verb{<output>.allele_qc.tsv}}
+
+\item{drop_ambiguous_palindromic}{remove A/T and C/G SNVs whose strand can't be told from allele frequency}
 }
 \value{
 modified gwas: saves new gwas in output_file if present; a liftover QC report is written

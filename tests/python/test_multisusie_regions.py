@@ -1,4 +1,4 @@
-"""Fine-mapping regions, L rule and user-supplied LD in run_multisusie.py (run: python -m unittest discover tests/python)."""
+"""Fine-mapping regions, L rule and user-supplied LD in run_multisusie.py (python -m unittest discover tests/python)."""
 
 import os
 import shutil
@@ -94,7 +94,8 @@ class TestUserLd(unittest.TestCase):
                         g = genotypes[i, j]
                         alleles += [a1[j] if g >= 1 else a2[j], a1[j] if g == 2 else a2[j]]
                     f.write(f"f{i} i{i} 0 0 0 -9 " + " ".join(alleles) + "\n")
-            subprocess.run(["plink1.9", "--file", prefix, "--make-bed", "--out", prefix], capture_output=True, check=True)
+            subprocess.run(["plink1.9", "--file", prefix, "--make-bed", "--out", prefix],
+                           capture_output=True, check=True)
             bim = pd.read_csv(prefix + ".bim", sep=r"\s+", header=None, dtype=str)
             ea = [min(x, y) for x, y in zip(bim[4], bim[5])]
             oa = [max(x, y) for x, y in zip(bim[4], bim[5])]

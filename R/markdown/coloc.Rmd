@@ -1,5 +1,5 @@
 ---
-title: "GWAS pairwise colocalization"
+title: "GWAS pairwise colocalisation"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   prettydoc::html_pretty:
@@ -35,6 +35,9 @@ coloc_tbl <- if (coloc_exist) {
   NULL
 }
 ```
+
+> **Sample overlap.** coloc assumes the two traits come from independent samples. If the traits share cohorts or cases (e.g. nested case definitions with shared controls), the posterior probabilities should be read with caution: errors are correlated, and a spurious signal from the shared samples can appear in both traits. The LDSC cross-trait intercept (compare_gwases pipeline) indicates how much overlap there is.
+
 
 ### Input GWAS
 
@@ -110,3 +113,7 @@ if (!is.null(coloc_tbl) && nrow(coloc_tbl) > 0L) {
 * and the docker image: docker://mrcieu/genehackman:`r get_docker_image_tag()`
 * `coloc` R package: https://doi.org/10.1371/journal.pgen.1004383
 * `coloc` guide: https://chr1swallace.github.io/coloc/
+
+### Software versions
+
+`r report_provenance()`

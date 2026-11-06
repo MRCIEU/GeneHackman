@@ -27,6 +27,9 @@
 #'   sample size column N_EFF is added, see \code{populate_effective_n()}
 #' @param n_case,n_control number of cases and controls of a binary trait (whole study), used for N_EFF
 #'   when the file has no per-variant N_CASES and N_CONTROLS
+#' @param strand_check if TRUE and \code{ancestry} is given, check alleles and strand against the LD reference and
+#'   fix strand flips (\code{harmonise_against_reference()}); counts are written to \verb{<output>.allele_qc.tsv}
+#' @param drop_ambiguous_palindromic remove A/T and C/G SNVs whose strand can't be told from allele frequency
 #' @param check_build if TRUE, check the positions against the Pan-UKB LD pack's GRCh37 and GRCh38 keys
 #'   and stop when they match the other build much better than \code{input_reference_build}
 #' @return modified gwas: saves new gwas in output_file if present; a liftover QC report is written
@@ -52,7 +55,9 @@ standardise_gwas <- function(gwas,
                              check_build=TRUE,
                              study_type=study_types$continuous,
                              n_case=NA,
-                             n_control=NA) {
+                             n_control=NA,
+                             strand_check=TRUE,
+                             drop_ambiguous_palindromic=FALSE) {
   input_gwas_columns <- resolve_column_map(input_columns)
   output_gwas_columns <- resolve_column_map(output_columns)
 
@@ -79,6 +84,19 @@ standardise_gwas <- function(gwas,
                                                report_prefix = report_prefix)
 
   gwas <- standardise_alleles(gwas)
+
+  if (isTRUE(strand_check) && !is.null(ancestry) && length(ancestry) == 1 && !is.na(ancestry) && nzchar(ancestry)) {
+    reference <- allele_reference(unique(gwas$CHR), ancestry, ld_reference, output_reference_build)
+    if (!is.null(reference) && nrow(reference) > 0) {
+      checked <- harmonise_against_reference(gwas, reference, drop_ambiguous_palindromic = drop_ambiguous_palindromic)
+      gwas <- checked$gwas
+      message("Allele check against the ", ld_reference, " reference:\n",
+              paste(utils::capture.output(print(checked$report, row.names = FALSE)), collapse = "\n"))
+      if (!is.null(report_prefix)) {
+        data.table::fwrite(checked$report, paste0(report_prefix, ".allele_qc.tsv"), sep = "\t")
+      }
+    }
+  }
 
   rsid_option <- populate_rsid_option
   if (isTRUE(populate_eaf) && ld_reference == ld_reference_options$thousand_genomes &&
@@ -239,6 +257,7 @@ effective_sample_size <- function(n_case, n_control) {
 #' "categorical", "cc").
 #' @keywords internal
 normalise_study_type <- function(study_type) {
+  if (identical(study_type, "quant")) return(study_types$continuous)
   type <- tolower(trimws(as.character(study_type %||% study_types$continuous)))
   if (length(type) == 0 || is.na(type) || !nzchar(type)) return(study_types$continuous)
   if (type %in% c("continuous", "quantitative", "quant")) return(study_types$continuous)
@@ -376,7 +395,8 @@ standardise_alleles <- function(gwas) {
   gwas$EA <- toupper(gwas$EA)
   gwas$OA <- toupper(gwas$OA)
 
-  to_flip <- (gwas$EA > gwas$OA) & (!gwas$EA %in% c("D", "I"))
+  # canonical order: alphabetical (insertion/deletion coded I/D too, so I/D and D/I give the same key)
+  to_flip <- gwas$EA > gwas$OA
   gwas$.ALLELES_FLIPPED <- to_flip
 
   if (any(to_flip)) {

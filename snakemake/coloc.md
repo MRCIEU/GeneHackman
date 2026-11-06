@@ -131,3 +131,5 @@ populate_rsid: false
 - Coloc requires LBF columns in finemap outputs; multi-ancestry MultiSuSiE outputs are not compatible with this pipeline.
 - Only variants with log Bayes factors in both loci (i.e. present in the LD panel for both fine-mapping runs) are used.
 - See [coloc documentation](https://chr1swallace.github.io/coloc/) for interpretation of posterior probabilities.
+- **Sample overlap.** coloc assumes the two traits are measured in independent samples (Giambartolomei et al. 2014). Traits from the same or overlapping cohorts (e.g. nested case definitions with shared controls) violate this; same-biobank colocalisations are common, but read the posterior probabilities with caution, and note that a spurious signal from shared samples (or from the shared LD reference) can appear in both traits. The LDSC cross-trait intercept from `compare_gwases.smk` (`GCOV_INTERCEPT`, near 0 without overlap) shows how much overlap there is.
+- `label:` per GWAS names the traits in the results and plots.

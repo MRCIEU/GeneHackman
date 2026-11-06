@@ -15,7 +15,9 @@ rule standardise_gwases:
         check_build_flag = "TRUE" if pipeline.liftover.check_build else "FALSE",
         study_type = lambda wildcards: getattr(pipeline, wildcards.prefix).study_type,
         n_case = lambda wildcards: getattr(pipeline, wildcards.prefix).N_case or "NA",
-        n_control = lambda wildcards: getattr(pipeline, wildcards.prefix).N_control or "NA"
+        n_control = lambda wildcards: getattr(pipeline, wildcards.prefix).N_control or "NA",
+        strand_check_flag = "TRUE" if pipeline.harmonise.strand_check else "FALSE",
+        drop_palindromic_flag = "TRUE" if pipeline.harmonise.drop_ambiguous_palindromic else "FALSE"
     threads: 8
     resources:
         mem = lambda wildcards: f"{getattr(pipeline, wildcards.prefix).standardised_memory}G",
@@ -48,6 +50,8 @@ rule standardise_gwases:
             --check_build {params.check_build_flag} \
             --study_type {params.study_type} \
             --N_case {params.n_case} \
-            --N_control {params.n_control}
+            --N_control {params.n_control} \
+            --strand_check {params.strand_check_flag} \
+            --drop_ambiguous_palindromic {params.drop_palindromic_flag}
         """
 

@@ -92,3 +92,7 @@ singularity run -B /user/work/$(whoami) -B /user/home/$(whoami) --pwd /home/scri
 
 * This pipeline was run using the github repository: https://github.com/MRCIEU/GeneHackman
 * and the docker image: docker://mrcieu/genehackman:`r get_docker_image_tag()`
+
+### Software versions
+
+`r report_provenance()`

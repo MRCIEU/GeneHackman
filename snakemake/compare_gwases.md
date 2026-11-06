@@ -50,7 +50,11 @@ populate_rsid: false
 | Field | Required | Notes |
 | ----- | -------- | ----- |
 | `file` | **Yes** | Input summary-statistics file. |
-| `N` | **Yes** | Sample size; required for LDSC. |
+| `N` | **Yes** | Sample size, for LDSC when the file has no per-variant `N_EFF` or `N` column (those take precedence). |
+| `study_type` | No | `continuous` (default) or `binary`. |
+| `N_case`, `N_control` | No | Binary traits: case and control counts, for the effective sample size. |
+| `prevalence` | No | Binary traits: population prevalence, for liability-scale heritability. |
+| `label` | No | Name of the GWAS in plots and tables (default: the file name). |
 | `ancestry` | **Yes** | `AFR`, `AMR`, `EAS`, `EUR`, or `SAS` — LD reference for clumping and LDSC grouping. These 1000 Genomes codes are needed even with `ld_reference: pan_ukb`, because LDSC uses the 1000 Genomes LD scores (`SAS` clumps against Pan-UKB `CSA`). |
 | `columns` | No | Column map or preset. |
 | `build` | No | Input build. Default `GRCh37`; lifted to `output.build`. |
@@ -79,7 +83,7 @@ populate_rsid: false
 2. Clump per GWAS: PLINK on the ancestry-matched 1000 Genomes panel, or the Pan-UKB LD pack with `ld_reference: pan_ukb`
 3. Expected vs observed replication (`compare_observed_vs_expected_gwas.R`)
 4. Cross-GWAS heterogeneity scores and plots (`calculate_heterogeneity.R`)
-5. LDSC per **unique ancestry** present in the input (`run_ldsc.sh`)
+5. LDSC per **unique ancestry** present in the input (`run_ldsc.sh`): heritability of each GWAS and genetic correlation of **every pair** within the ancestry. LDSC's own `--rg a,b,c` estimates only the first trait against the rest, so it is run once per GWAS. Binary traits use the effective sample size (`N_EFF`) and, with `prevalence`, report liability-scale h² with a sample prevalence of 0.5 (Grotzinger et al. 2023). Genetic correlations are flagged as unreliable when either trait's h² z-score is below 4 or |rg| > 1. LDSC is not run between ancestries: cross-ancestry genetic correlation needs dedicated methods (e.g. Popcorn) and is not part of the pipeline. Don't give LDSC genomic-control-corrected summary statistics.
 6. HTML report (`result_compare_gwases.html`)
 
 ## Output
@@ -103,7 +107,9 @@ Paths under **`PROJECT_DIR`** unless noted.
 | `gwas_comparison/result_compare_gwases.html` | Summary HTML report. |
 | `plots/snp_heterogeneity_plot.png` | Heterogeneity overview plot. |
 | `plots/snps_with_heterogeneity_forest_plot.png` | Per-SNP forest plot for heterogeneous SNPs. |
-| `ldsc/results_<ancestry>.log` | LDSC log per ancestry (also other LDSC artefacts under `ldsc/`). |
+| `ldsc/results_<ancestry>_h2.tsv` | Heritability per GWAS: observed and (binary traits with prevalence) liability-scale h², h² z-score, intercept, ratio, mean χ², and flags. |
+| `ldsc/results_<ancestry>_rg.tsv` | Genetic correlation for every pair: rg, SE, P, cross-trait intercept (an indication of sample overlap), both traits' h² z-scores and `RG_RELIABLE`. |
+| `ldsc/results_<ancestry>.log` | All LDSC logs for the ancestry, concatenated (the individual logs are beside it). |
 
 ## Notes
 
