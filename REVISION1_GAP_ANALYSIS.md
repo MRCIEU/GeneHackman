@@ -1,11 +1,12 @@
 # Revision 1: reviewer points, status and issues the reviewers didn't raise
 
-6 November 2026. Code state: branch `revision1/reviewer-changes` (local, not pushed), three commits on top of `168f299`:
+6 November 2026. Code state: branch `feature/1.1.1-reviewer-feedback` (local, not pushed), commits on top of `168f299`:
 
 | Commit | Content |
 |---|---|
 | `ac0f629` | Binary traits and N_eff; per-variant N takes precedence; Z-only input. Fine-mapping: user/in-sample LD, allele alignment, LD-mismatch QC, automatic L, region strategies, MHC flag (SuSiE and MultiSuSiE). |
 | `03001e5` | LDSC: every pair within ancestry, effective N, liability-scale h², parsed tables with reliability flags. |
+| `a9403af` | LD-mismatch flags per credible set and in the HTML reports; fine-mapping HTML report; LD-mismatch QC in MultiSuSiE (Python port of susieR's diagnostics, tested against susieR); MungeSumstats script with Reviewer 1's chr:pos case. |
 | `941dbc9` | Strand/palindrome check against the LD reference; known-answer harmonisation tests; MungeSumstats concordance script; case-control coloc datasets; per-GWAS labels; B9, B27, B35, B32 (versions in reports); documentation. |
 
 Tests: testthat 138 blocks pass (110 before; +28), Python 17 pass with MultiSuSiE installed, Snakemake dry runs of finemap (single and multi-ancestry), compare_gwases, coloc and disease_progression parse with the new options.
@@ -42,7 +43,7 @@ Tests: testthat 138 blocks pass (110 before; +28), Python 17 pass with MultiSuSi
 | m8 | "multi-trait colocalization" | **Done (manuscript)** | Tracked change | HyPrColoc/moloc: mentioned as extensions, not implemented. |
 | m9 | BBJ not in GWAS comparison | **Open (decision)** | – | Option A (add) or B (correct text). Placeholder in manuscript. |
 | m10 | Table 1 wording | **Done (manuscript)** | Tracked change | Parameter table (Supplementary). |
-| m11 | Fine-mapping results not reported | **Partial** | PIPs, credible-set table, regions table with L, LD_MISMATCH_S, N_LD_OUTLIERS | No fine-mapping HTML report (C9.1). Letter changed to say tables, not report, unless built before resubmission. |
+| m11 | Fine-mapping results not reported | **Done** | HTML report (`finemap.Rmd`, commit a9403af); PIPs, credible-set table with `LD_FLAG` (OUTLIER_IN_CS, LD_MISMATCH, OUTLIERS_IN_REGION, MHC); regions table with L, LD_MISMATCH_S, N_LD_OUTLIERS; coloc and QTL MR reports list flagged credible sets; coloc results have `ld_check` | Fill the numbers from the HF re-run. |
 | m12 | Region definition: max size, no-merge, tiling | **Done** | `region_strategy: merge | none | tile`, `max_region_kb`, same rules in SuSiE and MultiSuSiE, MHC flag, documented | – |
 | m13 | Duplicate reference | **Done (manuscript)** | Tracked change | – |
 | m14 | Cite Chang et al. 2015 | **Done (manuscript)** | Tracked change | – |
@@ -99,7 +100,6 @@ Found during the audit, the Pan-UKB/GRCh38 work and today's implementation. "Fix
 | B28–B31 | Collider-bias method details and labels; `throw()` |
 | B34 | e2e tests in CI with output assertions (the known-answer tests are unit tests) |
 | B36–B38 | Count skipped loci; DESCRIPTION placeholder; munge `sed` patch |
-| C9.1 | Fine-mapping HTML report |
 | C3.4 / D1 | MungeSumstats as an engine (only the concordance script exists) |
 | – | Check `subset(mr_results, exposure %in% exposures)` in `R/mr.R` when `exposures` is set (flagged in the handoff, not reproduced) |
 | – | Miami/Manhattan titles still use file names (m17) |
@@ -119,7 +119,6 @@ The tracked response letter now describes what exists. These were removed or rew
 | Related-work paragraph plus a supplementary table comparing ~14 tools | A few sentences on the different purpose of GeneHackman's standardisation (Andrew, 6 Nov) |
 | `finemap.method` selectable | Documented interface and worked example; method option is the extension route |
 | MungeSumstats as engine (D1), HyPrColoc (D5), LDAK (D5), Popcorn (D4) | Not added; listed as extensions/limitations |
-| Fine-mapping HTML report | Region and credible-set tables |
 | Report warns on LDSC-intercept overlap | Static warning in the coloc report and docs; LDSC cross-trait intercept reported |
 | TwoSampleMR concordance | MungeSumstats concordance only |
 | Identifier parser fills alleles | Fills CHR/BP; alleles come from EA/OA columns |
@@ -127,7 +126,7 @@ The tracked response letter now describes what exists. These were removed or rew
 ## 4. What Andrew runs on ieup1 to fill the placeholders
 
 1. Rebuild the container (EnsDb v86), upload bundle 1.2.0, bump DESCRIPTION.
-2. `compare_with_mungesumstats.R` on HFall and BBJ.
+2. `scripts/validation/compare_with_mungesumstats.R` (see `scripts/validation/README.md`): HFall, BBJ, and BBJ with `--chrpos_only` (Reviewer 1's chr:pos:a1:a2 case). This needs dbSNP and MungeSumstats' reference packages, so it can't run in Claude's sandbox; it is the main outstanding check for R1-M3 and R2-1.
 3. LDSC benchmark (runbook step 8) and the HF compare_gwases run with `study_type: binary`, `N_case`, `N_control`, `prevalence` (HF prevalence: decide, e.g. 0.02).
 4. HF fine-mapping: `max_causal: auto` (L = 1) and `max_causal: 10`, 1000G and Pan-UKB; collect `LD_MISMATCH_S`, `N_LD_OUTLIERS`, credible-set counts.
 5. coloc with N_EFF; Fig. 2d.
