@@ -105,3 +105,30 @@ test_that("gwas_comparison.compare_replication_across_all_gwas_permutations keep
     "gwas_b_vs_gwas_c", "gwas_b_vs_gwas_d", "gwas_c_vs_gwas_d"
   ))
 })
+
+test_that("LDSC logs are parsed into heritability and genetic correlation tables with reliability flags", {
+  dir <- test_path("data/ldsc")
+  h2 <- parse_ldsc_h2_log(file.path(dir, "results_EUR_h2_1.log"))
+  expect_equal(c(h2$H2_OBS, h2$H2_OBS_SE, h2$H2_LIAB, h2$H2_LIAB_SE), c(0.0123, 0.0009, 0.0541, 0.004))
+  expect_equal(c(h2$INTERCEPT, h2$INTERCEPT_SE, h2$RATIO, h2$MEAN_CHISQ), c(1.0101, 0.0081, 0.0688, 1.1468))
+  low <- parse_ldsc_h2_log(file.path(dir, "results_EUR_h2_2.log"))
+  expect_true(is.na(low$H2_LIAB))
+  expect_match(low$RATIO_NOTE, "Ratio < 0")
+
+  tables <- ldsc_results_tables(
+    h2_logs = file.path(dir, c("results_EUR_h2_1.log", "results_EUR_h2_2.log")),
+    rg_logs = file.path(dir, "results_EUR_rg_1.log"),
+    sumstats = c("/data/ldsc/hf_all.sumstats.gz", "/data/ldsc/hf_pef.sumstats.gz"),
+    labels = c("HFall", "ni-HFpEF"), ancestry = "EUR", population_prevalences = c("0.02", "nan"))
+  expect_equal(tables$h2$TRAIT, c("HFall", "ni-HFpEF"))
+  expect_equal(tables$h2$H2_Z, c(0.0123 / 0.0009, 0.0018 / 0.0011))
+  expect_equal(tables$h2$FLAG_LOW_H2_Z, c(FALSE, TRUE))
+  expect_equal(tables$h2$POP_PREV, c(0.02, NA))
+  expect_equal(nrow(tables$rg), 1)
+  expect_equal(c(tables$rg$TRAIT_1, tables$rg$TRAIT_2), c("HFall", "ni-HFpEF"))
+  expect_equal(tables$rg$RG, 1.0117)
+  expect_equal(tables$rg$GCOV_INTERCEPT, 0.1903)
+  expect_true(tables$rg$FLAG_RG_OUT_OF_BOUNDS)
+  expect_true(tables$rg$FLAG_LOW_H2_Z)
+  expect_false(tables$rg$RG_RELIABLE)
+})

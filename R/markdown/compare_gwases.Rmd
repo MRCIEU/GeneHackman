@@ -6,18 +6,38 @@ output:
     theme: cayman
 ---
 
-### LDSC Result Files
+### LD score regression
 
-LD Score Regression (LDSC) estimates SNP heritability (h²) and genetic correlation (rg) between each pair of GWAS; each file below corresponds to one ancestry group.
+LD Score Regression (LDSC) is run within each ancestry: heritability (h²) of each GWAS, and genetic correlation (rg) of **every pair** of GWAS of that ancestry (LDSC's own `--rg a,b,c` estimates only the first against the rest, so the pipeline runs it once per GWAS). LDSC is not run between ancestries: LD differs between populations, so cross-ancestry genetic correlation needs dedicated methods (e.g. Popcorn).
+
+For binary traits the pipeline uses the effective sample size (`N_EFF`) and, when the population prevalence is given, reports liability-scale heritability (`H2_LIAB`, with a sample prevalence of 0.5 for effective N; Grotzinger et al. 2023). `H2_Z` is the z-score of the observed-scale heritability. A genetic correlation is flagged as unreliable (`RG_RELIABLE` FALSE) when either trait's `H2_Z` is below 4 or the estimate lies outside [-1, 1]; such estimates should not be interpreted. An intercept well above 1 for h² can indicate confounding or a sample size that is too large; "Ratio < 0" means the intercept is below 1, often from genomic-control-corrected input, which LDSC should not be given.
 
 ```{r echo = F}
-ldsc_result_files <- Sys.glob(paste0(params$ldsc_directory, "*"))
-for (file in ldsc_result_files) {
-  cat(paste0("\n\n", file, "\n\n"))
-  base::readLines(file) |> paste0(collapse = "\n") |> cat()
+ldsc_tables <- function(pattern) {
+  files <- Sys.glob(paste0(params$ldsc_directory, pattern))
+  tables <- lapply(files, function(f) data.table::fread(f))
+  tables <- Filter(function(t) nrow(t) > 0, tables)
+  if (length(tables) == 0) return(NULL)
+  data.table::rbindlist(tables, fill = TRUE)
 }
-
+h2_table <- ldsc_tables("*_h2.tsv")
+if (!is.null(h2_table)) {
+  shown <- intersect(c("ANCESTRY", "TRAIT", "H2_OBS", "H2_OBS_SE", "H2_LIAB", "H2_LIAB_SE", "H2_Z", "INTERCEPT",
+                       "INTERCEPT_SE", "RATIO", "MEAN_CHISQ", "FLAG_LOW_H2_Z", "RATIO_NOTE"), names(h2_table))
+  knitr::kable(h2_table[, ..shown], digits = 4, caption = "Heritability")
+}
 ```
+
+```{r echo = F}
+rg_table <- ldsc_tables("*_rg.tsv")
+if (!is.null(rg_table)) {
+  shown <- intersect(c("ANCESTRY", "TRAIT_1", "TRAIT_2", "RG", "RG_SE", "RG_P", "GCOV_INTERCEPT", "H2_Z_1",
+                       "H2_Z_2", "RG_RELIABLE"), names(rg_table))
+  knitr::kable(rg_table[, ..shown], digits = 4, caption = "Genetic correlation (every pair within ancestry)")
+}
+```
+
+The full LDSC logs are in `r params$ldsc_directory`.
 
 ### Plots Comparing Heterogeneity Across Significant SNPs
 

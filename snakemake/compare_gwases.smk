@@ -23,6 +23,11 @@ check_reference_data(pipeline, pipeline_includes_clumping=True, ld_scores=pipeli
                      ld_score_ancestries=ancestries)
 
 
+def ldsc_list(ancestry, value):
+    """Comma separated values for the GWAS of one ancestry (LDSC is run within ancestry only)."""
+    return ','.join(str(value(g)) for g in pipeline.gwases if g.ancestry == ancestry)
+
+
 def ld_score_population(ancestry):
     """Folder of the LD score set for an ancestry (the Pan-UKB scores call South Asian CSA)."""
     if pipeline.ldsc.ld_scores == "pan_ukb":
@@ -40,12 +45,15 @@ results_file = RESULTS_DIR + "gwas_comparison/result_compare_gwases.html"
 
 std_file_pattern = standardised_gwas_name("{prefix}")
 ldsc_result_pattern = RESULTS_DIR + "ldsc/results_{ancestry}.log"
+ldsc_h2_pattern = RESULTS_DIR + "ldsc/results_{ancestry}_h2.tsv"
+ldsc_rg_pattern = RESULTS_DIR + "ldsc/results_{ancestry}_rg.tsv"
 ldsc_directory = RESULTS_DIR + "ldsc/"
 pathlib.Path(ldsc_directory).mkdir(parents=True, exist_ok=True)
 
 rule all:
     input: expand(std_file_pattern, prefix=[g.prefix for g in pipeline.gwases]),
            expand(ldsc_result_pattern, ancestry=ancestries),
+           expand(ldsc_rg_pattern, ancestry=ancestries),
            expected_vs_observed_results,
            expected_vs_observed_variants,
            heterogeneity_scores,
@@ -103,14 +111,22 @@ rule calculate_ldsc_and_genetic_correlation:
     input:
         gwases = [g.standardised_gwas for g in pipeline.gwases]
     params:
-        gwases = lambda wildcards: ','.join([g.standardised_gwas for g in pipeline.gwases if g.ancestry == wildcards.ancestry]),
-        ns = lambda wildcards: ','.join([str(g.N) for g in pipeline.gwases if g.ancestry == wildcards.ancestry]),
+        gwases = lambda wildcards: ldsc_list(wildcards.ancestry, lambda g: g.standardised_gwas),
+        ns = lambda wildcards: ldsc_list(wildcards.ancestry, lambda g: g.analysis_N),
         ancestry = lambda wildcards: ld_score_population(wildcards.ancestry),
-        ld_score_dir = LDSC_DIRS[pipeline.ldsc.ld_scores]
-    output: ldsc_result_pattern
+        ld_score_dir = LDSC_DIRS[pipeline.ldsc.ld_scores],
+        study_types = lambda wildcards: ldsc_list(wildcards.ancestry, lambda g: g.study_type),
+        sample_prevalences = lambda wildcards: ldsc_list(wildcards.ancestry, lambda g: g.sample_prevalence or "NA"),
+        population_prevalences = lambda wildcards: ldsc_list(wildcards.ancestry, lambda g: g.prevalence or "NA"),
+        labels = lambda wildcards: ldsc_list(wildcards.ancestry, lambda g: re.sub(r"[,\s]+", "_", g.label))
+    output:
+        log = ldsc_result_pattern,
+        h2 = ldsc_h2_pattern,
+        rg = ldsc_rg_pattern
     shell:
         """
-        ./run_ldsc.sh {params.gwases} {params.ns} {params.ancestry} {output} {params.ld_score_dir}
+        ./run_ldsc.sh {params.gwases} {params.ns} {params.ancestry} {output.log} {params.ld_score_dir} \
+            {params.study_types} {params.sample_prevalences} {params.population_prevalences} {params.labels}
         """
 
 
@@ -129,7 +145,7 @@ rule create_results_file:
     threads: 4
     resources:
         mem = "8G",
-    input: list(files_created.values()), expand(ldsc_result_pattern, ancestry=ancestries)
+    input: list(files_created.values()), expand(ldsc_result_pattern, ancestry=ancestries), expand(ldsc_rg_pattern, ancestry=ancestries)
     output: results_file
     shell:
         """
