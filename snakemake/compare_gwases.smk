@@ -15,10 +15,12 @@ validate_ancestries(ancestries, pipeline.ld_reference)
 if not hasattr(pipeline, "ldsc"): pipeline.ldsc = SimpleNamespace()
 pipeline.ldsc.ld_scores = str(getattr(pipeline.ldsc, "ld_scores", default_ld_scores)).strip()
 if pipeline.ldsc.ld_scores not in LDSC_DIRS:
-    raise ValueError(f"Error: ldsc.ld_scores must be one of {list(LDSC_DIRS)}, not {pipeline.ldsc.ld_scores}")
+    stop_with_message(f"ldsc.ld_scores must be one of {', '.join(LDSC_DIRS)}, not {pipeline.ldsc.ld_scores}.")
 if not all(a in ld_scores_ancestries[pipeline.ldsc.ld_scores] for a in ancestries):
-    raise ValueError(f"Please ensure all ancestries are one of {ld_scores_ancestries[pipeline.ldsc.ld_scores]} "
-                     f"for ldsc.ld_scores {pipeline.ldsc.ld_scores}")
+    stop_with_message(f"With ldsc.ld_scores: {pipeline.ldsc.ld_scores}, each GWAS's ancestry must be one of: "
+                      f"{', '.join(ld_scores_ancestries[pipeline.ldsc.ld_scores])}.")
+check_reference_data(pipeline, pipeline_includes_clumping=True, ld_scores=pipeline.ldsc.ld_scores,
+                     ld_score_ancestries=ancestries)
 
 
 def ld_score_population(ancestry):
@@ -26,6 +28,7 @@ def ld_score_population(ancestry):
     if pipeline.ldsc.ld_scores == "pan_ukb":
         return pan_ukb_ancestry_aliases.get(ancestry, ancestry)
     return ancestry
+
 
 #List of output files
 expected_vs_observed_results = RESULTS_DIR + "gwas_comparison/expected_vs_observed_outcomes.tsv"

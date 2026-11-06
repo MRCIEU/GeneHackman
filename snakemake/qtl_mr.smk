@@ -2,14 +2,17 @@ include: "util/common.smk"
 container: get_docker_container()
 
 pipeline_name = "qtl_mr"
-pipeline = parse_pipeline_input(pipeline_includes_clumping=True)
+# The QTL data are GRCh38 only; GWASes in GRCh37 are lifted to GRCh38 during standardisation
+pipeline = parse_pipeline_input(pipeline_includes_clumping=True, output_builds=["GRCh38"],
+                                output_builds_reason="The QTL data are GRCh38 only; GWASes in GRCh37 are lifted "
+                                                     "to GRCh38 during standardisation.")
 gwas = pipeline.gwases[0]
 
 onstart:
     print("##### QTL MR Pipeline #####")
 
 ancestries = list([g.ancestry for g in pipeline.gwases])
-validate_ancestries(ancestries)
+validate_ancestries(ancestries, pipeline.ld_reference)
 
 finemap_opts = getattr(pipeline, "finemap", SimpleNamespace())
 finemap_window_kb = getattr(finemap_opts, "window_kb", 1000)
@@ -28,11 +31,12 @@ qtl_n = getattr(qtl_opts, "N", 0)
 
 qtl_dataset = getattr(qtl_opts, "dataset", "")
 if qtl_dataset not in qtl_dataset_options:
-    raise ValueError(f"qtl.dataset must be one of {qtl_dataset_options}, not '{qtl_dataset}'")
+    stop_with_message(f"qtl.dataset must be one of {', '.join(qtl_dataset_options)}, not '{qtl_dataset}'.")
 # Only cis QTLs are supported; subcategory is optional and kept for older input files
 if (getattr(qtl_opts, "subcategory", None) or qtl_subcategory) != qtl_subcategory:
     raise ValueError(f"qtl.subcategory: only '{qtl_subcategory}' QTLs are supported, not '{qtl_opts.subcategory}'")
 qtl_name = qtl_dataset + "_" + qtl_subcategory
+check_reference_data(pipeline, pipeline_includes_clumping=True, qtl_dataset=qtl_dataset)
 if not hasattr(pipeline.qtl, "exposures"): pipeline.qtl.exposures = []
 exposures_string = " ".join(pipeline.qtl.exposures)
 

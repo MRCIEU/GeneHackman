@@ -194,7 +194,8 @@ populate_partial_rsids <- function(gwas,
   }
   if (!file.exists(marker_to_rsid_file)) {
     stop("1000 Genomes marker map not found: ", marker_to_rsid_file,
-         ". Download the reference data for ", build, ", or set populate_rsid: true for the full dbSNP lookup.")
+         ". Download it with ./download_reference_data.sh",
+         if (build == reference_builds$GRCh37) " --grch37" else "", ", or set populate_rsid: true for the full dbSNP lookup.")
   }
   marker_columns <- colnames(vroom::vroom(marker_to_rsid_file, n_max = 0, show_col_types = F))
 
@@ -232,7 +233,8 @@ populate_full_rsids <- function(gwas,
   }
   if (!dir.exists(file.path(dbsnp_dir, rsid_build))) {
     stop(paste0("Error: dbSNP reference for ", build, " not found at ", file.path(dbsnp_dir, rsid_build),
-                ". Download the ", build, " reference data, or standardise to a build that is available."))
+                ". Download it with ./download_reference_data.sh (without --no-dbsnp",
+                if (build == reference_builds$GRCh37) ", with --grch37" else "", ")."))
   }
 
   parallel_chr_population <- calculate_parallelism()

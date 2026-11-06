@@ -10,10 +10,10 @@ Each step is resumable: re-running a command skips finished work. Run the long s
 | 1 | Check the dbSNP GRCh38 files | 5 min | — |
 | 2 | Build the 1000G 30x GRCh38 panel | 0.5–1 day | ~60 GB temporary, ~10 GB kept |
 | 3 | Import the Pan-UKB LD scores | 30 min | ~5 GB |
-| 4 | Build the QTL data (GRCh38, then a GRCh37 copy) | 3–4 h | ~4 GB per build |
+| 4 | Build the QTL data (GRCh38; the GRCh37 copy is optional and not published) | 3–4 h | ~4 GB per build |
 | 5 | Refresh the Pan-UKB pack's GRCh38 keys (after the pack build) | 1–2 h per ancestry | — |
 | 6 | Validation report | 30 min | — |
-| 7 | Assemble bundle 1.2.0 and the GRCh37 extras | 30 min | hard links, ~0 |
+| 7 | Assemble bundle 1.2.0 and upload | 30 min + upload | hard links, ~0 |
 | 8 | LDSC benchmark (reviewer R1-M1) | 1 h | — |
 | 9 | End-to-end tests, then release | 1–2 h | — |
 
@@ -141,9 +141,9 @@ It writes `$NEW_QTL_DATA_DIR/<dataset>/GRCh38/{top_hits,gwas}/...`, `exposures.t
 | brainmeta | 16,729 | 16,711 | 15,287 |
 | ukb_pqtl | 2,850 | 2,364 (323 more leads dropped as > 1 Mb from the gene) | 1,658 |
 
-`30_lift_qtl_data.R` then lifts every file to `<dataset>/GRCh37/` with GeneHackman's liftover QC, and writes `liftover_summary.tsv`. Expect well under 1% of variants to be dropped.
+`30_lift_qtl_data.R` can then lift every file to `<dataset>/GRCh37/` with GeneHackman's liftover QC, and writes `liftover_summary.tsv` (well under 1% of variants dropped). The GRCh37 copy is **not published**: the QTL data are GRCh38 only, and `qtl_mr` requires `output.build: GRCh38`.
 
-The pipeline reads `<dataset>/<build>/` according to `output.build`.
+The pipeline reads `<dataset>/GRCh38/`.
 
 ## 5. Refresh the Pan-UKB pack's GRCh38 keys (after the pack build has finished)
 
@@ -176,11 +176,11 @@ What to expect:
 3. **Panel continuity.** r for the same rsID pairs in the old and new panels: correlation > 0.95 and sign agreement close to 100%.
 4. **Bundle contents.** Everything present except what step 7 adds.
 
-## 7. Assemble bundle 1.2.0 and the GRCh37 extras
+## 7. Assemble bundle 1.2.0 and upload
 
 ```bash
 bash reference_data/grch38/50_assemble_bundle.sh
-$R_CMD reference_data/grch38/40_validate_grch38.R    # section 4 should now be all OK
+PLINK19=plink1.9 $R_CMD reference_data/grch38/40_validate_grch38.R    # section 4 should now be all OK
 ```
 
 `$WORK_DIR/bundle_1.2.0` becomes `gs://genehackman/1.2.0/`. It contains:
@@ -188,15 +188,34 @@ $R_CMD reference_data/grch38/40_validate_grch38.R    # section 4 should now be a
 - the GRCh38 1000G panel, dbSNP b38, the Pan-UKB pack, the chains including hg18ToHg38, `gene_name_map.tsv`;
 - `LDSCORE/pan_ukb`.
 
-`$WORK_DIR/bundle_1.2.0-grch37` becomes `gs://genehackman/1.2.0-grch37/`. It holds the GRCh37 1000G panel, dbSNP b37 and the old LD scores.
+**How users download it.** Users run [`download_reference_data.sh`](../../download_reference_data.sh). It lists `gs://genehackman/1.2.0/` (and `gs://genehackman-qtl/1.2.0/<dataset>/GRCh38/`) through the public GCS JSON API, picks the files for the chosen ancestries and options from their paths, and checks each download against the md5 GCS stores. So:
+- **Keep the layout.** The script knows the paths: `genomic_data/1000genomes/b38_dbsnp156/<POP>.{bed,bim,fam,frq}`, `genomic_data/pan_ukb_ld/<POP>/`, `LDSCORE/pan_ukb/<POP>/`, `genomic_data/dbsnp/b38_dbsnp156/`, and `genomic_data/liftover/` and `gene_name_map.tsv` (always).
+- **Upload without parallel composite uploads.** Composite objects have no md5. The printed commands set `parallel_composite_upload_threshold=0`.
+- **There is no GRCh37 bundle.** `--grch37` fetches the GRCh37 panel, dbSNP b37 and LD scores from `gs://genehackman/1.1.0/`. Don't delete or change `1.1.0/`: both the 1.1.0 release and `--grch37` use it.
+- **The QTL upload leaves out the GRCh37 copies.** The QTL data are GRCh38 only.
 
-**Before uploading**, check the Pan-UKB licence for redistributing the pack and LD scores from the GeneHackman bucket. It is CC BY 4.0, with the note that "usage may be restricted by UK Biobank".
+**Pan-UKB redistribution: decided.** The Pan-UKB LD pack and LD scores are re-hosted in the GeneHackman bucket on the basis of the Pan-UKB downloads page, which says *"All data here are released openly and publicly for the benefit of the wider biomedical community."* (Andrew Elmore, 5 Nov 2026). The page's conditions apply to users:
+- *"use of this data is bound by all terms of usage of the UK Biobank"*;
+- no attempts to re-identify participants;
+- attribution to Pan-UKB and UK Biobank;
+- citation of Karczewski et al., Nat Genet 57, 2408–2417 (2025), doi:10.1038/s41588-025-02335-7.
 
-The upload commands, from a machine with write access, are printed at the end. The QTL data go to `gs://genehackman-qtl/1.2.0/`:
+The README asks users for this. See REVISION1_PLAN.md §12 for the exact wording and sources.
+
+The upload commands, from a machine with write access, are printed at the end:
 
 ```bash
-gsutil -m rsync -r $NEW_QTL_DATA_DIR/ gs://genehackman-qtl/1.2.0/
+gsutil -o GSUtil:parallel_composite_upload_threshold=0 -m rsync -r $BUNDLE_DIR/ gs://genehackman/1.2.0/
+gsutil -o GSUtil:parallel_composite_upload_threshold=0 -m rsync -r -x '.*/GRCh37/.*' $NEW_QTL_DATA_DIR/ gs://genehackman-qtl/1.2.0/
 ```
+
+**Testing before the upload.** Point the script at a local folder that holds `1.2.0/` (and `1.1.0/` for `--grch37`), laid out like the bucket:
+
+```bash
+GENEHACKMAN_DATA_URL=file:///path/to/fake_bucket ./download_reference_data.sh --dir /tmp/gh_test
+```
+
+Local files have no md5, so only their sizes are checked.
 
 ## 8. LDSC benchmark (reviewer R1-M1)
 
@@ -223,15 +242,16 @@ grep -A3 "Total Observed scale h2\|Genetic Correlation:" $WORK_DIR/ldsc_benchmar
 
 ## 9. End-to-end tests, then release
 
-The end-to-end tests run every pipeline with both LD references, in GRCh38 (default) and GRCh37. So the test data directory needs the main bundle, the GRCh37 extras and the GRCh38 QTL data. Point `.env` at them:
+The end-to-end tests run every pipeline with both LD references, in GRCh38 (default) and GRCh37, for EUR and EAS, and QTL MR for all three datasets. After the upload, install the test data the way users will, which also tests the published data (about 46 GB):
 
 ```bash
-mkdir -p $WORK_DIR/test_pipeline_data
-cp -al $WORK_DIR/bundle_1.2.0/. $WORK_DIR/test_pipeline_data/
-cp -aln $WORK_DIR/bundle_1.2.0-grch37/. $WORK_DIR/test_pipeline_data/
-# .env: PIPELINE_DATA_DIR=$WORK_DIR/test_pipeline_data  QTL_DATA_DIR=$NEW_QTL_DATA_DIR  DOCKER_VERSION=<image with EnsDb v86>
+./download_reference_data.sh --dir $WORK_DIR/test_pipeline_data --ancestries EUR,EAS --grch37 --qtl all \
+  --qtl-dir $WORK_DIR/test_qtl_data
+# .env: PIPELINE_DATA_DIR=$WORK_DIR/test_pipeline_data  QTL_DATA_DIR=$WORK_DIR/test_qtl_data  DOCKER_VERSION=<image with EnsDb v86>
 ./tests/e2e_tests/run_test_pipelines.sh
 ```
+
+Before the upload, the live `pipeline_data` (which holds everything) works too.
 
 The container needs `EnsDb.Hsapiens.v86`, the GRCh38 gene annotation for LocusZoom (added to `docker/requirements.R`). Rebuild the image before running coloc end to end:
 

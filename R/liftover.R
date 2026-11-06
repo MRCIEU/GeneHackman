@@ -286,7 +286,7 @@ run_liftover <- function(bed_file_input, bed_file_output, input_build, output_bu
   liftover_conversion <- available_liftover_conversions[[paste0(input_build, output_build)]]
   chain_file <- file.path(liftover_chain_directory(), liftover_conversion)
   if (!file.exists(chain_file)) {
-    stop("liftOver chain file not found: ", chain_file, ". Download the reference data (see README.md).")
+    stop("liftOver chain file not found: ", chain_file, ". Download the reference data with ./download_reference_data.sh.")
   }
   liftover_command <- paste(shQuote(liftover_binary_path()), shQuote(bed_file_input), shQuote(chain_file),
                             shQuote(bed_file_output), shQuote(unmapped))

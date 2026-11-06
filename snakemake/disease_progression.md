@@ -74,7 +74,7 @@ output:
 | Field | Required | Notes |
 | ----- | -------- | ----- |
 | `populate_rsid` | No | Default `false`. |
-| `output.build` | No | Target build after standardisation. Default `GRCh38` (`GRCh37` needs the GRCh37 extras download). |
+| `output.build` | No | Target build after standardisation. Default `GRCh38` (`GRCh37` needs `download_reference_data.sh --grch37`). |
 
 `flip_alleles: false` is **not** allowed.
 

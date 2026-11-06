@@ -60,7 +60,7 @@ populate_rsid: false
 
 | Field | Required | Notes |
 | ----- | -------- | ----- |
-| `output.build` | No | Build of all outputs (GWAS, clumps, fine-mapping, plots, MR and coloc). Default `GRCh38` (`GRCh37` needs the GRCh37 extras download, and QTL data in that build). |
+| `output.build` | No | Build of all outputs (GWAS, clumps, fine-mapping, plots, MR and coloc). Default `GRCh38` (`GRCh37` needs `download_reference_data.sh --grch37`). |
 
 ### `plink_clump_arguments`
 

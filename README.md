@@ -62,42 +62,35 @@ conda activate genehackman
 
 ### 3. Download reference data
 
-Reference files (1000 Genomes LD panels, dbSNP RSID maps, liftover chains, LD scores) are hosted on Google Cloud Storage under a **version prefix** that matches the pipeline release, e.g. `gs://genehackman/1.2.0`. [Install gsutil](https://docs.cloud.google.com/storage/docs/gsutil_install) if needed.
-
-**Required for most pipelines** (GRCh38: outputs are GRCh38 by default from release 1.2.0)
+The reference data (release 1.2.0, GRCh38) are public, and [`download_reference_data.sh`](download_reference_data.sh) downloads only what you need. It needs `curl` only, no Google Cloud tools.
 
 ```bash
-gsutil -m rsync -r "gs://genehackman/1.2.0/" /path/to/my_pipeline_data/
+# European ancestry, no QTL data: about 20 GB
+./download_reference_data.sh --dir /path/to/my_pipeline_data
+
+# More ancestries, and QTL data for the qtl_mr pipeline
+./download_reference_data.sh --dir /path/to/my_pipeline_data --ancestries EUR,EAS --qtl eqtlgen,ukb_pqtl
+
+# See what a command would download, and how big it is, without downloading anything
+./download_reference_data.sh --dir /path/to/my_pipeline_data --ancestries all --qtl all --dry-run
 ```
 
-Set `PIPELINE_DATA_DIR=/path/to/my_pipeline_data/` in `.env`.
+The script prints the `.env` lines to set at the end (`PIPELINE_DATA_DIR`, and `QTL_DATA_DIR` if you downloaded QTL data). To add ancestries or datasets later, run it again with the new options: files already there are kept, and an interrupted download resumes. Every file is checked against its md5. Run `./download_reference_data.sh --help` for all options.
 
-**Optional: GRCh37 extras** (only for `output.build: GRCh37`): the 1000 Genomes phase 3 panel, the GRCh37 dbSNP RSID map and the earlier GRCh37 LD scores, into the same directory:
+| Option | Default | What it downloads | Size |
+|---|---|---|---|
+| (always) | | liftover chains, gene name map, 1000 Genomes RSID marker map, HapMap3 SNP list | 0.2 GB |
+| `--ancestries` | `EUR` | per ancestry: the 1000 Genomes 30x panel (GRCh38), the [Pan-UKB LD pack](reference_data/pan_ukb_ld/README.md) and the Pan-UKB LD scores. Choose from `EUR EAS AFR AMR SAS MID`, or `all` | EUR 7.8 GB, EAS 7.3, SAS 8.7, AMR 16.9, MID 17.5, AFR 27.1 |
+| `--no-dbsnp` | dbSNP included | leaves out dbSNP 156 (GRCh38), which only `populate_rsid: true` uses. The default RSID fill uses the 1000 Genomes marker map | saves 11.7 GB |
+| `--qtl` | `none` | QTL datasets for `qtl_mr` (GRCh38): `eqtlgen`, `brainmeta`, `ukb_pqtl`, or `all`. They go in `--qtl-dir` (default: `QTL_DATA_DIR` from `.env`, else `<dir>/qtl_data`) | eqtlgen 1.8 GB, brainmeta 2.3, ukb_pqtl 0.4 |
+| `--grch37` | not included | the GRCh37 files for `output.build: GRCh37`: the 1000 Genomes phase 3 panel and the earlier LD scores for your ancestries, plus dbSNP GRCh37 unless `--no-dbsnp` | about 1.9 GB per ancestry, plus 11.4 GB dbSNP |
 
-```bash
-gsutil -m rsync -r "gs://genehackman/1.2.0-grch37/" /path/to/my_pipeline_data/
-```
-
-Release 1.1.0 (GRCh37 only) stays at `gs://genehackman/1.1.0/` for reproducing earlier results.
-
-**Pan-UKB LD pack** (for `ld_reference: pan_ukb`, and needed by the end-to-end tests)
-
-Precomputed LD from the Pan-UK Biobank for six ancestries, built with [`reference_data/pan_ukb_ld`](reference_data/pan_ukb_ld/README.md). It is part of the reference data download, at `genomic_data/pan_ukb_ld/` (about 80 GB). Until a release includes it, copy a built pack to `PIPELINE_DATA_DIR/genomic_data/pan_ukb_ld/`.
-
-**Optional — QTL MR pipeline only**
-
-```bash
-gsutil -m rsync -r "gs://genehackman-qtl/1.2.0/" /path/to/my_qtl_data/
-```
-
-QTL data are kept per build (`<dataset>/GRCh38/...` and `<dataset>/GRCh37/...`), and the pipeline uses the one matching `output.build`. Set `QTL_DATA_DIR=/path/to/my_qtl_data/`, or place QTL data under `PIPELINE_DATA_DIR/qtl_datasets/` (see [PLATFORM_SETUP.md](PLATFORM_SETUP.md)).
-
-Example `.env` paths:
-
-```bash
-PIPELINE_DATA_DIR=/path/to/my_pipeline_data/
-QTL_DATA_DIR=/path/to/my_qtl_data/
-```
+Notes:
+- **Ancestries.** `MID` exists only in Pan-UKB, so it works with `ld_reference: pan_ukb` but not `1000genomes`. South Asian is `SAS` in 1000 Genomes and `CSA` in Pan-UKB; `SAS` downloads both.
+- **GRCh37.** GWASes in GRCh37 don't need `--grch37`: they are lifted to GRCh38 during standardisation. It is only for GRCh37 *output*. The QTL data are GRCh38 only, so `qtl_mr` always runs with `output.build: GRCh38`.
+- **Missing data.** If a pipeline needs data you haven't downloaded (another ancestry, dbSNP, GRCh37 files or a QTL dataset), it stops before running and prints the `download_reference_data.sh` command that adds it.
+- **Pan-UKB data.** The Pan-UKB LD pack and LD scores are derived from the [Pan-UKB](https://pan.ukbb.broadinstitute.org/downloads) LD matrices and LD scores, which Pan-UKB releases openly. Their use is bound by the UK Biobank terms of use; don't attempt to re-identify participants. If you use them, acknowledge Pan-UKB and UK Biobank and cite Karczewski et al., [Nat Genet 57, 2408–2417 (2025)](https://doi.org/10.1038/s41588-025-02335-7).
+- **Earlier releases.** Release 1.1.0's data (GRCh37) stay at `gs://genehackman/1.1.0/` and `gs://genehackman-qtl/1.1.0/` for reproducing earlier results; see that release's README.
 
 ### 4. Configure `.env` and input YAML
 
@@ -114,14 +107,14 @@ Variables match [.env_example](.env_example):
 | Variable | Purpose |
 |----------|---------|
 | **`PROJECT_DIR`** | Root folder for this analysis. The pipeline writes inputs under **`PROJECT_DIR/data/`** and results under **`PROJECT_DIR/results/`**. |
-| **`PIPELINE_DATA_DIR`** | Directory containing **`genomic_data/`** and **`LDSCORE/`** (from step 3). Also used for the Apptainer image cache: **`PIPELINE_DATA_DIR/genomic_data/pipeline/genehackman_<version>.sif`**, where `<version>` comes from **`DOCKER_VERSION`** or defaults to **`Version:`** in [`DESCRIPTION`](DESCRIPTION). Download reference data from **`gs://genehackman/<version>/`** with the same version string. If the SIF is missing and the directory is writable, `run_pipeline.sh` builds it from `docker://mrcieu/genehackman:<version>`. |
+| **`PIPELINE_DATA_DIR`** | Directory containing **`genomic_data/`** and **`LDSCORE/`** (from step 3). Also used for the Apptainer image cache: **`PIPELINE_DATA_DIR/genomic_data/pipeline/genehackman_<version>.sif`**, where `<version>` comes from **`DOCKER_VERSION`** or defaults to **`Version:`** in [`DESCRIPTION`](DESCRIPTION). The reference data come from `download_reference_data.sh` (step 3). If the SIF is missing and the directory is writable, `run_pipeline.sh` builds it from `docker://mrcieu/genehackman:<version>`. |
 
 **Optional**
 
 | Variable | Purpose |
 |----------|---------|
 | **`DOCKER_VERSION`** | Docker/Apptainer image tag (e.g. `1.1.0` or `develop`). Defaults to **`Version:`** in [`DESCRIPTION`](DESCRIPTION) when unset. |
-| **`QTL_DATA_DIR`** | Path to **`genehackman-qtl`** data for **`qtl_mr`**. Leave empty for other pipelines. |
+| **`QTL_DATA_DIR`** | QTL data for **`qtl_mr`**, from `download_reference_data.sh --qtl` (step 3). Leave empty for other pipelines. |
 | **`SNAKEMAKE_PROFILE`** | Snakemake profile directory. Default: **`snakemake/profiles/local/`** (local Apptainer). On a cluster, use e.g. **`snakemake/profiles/slurm/`**. |
 | **`APPTAINER_MODULE`** | Environment module to load Apptainer/Singularity on HPC (when not using the `local` profile). |
 | **`SLURM_PARTITION`** | Slurm partition. If unset, `run_pipeline.sh` tries `sinfo`, else **`compute`**. |

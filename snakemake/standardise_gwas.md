@@ -56,7 +56,7 @@ populate_rsid: false
 
 | Field | Required | Notes |
 | ----- | -------- | ----- |
-| `output.build` | No | Target reference build after liftover. Default `GRCh38`; `GRCh37` needs the GRCh37 extras download (see README). |
+| `output.build` | No | Target reference build after liftover. Default `GRCh38`; `GRCh37` needs `download_reference_data.sh --grch37` (see README). |
 | `output.columns` | No | Rename standard columns on output. |
 
 ### Root fields

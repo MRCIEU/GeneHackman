@@ -78,7 +78,7 @@ Add more entries under `gwases:` for additional traits or ancestries.
 | ----- | -------- | ----- |
 | `populate_rsid` | No | Default `false`. With clumping and `false`, RSID population is **partial** unless overridden per GWAS. |
 | `populate_eaf` | No | Default `false`. |
-| `output.build` | No | Target build after standardisation. Default `GRCh38` (`GRCh37` needs the GRCh37 extras download). |
+| `output.build` | No | Target build after standardisation. Default `GRCh38` (`GRCh37` needs `download_reference_data.sh --grch37`). |
 | `ld_reference` | No | `1000genomes` (default; PLINK on the 1000 Genomes panel) or `pan_ukb` (precomputed Pan-UKB LD pack, see [PIPELINES.md](../PIPELINES.md#common-conventions)). |
 
 `flip_alleles: false` is **not** allowed.
@@ -134,4 +134,4 @@ Locus names use the clump window centre (`<CHR>_<center>`).
 
 - For pairwise colocalisation between traits, use [`coloc.smk`](coloc.smk) instead.
 - Multi-ancestry mode does **not** produce per-trait LBF columns suitable for `coloc::coloc.bf_bf` on individual GWAS directories.
-- LD matrices use ancestry-matched 1000 Genomes panels under `PIPELINE_DATA_DIR/genomic_data/1000genomes/b37_dbsnp156/`.
+- LD matrices use the ancestry-matched 1000 Genomes panel of the output build (`PIPELINE_DATA_DIR/genomic_data/1000genomes/b38_dbsnp156/` for GRCh38), or the Pan-UKB LD pack with `ld_reference: pan_ukb`.

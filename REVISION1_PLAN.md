@@ -9,10 +9,11 @@
 | **B1** | QTL code: `eqtlgen`, `brainmeta`, `ukb_pqtl`, cis only; remove MetaBrain and trans | — | ✅ Done; committed as `4260371`, not pushed |
 | **B2** | QTL data built from genotype-phenotype-map 1.0.0, GRCh38 then GRCh37 | B1 (layout), A1 (pack for liftover QC) | ✅ Done; `QTL_DATA_DIR` set in `.env` |
 
-**What's left** (see §9 for the data and its sizes, and §10 for the files to commit):
-1. Commit the A2 code changes, then push them along with `4260371`.
-2. The wrap-up in §6: tests and dry runs against the live `pipeline_data`, and the `REVISION1_HANDOFF.md` updates.
-3. Optional: free up space on `/local-scratch` (§9.3).
+**What's left** (see §9 for the data and its sizes, §10 for the files to commit, §11 for the download script and §12 for the Pan-UKB redistribution decision):
+1. Commit the download-script changes (§10), then push them along with `4260371` and `0e4b2e1`.
+2. Upload 1.2.0 (runbook §7). The Pan-UKB redistribution question is decided (§12). The UKB-PPP, eQTLGen and BrainMeta terms for the QTL bucket haven't been checked.
+3. The wrap-up in §6: the full end-to-end tests, and the `REVISION1_HANDOFF.md` updates.
+4. Optional: free up space on `/local-scratch` (§9.3).
 
 ## 1. Context
 
@@ -358,8 +359,8 @@ rsync -a /local-scratch/data/pan_ukb_ld/pack/ pan_ukb_ld/     # no --delete (kee
 ## 7. Out of scope (later)
 - Container rebuild with EnsDb v86, full e2e runs, and the 1.2.0 release (§3 D).
 - Bundle assembly and upload to `gs://genehackman` and `gs://genehackman-qtl/1.2.0/`.
-  - These wait on the redistribution check for the Pan-UKB pack and LD scores.
-  - The same check now covers UKB-PPP (UKB terms), BrainMeta and eQTLGen sumstats.
+  - Pan-UKB pack and LD scores: decided, they can be re-hosted (§12).
+  - Not yet checked: the terms for UKB-PPP (UKB terms), BrainMeta and eQTLGen summary statistics in the QTL bucket.
 - LDSC benchmark (B8): needs the paths of the HF standardised GWAS.
 - Decisions C1–C3, other §3 E work, §3 F, and the optional A4/A5.
 
@@ -388,14 +389,14 @@ Sizes are in GB (10⁹ bytes): local ones from `du`, bucket ones from `gsutil du
 | `LDSCORE/pan_ukb/` (6 ancestries + `w_hm3.snplist`, A2.3) | 0.09 | rsID | `genehackman/1.2.0` |
 | `genomic_data/liftover/` (5 chains + `liftOver`) | 0.01 | — | both |
 | `genomic_data/gene_name_map.tsv` | 0.003 | — | `genehackman/1.2.0` |
-| `genomic_data/dbsnp/b37_dbsnp156/` | 11.44 | 37 | `genehackman/1.2.0-grch37` |
-| `genomic_data/1000genomes/b37_dbsnp156/` | 10.54 | 37 | `genehackman/1.2.0-grch37` |
-| `LDSCORE/b37_dbsnp156/` | 1.09 | 37 | `genehackman/1.2.0-grch37` |
+| `genomic_data/dbsnp/b37_dbsnp156/` | 11.44 | 37 | stays in `genehackman/1.1.0` (`--grch37`) |
+| `genomic_data/1000genomes/b37_dbsnp156/` | 10.54 | 37 | stays in `genehackman/1.1.0` (`--grch37`) |
+| `LDSCORE/b37_dbsnp156/` | 1.09 | 37 | stays in `genehackman/1.1.0` (`--grch37`) |
 | `genomic_data/pipeline/genehackman_1.1.0.sif` | 3.01 | — | not uploaded (1.1.0 container) |
 
 **`/local-scratch/data/genehackman_grch38/qtl_1.2.0`** (`.env` `QTL_DATA_DIR`): **9.02 GB** in total.
 
-| Dataset | GRCh38 | GRCh37 |
+| Dataset | GRCh38 (published) | GRCh37 (local only, not published) |
 |---|---|---|
 | eqtlgen | 1.81 | 1.81 |
 | brainmeta | 2.30 | 2.30 |
@@ -404,14 +405,15 @@ Sizes are in GB (10⁹ bytes): local ones from `du`, bucket ones from `gsutil du
 
 ### 9.2 The two buckets: now and after the 1.2.0 upload
 
-Nothing has been uploaded yet; the upload waits on the redistribution check (§7).
+Nothing has been uploaded yet. The Pan-UKB redistribution question is decided (§12).
 
 | Bucket | Now | Adds for 1.2.0 | After (if 1.1.0 is kept) |
 |---|---|---|---|
-| `gs://genehackman` | **23.1 GB**: `1.1.0/` = 1000genomes b37 10.54, dbsnp b37 11.44, liftover 0.01, LDSCORE b37 1.08 | `1.2.0/` 97.2 GB (pack 74.5, dbSNP b38 11.7, panel b38 10.9, LD scores 0.09, chains, gene map) + `1.2.0-grch37/` 23.1 GB | **143.3 GB**; or 120.3 GB if `1.2.0-grch37/` isn't a separate copy |
-| `gs://genehackman-qtl` | **60.3 GB**: `1.1.0/eqtlgen` 29.3, `1.1.0/metabrain` 31.0 | `1.2.0/` 9.0 GB (three datasets × two builds) | **69.3 GB** |
+| `gs://genehackman` | **23.1 GB**: `1.1.0/` = 1000genomes b37 10.54, dbsnp b37 11.44, liftover 0.01, LDSCORE b37 1.08 | `1.2.0/` 97.2 GB (pack 74.5, dbSNP b38 11.7, panel b38 10.9, LD scores 0.09, chains, gene map) | **120.3 GB** |
+| `gs://genehackman-qtl` | **60.3 GB**: `1.1.0/eqtlgen` 29.3, `1.1.0/metabrain` 31.0 | `1.2.0/` 4.4 GB (three datasets, GRCh38 only) | **64.7 GB** |
 
-- **`1.2.0-grch37/` duplicates `1.1.0/`.** It holds the same three GRCh37 folders as `1.1.0/` (b37 panel, dbSNP b37, b37 LD scores), and their sizes match the local copies. I haven't compared checksums. You could save 23 GB by pointing GRCh37 users at `1.1.0/`, or make it with a bucket-to-bucket `gsutil cp` so nothing is uploaded twice.
+- **Decided 5 Nov: no GRCh37 copy in 1.2.0.** `1.2.0` is GRCh38 only. The GRCh37 files for `output.build: GRCh37` stay in `1.1.0/` and are fetched from there by `download_reference_data.sh --grch37`. The md5s GCS stores for the 1.1.0 objects match an independent decode for all 944 objects, and match the local files I spot-checked. The QTL data are GRCh38 only, so `qtl_mr` requires `output.build: GRCh38`.
+- **What a user stores.** Users download only what they need (§11), not the whole bucket: a default EUR install is 19.7 GB (7.8 GB with `--no-dbsnp`), against 97 GB for all of 1.2.0.
 - The QTL bucket's 1.1.0 data (eQTLGen genome-wide plus MetaBrain, 60 GB) is about 6.7 times the new cis-only 1.2.0 set.
 
 ### 9.3 Working space on `/local-scratch` (nothing deleted)
@@ -443,17 +445,117 @@ Deleting `1000g_30x`, `bundle_1.2.0`, `pan_ukb_ld/pack` and `pan_ukb_ld/work` wo
 - **A2.4:** `/local-scratch/data/genehackman_grch38/validation_report.md` (plus `validation_report_{EUR,EAS}.md` and `validation_{EUR,EAS}.log`)
 - **QTL (B2):** `qtl_1.2.0/<dataset>/GRCh38/summary.tsv` and `qtl_1.2.0/<dataset>/GRCh37/liftover_summary.tsv`; logs `qtl_from_gpm.log` and `lift_qtl.log`
 
-## 10. Uncommitted changes (for the A2 commit)
+## 10. Uncommitted changes (download script, 5 Nov)
+
+The A2 changes were committed by Andrew as `0e4b2e1`. New since then:
 
 | File | Change |
 |---|---|
-| `reference_data/grch38/config.sh` | Brace-bug fix for `KG30X_FILE_PATTERN`; `KG30X_SOURCE` (`plink2` default, `vcf`); overridable `PLINK2_HG38_{PGEN,PVAR,PSAM}_URL` |
-| `reference_data/grch38/10_build_1000g_panel.sh` | `plink2` source: one download of `all_hg38`, `--zst-decompress`, `--pfile … vzs` per chromosome; logs how many phase 3 people are present |
-| `reference_data/grch38/11_assign_rsids.R` | rsID lookup runs as one forked process per chromosome (`THREADS` cores), because `chrpos_to_rsid()`'s own workers can't load a `load_all()`ed GeneHackman; stops if a chromosome fails; logs rsID coverage |
-| `R/chrpos_to_rsid.R` | with `parallel_cores <= 1`, runs in the current R session (`lapply`) and starts no `future` workers |
-| `reference_data/grch38/20_import_pan_ukb_ldscores.py` | uses the `UKBB.<POP>.rsid.l2.ldscore.gz` single-annotation files |
-| `reference_data/grch38/40_validate_grch38.R` | `.frq` A1 orientation fix (A2.4) |
-| `reference_data/grch38/RUNBOOK.md` | Steps 0–5 updates (A2.1); §6 notes on `PLINK19` inside the container, `BUNDLE_DIR`, and copying the report aside between populations |
-| `REVISION1_PLAN.md` | this file (untracked) |
+| `download_reference_data.sh` (new, repo root) | the user download script (§11) |
+| `reference_data/grch38/50_assemble_bundle.sh` | no GRCh37 bundle; prints upload commands that keep md5s (no composite uploads) and leave out the GRCh37 QTL copies |
+| `snakemake/util/common.smk` | `stop_with_message()`: plain, boxed message with no traceback. `check_reference_data()`: lists everything missing (1000G panel or Pan-UKB pack per ancestry, RSID marker map, dbSNP for `populate_rsid: true`, LD scores, QTL dataset, GRCh37 files) with one download command. `validate_ancestries()` explains MID is Pan-UKB only. `parse_pipeline_input(output_builds=...)` |
+| `snakemake/{standardise_gwas,disease_progression,finemap,coloc,compare_gwases,qtl_mr}.smk` | each calls `check_reference_data()` (compare_gwases with its LD scores, qtl_mr with its dataset); qtl_mr needs `output.build: GRCh38` and now validates ancestries against its own `ld_reference` |
+| `snakemake/util/constants.smk`, `R/constants.R`, `R/data_conversions.R`, `R/liftover.R` | error messages and comments name `download_reference_data.sh` (`--grch37`, `--qtl`, dbSNP); `qtl_dataset_dir()` says the QTL data are GRCh38 only |
+| `tests/testthat/test_reference_builds.R` | expects the `--grch37` message; skipped when the GRCh37 panel is installed (it failed against the live dir before) |
+| `README.md` | §3 rewritten around the script: options, sizes, notes, Pan-UKB attribution; `.env` table |
+| `CONTRIBUTING.md`, `tests/e2e_tests/run_test_pipelines.sh` | e2e test data: `--ancestries EUR,EAS --grch37 --qtl all` (~46 GB) |
+| `PIPELINES.md`, `snakemake/{coloc,compare_gwases,disease_progression,finemap,qtl_mr,standardise_gwas}.md` | `output.build: GRCh37` needs `--grch37`; `qtl_mr` is GRCh38 only; removed the unimplemented `PIPELINE_DATA_DIR/qtl_datasets/` fallback; `finemap.md` panel path |
+| `reference_data/grch38/{RUNBOOK,README}.md` | §4 GRCh37 QTL copy not published; §7 how the script lists the bucket, upload commands, Pan-UKB decision, testing with `file://`; §9 e2e data via the download script |
+| `REVISION1_PLAN.md` | this update |
 
-`reference_data/grch38/local_config.sh` is git-ignored.
+## 11. Download script (5 Nov 2026)
+
+**`./download_reference_data.sh`** (bash + curl; the buckets are public over HTTPS, so no gsutil):
+
+| Option | Default |
+|---|---|
+| `--dir DIR` | `PIPELINE_DATA_DIR` from `.env` |
+| `--ancestries` | `EUR` (EUR EAS AFR AMR SAS MID, or `all`; SAS also fetches Pan-UKB CSA) |
+| `--qtl`, `--qtl-dir` | `none`; `QTL_DATA_DIR` from `.env`, else `DIR/qtl_data` |
+| `--no-dbsnp` | dbSNP included |
+| `--grch37` | off; fetches the GRCh37 panel, LD scores (and dbSNP b37) from `1.1.0/` |
+| `--dry-run`, `--verify`, `--jobs` (8), `--version` (1.2.0) | |
+
+**How it works (no manifest).**
+- It lists the bucket through the public GCS JSON API (`storage/v1/b/<bucket>/o?prefix=…`, paged). That gives each object's name, size and md5; the md5 is base64, decoded in awk.
+- It picks files by path:
+
+  | Path | Downloaded |
+  |---|---|
+  | `1000genomes/b38_dbsnp156/<POP>.{bed,bim,fam,frq}` | per ancestry |
+  | `pan_ukb_ld/<POP>/` | per ancestry |
+  | `LDSCORE/pan_ukb/<POP>/` | per ancestry |
+  | `dbsnp/b38_dbsnp156/` | unless `--no-dbsnp` |
+  | `liftover/`, `gene_name_map.tsv`, `marker_to_rsid.tsv.gz`, `pan_ukb_ld/MANIFEST.json`, `w_hm3.snplist` | always |
+  | `1.1.0/…b37…` | with `--grch37` |
+  | `<dataset>/GRCh38/` (QTL bucket) | with `--qtl` |
+- It skips files already present with the right size, and checks free space where each part goes.
+- It downloads in parallel to `.part` files with resume, checks size and md5, then moves each file into place.
+- It checks that every selected file is in place, and prints the `.env` lines and what the data supports.
+- **Testing before the upload:** `GENEHACKMAN_DATA_URL=file:///dir` lists with `find`, and checks sizes only.
+- **Uploads must keep md5s.** Composite uploads have none, so `50_assemble_bundle.sh` prints `gsutil` commands with `parallel_composite_upload_threshold=0`.
+
+**Sizes.** Every install includes 0.2 GB of core files.
+
+| Item | Size (GB) |
+|---|---|
+| EUR | 7.8 |
+| EAS | 7.3 |
+| SAS | 8.7 |
+| AMR | 16.9 |
+| MID | 17.5 |
+| AFR | 27.1 |
+| dbSNP b38 | 11.7 |
+| eqtlgen | 1.8 |
+| brainmeta | 2.3 |
+| ukb_pqtl | 0.4 |
+| `--grch37` | ~1.9 per ancestry, + 11.4 for dbSNP b37 |
+| everything | 124 |
+
+A default EUR install is 19.7 GB.
+
+**Tested (5 Nov), after removing the manifest.**
+- **Bucket listing over HTTPS:** all 944 objects of `1.1.0/` listed. Size and md5 agree with an independent Python decode for 944/944, and the decoded md5s match local files. Paging gives the same result with 100-object pages (10 pages).
+- **Classification:** the same files and sizes per group and ancestry as the earlier manifest (GRCh37: 21 panel, 25 dbSNP, 441 LD score files; full 1.2.0: 101.6 GB plus GRCh37).
+- **Real download from a `file://` stand-in for 1.2.0** (symlinks to the live data): EUR plus `ukb_pqtl`, 20.1 GB, 2,475 files in 17 s. Byte-identical to the sources, and a rerun fetches nothing.
+- **Real HTTPS download with md5 checks** (`--version 1.1.0`, core files). A same-size corrupted file is found and repaired by `--verify`. An unknown release gives a clear error.
+- **Bugs found and fixed while testing:**
+  - the awk join selected nothing when the target dir was empty;
+  - a `--verify` message was written into the file list;
+  - `find` didn't follow symlinks;
+  - an empty md5 field shifted the `xargs` arguments (now `-` = size check only).
+- **Pipeline messages** (Snakemake dry runs with the host `genehackman` conda env, Snakemake 7.26; the develop container's Snakemake fails on `distutils` under Python 3.12). Each case prints one boxed message, with no traceback, listing what is missing and one command:
+  - EAS panel missing;
+  - EAS pack missing;
+  - GRCh37 panel and marker map missing (`--grch37`, plus `--no-dbsnp` because that dir has no dbSNP);
+  - compare_gwases with EAS panel and LD scores missing;
+  - qtl_mr with EAS panel and eqtlgen both missing (one command with `--ancestries EAS --qtl eqtlgen --qtl-dir …`);
+  - `QTL_DATA_DIR` unset;
+  - dbSNP missing for `populate_rsid: true`;
+  - an empty data dir.
+
+  qtl_mr with GRCh37 output, and MID with `ld_reference: 1000genomes`, also get plain explanations. All 19 e2e inputs still plan against the live `pipeline_data`.
+- **R tests:** `test_reference_builds`, `test_data_conversions`, `test_mr` and `test_liftover` pass.
+- **Not tested:** the published 1.2.0 data (nothing is uploaded yet), and macOS (the script falls back to BSD `stat`/`md5`).
+
+**Test files** in `/local-scratch/data/genehackman_grch38/download_test/` (~20 GB: `data/`, `qtl/`, `nodbsnp/`, `empty/`, `https/`) can be deleted. The `file://` stand-in bucket is symlinks in the session scratchpad.
+
+## 12. Pan-UKB redistribution: decision (5 Nov 2026)
+
+**Decision (Andrew Elmore, 5 Nov 2026):** GeneHackman re-hosts the Pan-UKB-derived LD pack (`genomic_data/pan_ukb_ld/`) and the Pan-UKB LD scores (`LDSCORE/pan_ukb/`) in `gs://genehackman/1.2.0/`. The basis is the Pan-UKB downloads page's statement that its data are released openly.
+
+**What the Pan-UKB pages say** (read on 5 Nov 2026):
+- [Pan-UKB downloads page](https://pan.ukbb.broadinstitute.org/downloads):
+  - Openness: *"All data here are released openly and publicly for the benefit of the wider biomedical community."* **This is the statement the decision rests on.**
+  - The licence: *"The GWAS results data produced by the Pan-UKB are available free of restrictions under the Creative Commons Attribution 4.0 International (CC BY 4.0)."* This explicitly names the GWAS results only. LD matrices and LD scores are covered by the "released openly" statement above.
+  - Terms: *"use of this data is bound by all terms of usage of the UK Biobank"*, and *"All users of this data agree to not attempt to reidentify participants."*
+  - Attribution: *"We request that you acknowledge and give attribution to both the Pan-UKB project and UK Biobank, and link back to the relevant page, wherever possible."* and that publications cite Karczewski, Gupta, Kanai et al., *Nat Genet* 57, 2408–2417 (2025), [doi:10.1038/s41588-025-02335-7](https://doi.org/10.1038/s41588-025-02335-7).
+  - Publication: *"From the perspective of the Pan-UKB team, there are absolutely no restrictions or embargoes on the publication of results derived from this data."*
+- [Pan-UKB LD scores and matrices page](https://pan.ukbb.broadinstitute.org/docs/ld): no separate licence or terms.
+
+**What GeneHackman does about the conditions:**
+- The README's "Download reference data" notes say the pack and LD scores come from Pan-UKB, that UK Biobank terms apply, that users mustn't attempt re-identification, and that they should acknowledge Pan-UKB and UK Biobank and cite Karczewski et al. 2025.
+- RUNBOOK §7 records the decision for maintainers.
+- For the manuscript: credit Pan-UKB and UK Biobank and cite Karczewski et al. 2025 in the data-availability statement and the methods, and say that the LD pack is derived from the Pan-UKB LD matrices (restricted to ±1 Mb, eigenvalues clipped).
+
+**Not covered by this decision:** the QTL bucket (UKB-PPP, eQTLGen, BrainMeta summary statistics, via the genotype-phenotype map). Their terms haven't been checked.

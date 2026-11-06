@@ -9,6 +9,7 @@ onstart:
 
 ancestries = list([g.ancestry for g in pipeline.gwases])
 validate_ancestries(ancestries, pipeline.ld_reference)
+check_reference_data(pipeline, pipeline_includes_clumping=True)
 
 unique_ancestries = list(set(ancestries))
 if len(unique_ancestries) > 1:

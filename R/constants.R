@@ -76,7 +76,7 @@ is_on_cluster <- nzchar(Sys.getenv("SLURM_JOB_ID")) || nzchar(Sys.getenv("PBS_JO
 genomic_data_dir <- file.path(pipeline_data_dir, "genomic_data")
 # 1000 Genomes genotype panels (PLINK bfiles, .frq, marker_to_rsid) per reference build; must match
 # thousand_genomes_dir() in snakemake/util/constants.smk.  GRCh38 is the 1000G 30x release (main reference
-# data download); GRCh37 is phase 3 (the optional GRCh37 extras download).
+# data download); GRCh37 is phase 3 (download_reference_data.sh --grch37, served from release 1.1.0).
 thousand_genomes_builds <- list(GRCh38 = "b38_dbsnp156", GRCh37 = "b37_dbsnp156")
 # Must match snakemake/util/constants.smk LD_PACK_DIR (precomputed Pan-UKB LD, see reference_data/pan_ukb_ld).
 ld_pack_dir <- file.path(genomic_data_dir, "pan_ukb_ld")
@@ -86,7 +86,7 @@ liftover_binary <- Sys.which("liftOver")
 if (!nzchar(liftover_binary)) {
   liftover_binary <- "/usr/local/bin/liftOver"
 }
-# QTL datasets, cis QTLs only, each kept per build at QTL_DATA_DIR/<dataset>/<build>/{top_hits,gwas}/cis...
+# QTL datasets, cis QTLs only, at QTL_DATA_DIR/<dataset>/<build>/{top_hits,gwas}/cis... (published in GRCh38 only)
 # (built from the genotype-phenotype-map 1.0.0 study data by reference_data/grch38/31_qtl_from_gpm.R).
 # Must match qtl_dataset_options in snakemake/util/constants.smk.
 qtl_datasets <- list(eqtlgen="eqtlgen", brainmeta="brainmeta", ukb_pqtl="ukb_pqtl")
@@ -110,13 +110,14 @@ thousand_genomes_dir_for <- function(build = reference_builds$GRCh38, check = FA
   dir <- file.path(genomic_data_dir, "1000genomes", subdir)
   if (check && !dir.exists(dir)) {
     stop("1000 Genomes ", build, " panel not found at ", dir, ". ",
-         if (build == reference_builds$GRCh37) "GRCh37 output needs the GRCh37 extras download (see README.md)."
-         else "Download the reference data (see README.md).")
+         "Download it with ./download_reference_data.sh --ancestries <ancestries>",
+         if (build == reference_builds$GRCh37) " --grch37 (GRCh37 output)" else "", ".")
   }
   return(dir)
 }
 
 #' Directories of a QTL dataset's files for a reference build: \verb{QTL_DATA_DIR/<dataset>/<build>/<kind>}.
+#' The published QTL data are GRCh38 only.
 #'
 #' @param dataset one of \code{qtl_datasets}
 #' @param kind "top_hits" (MR instruments) or "gwas" (full summary statistics, for coloc)
@@ -125,8 +126,9 @@ thousand_genomes_dir_for <- function(build = reference_builds$GRCh38, check = FA
 qtl_dataset_dir <- function(dataset, kind, build = reference_builds$GRCh38) {
   dir <- file.path(qtl_directory, dataset, build, kind)
   if (!dir.exists(dir)) {
-    stop("QTL data for ", dataset, " in ", build, " not found at ", dir,
-         ". Download the QTL data for this build (see README.md).")
+    stop("QTL data for ", dataset, " in ", build, " not found at ", dir, ". ",
+         if (build != reference_builds$GRCh38) "The QTL data are GRCh38 only: use output build GRCh38."
+         else paste0("Download them with ./download_reference_data.sh --qtl ", dataset, " and set QTL_DATA_DIR."))
   }
   return(dir)
 }

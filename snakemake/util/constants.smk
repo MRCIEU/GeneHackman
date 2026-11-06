@@ -98,7 +98,7 @@ QTL_DATA_DIR = os.getenv("QTL_DATA_DIR", "").strip()
 
 GENOMIC_DATA_DIR = format_dir_string(PIPELINE_DATA_DIR + "/genomic_data")
 # LD score sets for LDSC (matched on rsID, so usable with either output build): the Pan-UKB LD scores
-# (main reference data download) or the earlier 1000 Genomes GRCh37 scores (GRCh37 extras download)
+# (always downloaded) or the earlier 1000 Genomes GRCh37 scores (download_reference_data.sh --grch37)
 LDSC_DIRS = {
     "pan_ukb": format_dir_string(PIPELINE_DATA_DIR + "/LDSCORE/pan_ukb"),
     "1000genomes_b37": format_dir_string(PIPELINE_DATA_DIR + "/LDSCORE/b37_dbsnp156"),

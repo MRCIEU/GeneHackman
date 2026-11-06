@@ -10,7 +10,7 @@ Standardise, clump, and fine-map **one** outcome GWAS, run Mendelian randomizati
 ./run_pipeline.sh snakemake/qtl_mr.smk path/to/input.yaml
 ```
 
-Requires **`QTL_DATA_DIR`** in `.env` (or the default layout under `PIPELINE_DATA_DIR/qtl_datasets/`). See [`.env_example`](../.env_example) and [PLATFORM_SETUP.md](../PLATFORM_SETUP.md).
+Requires the QTL dataset and **`QTL_DATA_DIR`** in `.env`: download it with `./download_reference_data.sh --qtl <dataset>` (see the [README](../README.md#3-download-reference-data)), which prints the `QTL_DATA_DIR` to set.
 
 ## Input
 
@@ -63,7 +63,7 @@ populate_rsid: false
 
 | Field | Required | Notes |
 | ----- | -------- | ----- |
-| `output.build` | No | Build of all outputs (GWAS, clumps, fine-mapping, plots, MR and coloc). Default `GRCh38` (`GRCh37` needs the GRCh37 extras download, and QTL data in that build). |
+| `output.build` | No | Build of all outputs (GWAS, clumps, fine-mapping, plots, MR and coloc). Must be `GRCh38` (the default), because the QTL data are GRCh38 only. GWASes in GRCh37 are lifted to GRCh38. |
 
 ### `plink_clump_arguments`
 
@@ -101,7 +101,7 @@ populate_rsid: false
 
 ### QTL datasets
 
-All three are cis QTLs in European-ancestry samples. They are kept in GRCh38 and GRCh37 (`QTL_DATA_DIR/<dataset>/<build>/`), and the pipeline uses the build matching `output.build`. They were built from the standardised (pre-imputation) study data of the genotype-phenotype map 1.0.0 by [`reference_data/grch38/31_qtl_from_gpm.R`](../reference_data/grch38/31_qtl_from_gpm.R).
+All three are cis QTLs in European-ancestry samples. They are GRCh38 only (`QTL_DATA_DIR/<dataset>/GRCh38/`), so the pipeline runs with `output.build: GRCh38`. They were built from the standardised (pre-imputation) study data of the genotype-phenotype map 1.0.0 by [`reference_data/grch38/31_qtl_from_gpm.R`](../reference_data/grch38/31_qtl_from_gpm.R).
 
 | `dataset` | Exposures | Tissue | N used | Source |
 | --------- | --------- | ------ | - | ------ |

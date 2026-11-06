@@ -2,7 +2,8 @@ test_that("constants.thousand_genomes_dir_for picks the panel of the build and e
   expect_match(thousand_genomes_dir_for("GRCh38"), "1000genomes/b38_dbsnp156$")
   expect_match(thousand_genomes_dir_for("GRCh37"), "1000genomes/b37_dbsnp156$")
   expect_error(thousand_genomes_dir_for("GRCh36"), "No 1000 Genomes panel for reference build GRCh36")
-  expect_error(thousand_genomes_dir_for("GRCh37", check = TRUE), "GRCh37 extras download")
+  skip_if(dir.exists(thousand_genomes_dir_for("GRCh37")), "the GRCh37 panel is installed")
+  expect_error(thousand_genomes_dir_for("GRCh37", check = TRUE), "--grch37")
 })
 
 test_that("constants.qtl_dataset_dir uses the build's QTL files and stops when they are missing", {

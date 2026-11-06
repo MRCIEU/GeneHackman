@@ -5,6 +5,7 @@ import gzip
 import yaml
 import os
 import re
+import sys
 import subprocess
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -38,7 +39,7 @@ def get_docker_container():
     return sif_path
 
 
-def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=False):
+def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=False, output_builds=None, output_builds_reason=""):
     global input_file
     env_in = os.environ.get("GENEHACKMAN_INPUT") or os.environ.get("GENEHACKMAN_INPUT_FILE")
     try:
@@ -74,6 +75,9 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
             raise ValueError(f"Error: {pipeline.output.build} is not one of the valid options: {build_options}")
 
         if not hasattr(pipeline.output, "columns"): pipeline.output.columns = default_output_options.columns
+    if output_builds and pipeline.output.build not in output_builds:
+        stop_with_message(f"This pipeline needs output.build: {' or '.join(output_builds)}, not "
+                          f"{pipeline.output.build}.\n{output_builds_reason}")
     pipeline.ld_reference = str(getattr(pipeline, "ld_reference", default_ld_reference)).strip()
     if pipeline.ld_reference not in ld_reference_options:
         raise ValueError(f"Error: ld_reference must be one of {ld_reference_options}, not {pipeline.ld_reference}")
@@ -158,7 +162,6 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
     if pipeline.ld_reference == "pan_ukb" and (pipeline_includes_clumping or eaf_ancestries):
         ld_ancestries = [g.ancestry for g in pipeline.gwases if pipeline_includes_clumping or g.populate_eaf]
         validate_ancestries(ld_ancestries, pipeline.ld_reference)
-        check_ld_pack_available(ld_ancestries)
     if not allow_flip_false:
         for g in pipeline.gwases:
             if getattr(g, "flip_alleles", True) is False:
@@ -289,27 +292,114 @@ def ensure_mandatory_columns_are_present(gwas_file, mandatory_column_names_in_gw
                 The options available are: (BETA, SE), or (OR, OR_LB, OR_UB)""")
 
 
+def stop_with_message(message):
+    """Stop with a plain message for the user, without a Python traceback.
+
+    For problems with the input or the downloaded data found while the Snakefile is read, before any job runs
+    or any lock is taken (os._exit skips Snakemake's own error report, which would add a traceback)."""
+    bar = "=" * 100
+    sys.stdout.flush()  # anything printed before goes first
+    print(f"\n{bar}\n{message.strip()}\n{bar}\n", file=sys.stderr)
+    sys.stderr.flush()
+    os._exit(1)
+
+
 def validate_ancestries(ancestries, ld_reference=default_ld_reference):
     if ld_reference == "pan_ukb":
         allowed_ancestries = pan_ukb_ancestries + list(pan_ukb_ancestry_aliases)
     else:
         allowed_ancestries = thousand_genomes_ancestries
-    if not all(ancestry in allowed_ancestries for ancestry in ancestries):
-        raise ValueError(f"Please ensure all ancestries are one of these values for ld_reference "
-                         f"{ld_reference}:\n {allowed_ancestries}")
+    unknown = sorted({str(a) for a in ancestries if a not in allowed_ancestries})
+    if unknown:
+        hint = ""
+        if ld_reference != "pan_ukb" and set(unknown) <= set(pan_ukb_ancestries):
+            hint = f"\n{', '.join(unknown)} is only available in Pan-UKB: set ld_reference: pan_ukb to use it."
+        stop_with_message(f"Ancestry {', '.join(unknown)} can't be used with ld_reference: {ld_reference}.\n"
+                          f"Each GWAS's ancestry must be one of: {', '.join(allowed_ancestries)}.{hint}")
 
 
-def check_ld_pack_available(ancestries):
-    """The Pan-UKB LD pack must exist, with every requested ancestry, before a pan_ukb pipeline starts."""
-    help_text = ("Build it with reference_data/pan_ukb_ld (see its README.md) or copy a built pack to "
-                 f"{LD_PACK_DIR}, or set ld_reference: 1000genomes")
-    if not os.path.isfile(os.path.join(LD_PACK_DIR, "MANIFEST.json")):
-        raise ValueError(f"Error: ld_reference is pan_ukb but no LD pack was found at {LD_PACK_DIR}. {help_text}")
-    for ancestry in set(ancestries):
-        population = pan_ukb_ancestry_aliases.get(ancestry, ancestry)
-        if not os.path.isfile(os.path.join(LD_PACK_DIR, population, "info.tsv")):
-            raise ValueError(f"Error: the LD pack at {LD_PACK_DIR} has no {population} data "
-                             f"(ancestry {ancestry}). {help_text}")
+def check_reference_data(pipeline, pipeline_includes_clumping, ld_scores=None, ld_score_ancestries=(),
+                         qtl_dataset=None):
+    """Stop before any job runs if reference data this pipeline needs hasn't been downloaded.
+
+    download_reference_data.sh fetches only the chosen ancestries, dbSNP can be left out, the GRCh37 files
+    (output.build: GRCh37) come only with --grch37, and QTL datasets only with --qtl, so a data directory may hold
+    only part of the reference data.  Everything missing is listed in one message, with one command that
+    downloads it all.
+
+    ld_scores / ld_score_ancestries: the LDSC score set and ancestries (compare_gwases); qtl_dataset: qtl_mr."""
+    build = pipeline.output.build
+    data_dir = os.path.normpath(PIPELINE_DATA_DIR) if PIPELINE_DATA_DIR else "<PIPELINE_DATA_DIR>"
+    used_ancestries = {g.ancestry for g in pipeline.gwases if g.ancestry} | set(ld_score_ancestries)
+    missing, missing_qtl, needs_dbsnp, needs_grch37 = [], [], False, False
+
+    if build in THOUSAND_GENOMES_BUILDS:
+        grch37 = build == "GRCh37"
+        panel_dir = thousand_genomes_dir(build)
+        ld_ancestries = {g.ancestry for g in pipeline.gwases if g.ancestry and (pipeline_includes_clumping or g.populate_eaf)}
+        if pipeline.ld_reference == "1000genomes":
+            for a in sorted(a for a in ld_ancestries if not os.path.isfile(panel_dir + a + ".bed")):
+                missing.append(f"the 1000 Genomes {build} LD panel for {a}")
+                needs_grch37 |= grch37
+        else:
+            for a in sorted(ld_ancestries):
+                population = pan_ukb_ancestry_aliases.get(a, a)
+                if not os.path.isfile(os.path.join(LD_PACK_DIR, population, "info.tsv")):
+                    missing.append(f"the Pan-UKB LD pack for {a}" + (f" ({population} in Pan-UKB)" if population != a else ""))
+        rsid_options = {g.populate_rsid for g in pipeline.gwases}
+        if populate_rsid_options.partial in rsid_options and not os.path.isfile(panel_dir + "marker_to_rsid.tsv.gz"):
+            missing.append(f"the 1000 Genomes {build} RSID marker map (to fill in RSIDs)")
+            needs_grch37 |= grch37
+        dbsnp_dir = GENOMIC_DATA_DIR + "dbsnp/" + THOUSAND_GENOMES_BUILDS[build] + "/"
+        if populate_rsid_options.full in rsid_options and not os.path.isfile(dbsnp_dir + "chr1.fst"):
+            missing.append(f"dbSNP {build}, used by populate_rsid: true (or leave populate_rsid unset to fill RSIDs "
+                           "from the 1000 Genomes marker map instead)")
+            needs_dbsnp = True
+            needs_grch37 |= grch37
+    if ld_scores:
+        for a in sorted(set(ld_score_ancestries)):
+            population = pan_ukb_ancestry_aliases.get(a, a) if ld_scores == "pan_ukb" else a
+            if not os.path.isdir(LDSC_DIRS[ld_scores] + population):
+                missing.append(f"the {ld_scores} LD scores for {a} (for LDSC)")
+                needs_grch37 |= ld_scores == "1000genomes_b37"
+    if qtl_dataset:
+        top_hits = (QTL_DIRECTORY or "") + qtl_dataset + "/GRCh38/top_hits/" + qtl_subcategory + ".tsv.gz"
+        if not QTL_DIRECTORY or not os.path.isfile(top_hits):
+            missing_qtl.append(f"the {qtl_dataset} QTL data")
+
+    if not missing and not missing_qtl:
+        return
+    nothing_downloaded = not os.path.isdir(GENOMIC_DATA_DIR + "liftover")
+    if nothing_downloaded:
+        lines = [f"No GeneHackman reference data was found in PIPELINE_DATA_DIR ({data_dir}).",
+                 "Download it (only what this pipeline needs) with:"]
+    else:
+        lines = ["This pipeline needs reference data that hasn't been downloaded yet.", ""]
+        if missing:
+            lines += [f"Missing from PIPELINE_DATA_DIR ({data_dir}):"] + [f"  - {m}" for m in missing]
+        if missing_qtl:
+            where = os.path.normpath(QTL_DIRECTORY) if QTL_DIRECTORY else "QTL_DATA_DIR, which isn't set in .env"
+            lines += [f"Missing from {('QTL_DATA_DIR (' + where + ')') if QTL_DIRECTORY else where}:"]
+            lines += [f"  - {m}" for m in missing_qtl]
+        lines += ["", "Download what's missing with:"]
+
+    # one command for everything; the ancestries the pipeline uses (or, if none, those already downloaded)
+    ancestries = used_ancestries or {d for d in pan_ukb_ancestries if os.path.isdir(os.path.join(LD_PACK_DIR, d))} or {"EUR"}
+    command = f"./download_reference_data.sh --dir {data_dir} --ancestries {','.join(sorted(ancestries))}"
+    dbsnp_dir = GENOMIC_DATA_DIR + "dbsnp/" + THOUSAND_GENOMES_BUILDS.get(build, "b38_dbsnp156") + "/"
+    if not needs_dbsnp and not os.path.isfile(dbsnp_dir + "chr1.fst"):
+        command += " --no-dbsnp"  # don't add dbSNP (11.7 GB) to a directory set up without it
+    if needs_grch37:
+        command += " --grch37"
+    if missing_qtl:
+        command += f" --qtl {qtl_dataset}" + (f" --qtl-dir {os.path.normpath(QTL_DIRECTORY)}" if QTL_DIRECTORY else "")
+    lines += [f"  {command}", ""]
+    lines += ["Then run the pipeline again." if nothing_downloaded else
+              "Files you already have are kept, so only the missing ones are downloaded. Then run the pipeline again."]
+    if missing_qtl and not QTL_DIRECTORY:
+        lines += ["Set QTL_DATA_DIR in .env to the QTL directory the download script prints."]
+    lines += ["See ./download_reference_data.sh --help, and 'Download reference data' in README.md."]
+    stop_with_message("\n".join(lines))
 
 
 def standardised_gwas_name(gwas_name):
