@@ -52,7 +52,8 @@ default_clump_headers = "CHR F SNP BP P TOTAL NSIG S05 S01 S001 S0001 SP2"
 default_clump_arguments = {"--clump-r2": "0.01", "--clump-kb": "1000"}
 #TODO: this should be read from predefined_column_map.csv
 default_columns = dict(SNP="SNP", CHR="CHR", BP="BP", EA="EA", OA="OA", EAF="EAF", P="P", BETA="BETA",
-    SE="SE", OR="OR", OR_LB="OR_LB", OR_UB="OR_UB", RSID="RSID", N="N",
+    SE="SE", OR="OR", OR_LB="OR_LB", OR_UB="OR_UB", RSID="RSID", N="N", N_CASES="N_CASES",
+    N_CONTROLS="N_CONTROLS", N_EFF="N_EFF",
     ENSEMBL_ID="ENSEMBL_ID", GENE_NAME="GENE_NAME"
 )
 #populate_rsid_options = dict(none="none", partial="partial", full="full")
@@ -123,6 +124,9 @@ ld_reference_options = ["1000genomes", "pan_ukb"]
 qtl_dataset_options = ["eqtlgen", "brainmeta", "ukb_pqtl"]
 qtl_subcategory = "cis"
 default_ld_reference = "1000genomes"
+# fine-mapping regions: merge overlapping lead windows (capped at max_region_kb), one window per lead, or
+# fixed tiles across each cluster of leads (see define_finemap_regions in R/finemap.R)
+finemap_region_strategies = ["merge", "none", "tile"]
 thousand_genomes_ancestries = ["EUR", "EAS", "AFR", "AMR", "SAS"]
 pan_ukb_ancestries = ["EUR", "AFR", "AMR", "CSA", "EAS", "MID"]
 pan_ukb_ancestry_aliases = {"SAS": "CSA"}

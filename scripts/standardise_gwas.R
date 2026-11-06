@@ -83,6 +83,21 @@ parser <- add_argument(parser, "--check_build",
                        type = "logical",
                        default = TRUE
 )
+parser <- add_argument(parser, "--study_type",
+                       help = "continuous or binary (case-control); binary traits get an effective sample size column N_EFF",
+                       type = "character",
+                       default = "continuous"
+)
+parser <- add_argument(parser, "--N_case",
+                       help = "Number of cases (binary traits), used for N_EFF when the file has no N_CASES/N_CONTROLS",
+                       type = "numeric",
+                       default = NA
+)
+parser <- add_argument(parser, "--N_control",
+                       help = "Number of controls (binary traits)",
+                       type = "numeric",
+                       default = NA
+)
 
 args <- parse_args(parser)
 create_dir_for_files(args$output_gwas)
@@ -103,5 +118,8 @@ invisible(standardise_gwas(
                  ld_reference = args$ld_reference,
                  complement_minus_strand = args$complement_minus_strand,
                  max_liftover_drop_fraction = args$max_liftover_drop_fraction,
-                 check_build = args$check_build
+                 check_build = args$check_build,
+                 study_type = args$study_type,
+                 n_case = args$N_case,
+                 n_control = args$N_control
 ))

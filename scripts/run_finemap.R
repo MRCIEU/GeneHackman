@@ -41,9 +41,29 @@ parser <- add_argument(parser, "--window_kb",
                        default = 1000
 )
 parser <- add_argument(parser, "--max_causal",
-                       help = "Maximum number of causal signals per locus (SuSiE L)",
+                       help = "SuSiE L: auto (L = 1 when GWAS N > max_n_ratio x LD reference N, else 10) or a number",
+                       type = "character",
+                       default = "auto"
+)
+parser <- add_argument(parser, "--max_n_ratio",
+                       help = "For --max_causal auto: largest GWAS N / LD reference N that still uses L = 10",
                        type = "numeric",
                        default = 10
+)
+parser <- add_argument(parser, "--region_strategy",
+                       help = "Fine-mapping regions: merge, none or tile",
+                       type = "character",
+                       default = "merge"
+)
+parser <- add_argument(parser, "--ld_bfile",
+                       help = "PLINK prefix of in-sample or other user-supplied genotypes (output build) for LD",
+                       type = "character",
+                       default = ""
+)
+parser <- add_argument(parser, "--remove_ld_outliers",
+                       help = "Remove variants flagged by the LD-mismatch check (kriging_rss) and refit",
+                       type = "logical",
+                       default = FALSE
 )
 parser <- add_argument(parser, "--coverage",
                        help = "Credible set coverage",
@@ -82,5 +102,9 @@ invisible(finemap_gwas(gwas = args$gwas_filename,
              min_abs_corr = args$min_abs_corr,
              max_region_kb = args$max_region_kb,
              ld_reference = args$ld_reference,
-             build = args$build
+             build = args$build,
+             region_strategy = args$region_strategy,
+             max_n_ratio = args$max_n_ratio,
+             ld_bfile = if (is.na(args$ld_bfile) || args$ld_bfile == "none") "" else args$ld_bfile,
+             remove_ld_outliers = args$remove_ld_outliers
 ))

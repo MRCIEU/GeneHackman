@@ -96,11 +96,20 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
     if not hasattr(pipeline, "finemap"):
         pipeline.finemap = SimpleNamespace()
     fm = pipeline.finemap
-    if not hasattr(fm, "window_kb"): fm.window_kb = 500
-    if not hasattr(fm, "max_causal"): fm.max_causal = 10
+    if not hasattr(fm, "window_kb"): fm.window_kb = 1000
+    # "auto": L = 1 when the GWAS sample size exceeds max_n_ratio x the LD reference sample size, else 10
+    if not hasattr(fm, "max_causal"): fm.max_causal = "auto"
+    if str(fm.max_causal) != "auto" and not str(fm.max_causal).isdigit():
+        stop_with_message(f"finemap.max_causal must be auto or a whole number, not {fm.max_causal}.")
+    if not hasattr(fm, "max_n_ratio"): fm.max_n_ratio = 10
     if not hasattr(fm, "coverage"): fm.coverage = 0.95
     if not hasattr(fm, "min_abs_corr"): fm.min_abs_corr = 0.5
     if not hasattr(fm, "max_region_kb"): fm.max_region_kb = 3000
+    if not hasattr(fm, "region_strategy"): fm.region_strategy = "merge"
+    if fm.region_strategy not in finemap_region_strategies:
+        stop_with_message(f"finemap.region_strategy must be one of {', '.join(finemap_region_strategies)}, "
+                          f"not {fm.region_strategy}.")
+    if not hasattr(fm, "remove_ld_outliers"): fm.remove_ld_outliers = False
 
     if not hasattr(pipeline, "liftover"):
         pipeline.liftover = SimpleNamespace()
@@ -134,7 +143,15 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
         if not hasattr(g, "build"): g.build = "GRCh37"
         if g.build not in build_options:
             raise ValueError(f"Error: build {g.build} of {g.file} is not one of the valid options: {build_options}")
-        if not hasattr(g, "study_type"): g.study_type = "continuous"
+        resolve_sample_size(g)
+        g.label = str(getattr(g, "label", "") or "").strip()
+        g.ld_bfile = str(getattr(g, "ld_bfile", "") or "").strip()
+        if g.ld_bfile:
+            g.ld_bfile = os.path.abspath(g.ld_bfile)
+            missing_bfile = [g.ld_bfile + ext for ext in (".bed", ".bim", ".fam") if not os.path.isfile(g.ld_bfile + ext)]
+            if missing_bfile:
+                stop_with_message(f"ld_bfile of {g.file}: {', '.join(missing_bfile)} not found. ld_bfile is the "
+                                  "PLINK prefix of in-sample (or other user-supplied) genotypes, in the output build.")
         if not hasattr(g, "populate_rsid"): g.populate_rsid = False
         if not hasattr(g, "populate_eaf"): g.populate_eaf = False
         g.file = os.path.abspath(g.file)
@@ -151,6 +168,7 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
             )
         g.standardised_memory = estimate_memory_needed_for_standardisation(g.file, g.populate_rsid)
         g.prefix = file_prefix(g.file)
+        if not g.label: g.label = g.prefix
         g.vcf_columns = get_columns_for_vcf_parsing(g.columns)
         g.input_columns = resolve_gwas_columns(g.file, g.columns)
         g.output_columns = resolve_gwas_columns(g.file, pipeline.output.columns, check_input_columns=False)
@@ -167,6 +185,51 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
             if getattr(g, "flip_alleles", True) is False:
                 raise ValueError("flip_alleles = FALSE is only available for standardise_gwas.smk")
     return pipeline
+
+def resolve_sample_size(g):
+    """Sample size settings of one GWAS.
+
+    study_type: continuous (default) or binary (case-control).  For binary traits N_case and N_control give the
+    effective sample size N_eff = 4 / (1/N_case + 1/N_control), and prevalence (the population prevalence) gives
+    liability-scale heritability in LDSC.  g.analysis_N is the sample size downstream steps fall back on when the
+    standardised GWAS has no per-variant N_EFF or N: N_eff for binary traits, else N."""
+    study_type = str(getattr(g, "study_type", "continuous") or "continuous").strip().lower()
+    if study_type in ("continuous", "quantitative", "quant"):
+        g.study_type = "continuous"
+    elif study_type in ("binary", "case_control", "case-control", "categorical", "cc"):
+        g.study_type = "binary"
+    else:
+        stop_with_message(f"study_type of {g.file} must be continuous or binary, not {study_type}.")
+    g.N_case = _positive_number(getattr(g, "N_case", getattr(g, "N_cases", None)), "N_case", g.file)
+    g.N_control = _positive_number(getattr(g, "N_control", getattr(g, "N_controls", None)), "N_control", g.file)
+    g.prevalence = _positive_number(getattr(g, "prevalence", None), "prevalence", g.file)
+    if g.prevalence is not None and g.prevalence >= 1:
+        stop_with_message(f"prevalence of {g.file} is the population prevalence, a fraction between 0 and 1.")
+    g.N_eff = None
+    g.sample_prevalence = None
+    if g.study_type == "binary":
+        if (g.N_case is None) != (g.N_control is None):
+            stop_with_message(f"{g.file}: give both N_case and N_control, or neither.")
+        if g.N_case is not None:
+            g.N_eff = 4 / (1 / g.N_case + 1 / g.N_control)
+            g.sample_prevalence = g.N_case / (g.N_case + g.N_control)
+            if not getattr(g, "N", 0): g.N = g.N_case + g.N_control
+    elif g.N_case is not None or g.N_control is not None or g.prevalence is not None:
+        stop_with_message(f"{g.file}: N_case, N_control and prevalence are for binary traits; set study_type: binary.")
+    g.analysis_N = g.N_eff if g.N_eff else g.N
+
+
+def _positive_number(value, name, gwas_file):
+    if value is None or str(value).strip() == "":
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        stop_with_message(f"{name} of {gwas_file} must be a number, not {value}.")
+    if number <= 0:
+        stop_with_message(f"{name} of {gwas_file} must be positive, not {value}.")
+    return number
+
 
 def apply_default_clump_arguments(clump_arguments):
     """Append GeneHackman's default --clump-r2 / --clump-kb when plink_clump_arguments does not set them."""

@@ -12,7 +12,10 @@ rule standardise_gwases:
         populate_eaf_flag = lambda wildcards: "TRUE" if getattr(pipeline, wildcards.prefix).populate_eaf else "FALSE",
         flip_alleles_flag = lambda wildcards: "TRUE" if getattr(pipeline, wildcards.prefix).flip_alleles else "FALSE",
         complement_minus_strand_flag = "TRUE" if pipeline.liftover.complement_minus_strand else "FALSE",
-        check_build_flag = "TRUE" if pipeline.liftover.check_build else "FALSE"
+        check_build_flag = "TRUE" if pipeline.liftover.check_build else "FALSE",
+        study_type = lambda wildcards: getattr(pipeline, wildcards.prefix).study_type,
+        n_case = lambda wildcards: getattr(pipeline, wildcards.prefix).N_case or "NA",
+        n_control = lambda wildcards: getattr(pipeline, wildcards.prefix).N_control or "NA"
     threads: 8
     resources:
         mem = lambda wildcards: f"{getattr(pipeline, wildcards.prefix).standardised_memory}G",
@@ -42,6 +45,9 @@ rule standardise_gwases:
             --flip_alleles {params.flip_alleles_flag} \
             --complement_minus_strand {params.complement_minus_strand_flag} \
             --max_liftover_drop_fraction {pipeline.liftover.max_drop_fraction} \
-            --check_build {params.check_build_flag}
+            --check_build {params.check_build_flag} \
+            --study_type {params.study_type} \
+            --N_case {params.n_case} \
+            --N_control {params.n_control}
         """
 

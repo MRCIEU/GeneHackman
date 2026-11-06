@@ -19,12 +19,13 @@ if len(unique_ancestries) > 1 and len(unique_ancestries) < len(ancestries):
     )
 is_multi_ancestry = len(unique_ancestries) > 1
 
-finemap_opts = getattr(pipeline, "finemap", SimpleNamespace())
-finemap_window_kb = getattr(finemap_opts, "window_kb", 1000)
-finemap_max_causal = getattr(finemap_opts, "max_causal", 10)
-finemap_coverage = getattr(finemap_opts, "coverage", 0.95)
-finemap_min_abs_corr = getattr(finemap_opts, "min_abs_corr", 0.5)
-finemap_max_region_kb = getattr(finemap_opts, "max_region_kb", 3000)
+# defaults are set in parse_pipeline_input (util/common.smk)
+finemap_opts = pipeline.finemap
+finemap_window_kb = finemap_opts.window_kb
+finemap_max_causal = finemap_opts.max_causal
+finemap_coverage = finemap_opts.coverage
+finemap_min_abs_corr = finemap_opts.min_abs_corr
+finemap_max_region_kb = finemap_opts.max_region_kb
 
 std_file_pattern = standardised_gwas_name("{prefix}")
 

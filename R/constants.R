@@ -95,7 +95,7 @@ qtl_subcategory <- "cis"
 populate_rsid_options <- list(none="none", partial="partial", full="full")
 populate_chr_bp_options <- list(none="none", partial="partial", full="full")
 rsid_builds <- list(GRCh37="b37_dbsnp156", GRCh38="b38_dbsnp156")
-study_types <- list(continuous="continuous", categorical="categorical")
+study_types <- list(continuous="continuous", categorical="categorical", binary="binary")
 #' Directory of the 1000 Genomes panel for a reference build.
 #'
 #' @param build reference build of the positions the panel is used with (one of \code{reference_builds})

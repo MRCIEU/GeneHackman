@@ -14,12 +14,12 @@ onstart:
 ancestries = list([g.ancestry for g in pipeline.gwases])
 validate_ancestries(ancestries, pipeline.ld_reference)
 
-finemap_opts = getattr(pipeline, "finemap", SimpleNamespace())
-finemap_window_kb = getattr(finemap_opts, "window_kb", 1000)
-finemap_max_causal = getattr(finemap_opts, "max_causal", 10)
-finemap_coverage = getattr(finemap_opts, "coverage", 0.95)
-finemap_min_abs_corr = getattr(finemap_opts, "min_abs_corr", 0.5)
-finemap_max_region_kb = getattr(finemap_opts, "max_region_kb", 3000)
+finemap_opts = pipeline.finemap  # defaults set in parse_pipeline_input
+finemap_window_kb = finemap_opts.window_kb
+finemap_max_causal = finemap_opts.max_causal
+finemap_coverage = finemap_opts.coverage
+finemap_min_abs_corr = finemap_opts.min_abs_corr
+finemap_max_region_kb = finemap_opts.max_region_kb
 
 qtl_opts = getattr(pipeline, "qtl", SimpleNamespace())
 # The coloc step converts the QTL summary statistics (not the GWAS) to log Bayes factors,

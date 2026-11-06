@@ -80,13 +80,21 @@ def parse_args():
                         help="Plink clumped files (one per ancestry)")
     parser.add_argument("--ancestries", nargs="+", required=True,
                         help="Ancestry codes (e.g. EUR EAS); pan_ukb also allows CSA (or SAS) and MID")
-    parser.add_argument("--sample_sizes", nargs="+", type=int, required=True,
+    parser.add_argument("--sample_sizes", nargs="+", type=float, required=True,
                         help="GWAS sample sizes (one per ancestry)")
     parser.add_argument("--output_dir", required=True,
                         help="Output directory for per-locus results")
     parser.add_argument("--window_kb", type=int, default=1000,
                         help="Half-width of fine-mapping window in kb")
-    parser.add_argument("--max_causal", type=int, default=10,
+    parser.add_argument("--max_n_ratio", type=float, default=10,
+                        help="For --max_causal auto: largest GWAS N / LD reference N that still uses L = 10")
+    parser.add_argument("--max_region_kb", type=float, default=3000,
+                        help="Maximum merged region width, or tile width, in kb")
+    parser.add_argument("--region_strategy", choices=REGION_STRATEGIES, default="merge",
+                        help="Fine-mapping regions: merge, none or tile (as define_finemap_regions in R/finemap.R)")
+    parser.add_argument("--ld_bfiles", nargs="+", default=None,
+                        help="Per ancestry: PLINK prefix of in-sample/user genotypes for LD, or 'none'")
+    parser.add_argument("--max_causal", default="auto",
                         help="Maximum number of causal signals (L)")
     parser.add_argument("--coverage", type=float, default=0.95,
                         help="Credible set coverage")
@@ -121,52 +129,93 @@ def read_clumped(clumped_file):
         return pd.DataFrame(columns=["SNP", "CHR", "BP"])
 
 
-def get_union_loci(clumped_dfs, window_bp):
-    """Merge lead SNPs across ancestries into non-overlapping loci."""
+REGION_STRATEGIES = ["merge", "none", "tile"]
+
+
+def define_regions(leads, window_bp, max_region_bp=3_000_000, strategy="merge"):
+    """Fine-mapping regions from lead SNPs: the same rules as define_finemap_regions() in R/finemap.R.
+
+    merge: overlapping windows are merged, up to max_region_bp; none: one window per lead; tile: each group of
+    overlapping windows is covered by tiles max_region_bp wide every max_region_bp / 3 (Weissbrod et al. 2020),
+    keeping tiles that contain a lead.  Returns dicts with chr, start, end, center, leads and cluster."""
+    if strategy not in REGION_STRATEGIES:
+        raise ValueError(f"region strategy must be one of {REGION_STRATEGIES}, not {strategy}")
+    if len(leads) == 0:
+        return []
+    max_region_bp = max(max_region_bp, 2 * window_bp)
+    leads = leads.assign(CHR=leads["CHR"].astype(str), BP=leads["BP"].astype(float))
+    leads = leads.sort_values(["CHR", "BP"], key=lambda c: c.map(_chrom_order) if c.name == "CHR" else c)
+    leads = leads.reset_index(drop=True)
+    regions = []
+
+    def add(chrom, start, end, rows, cluster=None):
+        regions.append({"chr": chrom, "start": int(start), "end": int(end), "center": int((start + end) / 2),
+                        "leads": list(leads.loc[rows, "SNP"]), "cluster": cluster})
+
+    if strategy == "none":
+        for i, row in leads.iterrows():
+            add(row["CHR"], max(0, row["BP"] - window_bp), row["BP"] + window_bp, [i])
+        return regions
+
+    cap = max_region_bp if strategy == "merge" else float("inf")
+    groups = []  # [chr, start, end, rows]
+    for i, row in leads.iterrows():
+        chrom, bp = row["CHR"], row["BP"]
+        if not groups or chrom != groups[-1][0] or bp - window_bp > groups[-1][2]:
+            groups.append([chrom, max(0, bp - window_bp), bp + window_bp, [i]])
+            continue
+        g = groups[-1]
+        new_end = max(g[2], bp + window_bp)
+        if new_end - g[1] <= cap:
+            g[2] = new_end
+            g[3].append(i)
+        elif bp <= g[2]:
+            g[2] = max(g[2], g[1] + cap)
+            g[3].append(i)
+        else:
+            groups.append([chrom, g[2] + 1, bp + window_bp, [i]])
+    for k, (chrom, start, end, rows) in enumerate(groups, start=1):
+        if strategy == "merge" or end - start <= max_region_bp:
+            add(chrom, start, end, rows, k if strategy == "tile" else None)
+            continue
+        step = max_region_bp / 3
+        tile_start = start
+        while True:
+            tile_end = min(tile_start + max_region_bp, end)
+            inside = [r for r in rows if tile_start <= leads.loc[r, "BP"] <= tile_end]
+            if inside:
+                add(chrom, tile_start, tile_end, inside, k)
+            if tile_start + max_region_bp >= end:
+                break
+            tile_start += step
+    return regions
+
+
+def _chrom_order(chrom):
+    chrom = str(chrom)
+    return int(chrom) if chrom.isdigit() else {"X": 23, "Y": 24, "XY": 25, "MT": 26, "M": 26}.get(chrom.upper(), 100)
+
+
+def tile_core_mask(positions, regions, index):
+    """True for positions whose nearest tile centre (within the region's cluster) is region `index`."""
+    positions = np.asarray(positions, dtype=float)
+    cluster = regions[index].get("cluster")
+    if cluster is None:
+        return np.ones(len(positions), dtype=bool)
+    same = [j for j, r in enumerate(regions) if r.get("cluster") == cluster and r["chr"] == regions[index]["chr"]]
+    if len(same) <= 1:
+        return np.ones(len(positions), dtype=bool)
+    centres = np.array([(regions[j]["start"] + regions[j]["end"]) / 2 for j in same])
+    nearest = np.array(same)[np.abs(positions[:, None] - centres[None, :]).argmin(axis=1)]
+    return nearest == index
+
+
+def get_union_loci(clumped_dfs, window_bp, max_region_bp=3_000_000, strategy="merge"):
+    """Merge lead SNPs across ancestries into fine-mapping regions (see define_regions)."""
     all_leads = pd.concat(clumped_dfs, ignore_index=True)
     if len(all_leads) == 0:
         return []
-
-    all_leads["CHR"] = all_leads["CHR"].astype(str)
-    all_leads["BP"] = all_leads["BP"].astype(int)
-    all_leads = all_leads.sort_values(["CHR", "BP"]).reset_index(drop=True)
-
-    loci = []
-    current_chr = None
-    current_start = None
-    current_end = None
-    current_leads = []
-
-    for _, row in all_leads.iterrows():
-        bp = int(row["BP"])
-        chrom = str(row["CHR"])
-        if current_chr is None or chrom != current_chr or bp - current_end > window_bp:
-            if current_chr is not None:
-                loci.append({
-                    "chr": current_chr,
-                    "start": current_start,
-                    "end": current_end,
-                    "center": int((current_start + current_end) / 2),
-                    "leads": current_leads
-                })
-            current_chr = chrom
-            current_start = bp - window_bp
-            current_end = bp + window_bp
-            current_leads = [row["SNP"]]
-        else:
-            current_end = max(current_end, bp + window_bp)
-            current_leads.append(row["SNP"])
-
-    if current_chr is not None:
-        loci.append({
-            "chr": current_chr,
-            "start": current_start,
-            "end": current_end,
-            "center": int((current_start + current_end) / 2),
-            "leads": current_leads
-        })
-
-    return loci
+    return define_regions(all_leads[["SNP", "CHR", "BP"]], window_bp, max_region_bp, strategy)
 
 
 def _read_plink_ld_matrix(ld_file, n_snps):
@@ -219,25 +268,17 @@ def compute_ld_matrix(rsids, chrom, ancestry, thousand_genomes_dir):
         if result.returncode != 0 or not os.path.exists(ld_file):
             return None, None
 
-        bim_file = out_prefix + ".bim"
-        if os.path.exists(bim_file):
-            bim = pd.read_csv(bim_file, sep="\t", header=None, usecols=[1], names=["SNP"])
-            snp_order = bim["SNP"].tolist()
-        else:
-            bim_ref = bfile + ".bim"
-            bim = pd.read_csv(
-                bim_ref, sep="\t", header=None, usecols=[0, 1, 3],
-                names=["CHR", "SNP", "BP"],
-            )
-            bim = bim[(bim["CHR"].astype(str) == str(chrom)) & (bim["SNP"].isin(rsids))]
-            bim = bim.sort_values("BP")
-            snp_order = bim["SNP"].tolist()
+        # PLINK writes the matrix in .bim order; keep the panel's alleles to orient r to the GWAS effect allele
+        bim = pd.read_csv(bfile + ".bim", sep=r"\s+", header=None, usecols=[0, 1, 4, 5],
+                          names=["CHR", "SNP", "A1", "A2"], dtype=str)
+        bim = bim[(bim["CHR"] == str(chrom)) & (bim["SNP"].isin(rsids))]
+        snp_order = bim["SNP"].tolist()
 
         R = _read_plink_ld_matrix(ld_file, len(snp_order))
         if R is None:
             return None, None
 
-        return R, snp_order
+        return R, snp_order, list(bim["A1"].str.upper()), list(bim["A2"].str.upper())
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
 
@@ -490,8 +531,113 @@ def extract_locus_data(gwas_df, chrom, start, end):
     return gwas_df[mask].copy()
 
 
-def compute_ld_from_reference(ids, chrom, ancestry, ld_options):
-    """LD matrix and the ids it covers, from the configured LD reference."""
+def compute_ld_from_bfile(snp_keys, chrom, bfile):
+    """LD from user-supplied PLINK genotypes, matched on position and alleles (as compute_ld_matrix_from_bfile
+    in R/ld_reference.R).  r is returned for the GWAS effect allele (the first allele of each SNP key)."""
+    bim = pd.read_csv(bfile + ".bim", sep=r"\s+", header=None, names=["CHR", "ID", "CM", "BP", "A1", "A2"], dtype=str)
+    bim["ROW"] = np.arange(len(bim))
+    bim = bim[bim["CHR"].str.replace("^chr", "", regex=True, case=False) == str(chrom)]
+    key_a1 = (str(chrom) + ":" + bim["BP"] + "_" + bim["A1"].str.upper() + "_" + bim["A2"].str.upper()).tolist()
+    key_a2 = (str(chrom) + ":" + bim["BP"] + "_" + bim["A2"].str.upper() + "_" + bim["A1"].str.upper()).tolist()
+    count_a1 = pd.Series(key_a1).value_counts()
+    count_a2 = pd.Series(key_a2).value_counts()
+    index_a1 = {k: i for i, k in enumerate(key_a1)}
+    index_a2 = {k: i for i, k in enumerate(key_a2)}
+    rows, signs, keys = [], [], []
+    for key in dict.fromkeys(str(k).upper() for k in snp_keys):
+        in_a1, in_a2 = key in index_a1, key in index_a2
+        if in_a1 == in_a2 or count_a1.get(key, 0) > 1 or count_a2.get(key, 0) > 1:
+            continue  # no match, or ambiguous
+        rows.append(index_a1[key] if in_a1 else index_a2[key])
+        signs.append(1.0 if in_a1 else -1.0)
+        keys.append(key)
+    if len(keys) < 2:
+        return None, None
+    order = np.argsort(bim["ROW"].values[rows])
+    ids = bim["ID"].values[rows][order]
+    if len(set(bim["ID"])) != len(bim) or "." in set(ids):
+        raise ValueError(f"Variant IDs in {bfile}.bim must be unique (and not '.') to extract LD")
+    keys = [keys[i] for i in order]
+    signs = np.array(signs)[order]
+    tmpdir = tempfile.mkdtemp(prefix="user_ld_")
+    try:
+        snp_file = os.path.join(tmpdir, "snps.txt")
+        with open(snp_file, "w", encoding="utf-8") as f:
+            f.write("\n".join(ids) + "\n")
+        out_prefix = os.path.join(tmpdir, "ld")
+        result = subprocess.run(["plink1.9", "--bfile", bfile, "--extract", snp_file, "--r", "square",
+                                 "--keep-allele-order", "--out", out_prefix], capture_output=True, text=True)
+        if result.returncode != 0 or not os.path.exists(out_prefix + ".ld"):
+            return None, None
+        r_matrix = _read_plink_ld_matrix(out_prefix + ".ld", len(keys))
+        if r_matrix is None:
+            return None, None
+        r_matrix = np.nan_to_num(r_matrix * np.outer(signs, signs))
+        return r_matrix, keys
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def align_to_gwas_alleles(r_matrix, gwas_sub, a1, a2):
+    """Flip r where the panel's A1 is the GWAS other allele; mask variants whose alleles don't match."""
+    ea = gwas_sub["EA"].astype(str).str.upper().to_numpy()
+    oa = gwas_sub["OA"].astype(str).str.upper().to_numpy()
+    a1 = np.asarray(a1)
+    a2 = np.asarray(a2)
+    same = (ea == a1) & (oa == a2)
+    swapped = (ea == a2) & (oa == a1)
+    signs = np.where(swapped, -1.0, 1.0)
+    return r_matrix * np.outer(signs, signs), same | swapped
+
+
+def ld_reference_n_samples(ancestry, ld_options, bfile=None):
+    """Number of individuals behind the LD: the .fam of a user file or 1000G panel, or the pack's n_samples."""
+    def count_fam(prefix):
+        try:
+            with open(prefix + ".fam", encoding="utf-8") as f:
+                return float(sum(1 for _ in f))
+        except OSError:
+            return float("nan")
+    if bfile:
+        return count_fam(bfile)
+    if ld_options["ld_reference"] == "pan_ukb":
+        try:
+            return float(LDPack(ld_options["ld_pack_dir"]).info(ancestry)["n_samples"])
+        except Exception:
+            return float("nan")
+    return count_fam(os.path.join(ld_options["thousand_genomes_dir"] or "", ancestry))
+
+
+def choose_max_causal(max_causal, sample_sizes, reference_sizes, max_n_ratio=10, default_l=10):
+    """SuSiE L, as choose_max_causal() in R/ld_reference.R: with 'auto', L = 1 when any ancestry's GWAS N is more
+    than max_n_ratio times its LD reference N, else default_l.  Returns (L, rule)."""
+    if str(max_causal).lower() != "auto":
+        return int(max_causal), "set by user"
+    ratios = [n / ref for n, ref in zip(sample_sizes, reference_sizes) if ref and ref == ref and ref > 0]
+    if len(ratios) < len(sample_sizes):
+        return default_l, "auto: LD reference size unknown"
+    if max(ratios) > max_n_ratio:
+        return 1, f"auto: max N / N_REF = {max(ratios):.1f} > {max_n_ratio:g}"
+    return default_l, f"auto: max N / N_REF = {max(ratios):.1f} <= {max_n_ratio:g}"
+
+
+def locus_sample_size(locus_gwas, default_n):
+    """Median per-variant N_EFF (binary traits) or N in the locus, else the input sample size."""
+    for column in ("N_EFF", "N"):
+        if column in locus_gwas.columns:
+            n = pd.to_numeric(locus_gwas[column], errors="coerce")
+            n = n[n > 0]
+            if len(n):
+                return float(n.median())
+    return float(default_n)
+
+
+def compute_ld_from_reference(ids, chrom, ancestry, ld_options, bfile=None):
+    """LD matrix and the ids it covers, from the configured LD reference (or a user PLINK file).
+
+    For 1000 Genomes the panel's alleles are returned as well: (matrix, ids, a1, a2)."""
+    if bfile:
+        return compute_ld_from_bfile(ids, chrom, bfile)
     if ld_options["ld_reference"] == "pan_ukb":
         pack = ld_options.get("pack")
         if pack is None:
@@ -514,7 +660,9 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
     chrom = locus["chr"]
     start = locus["start"]
     end = locus["end"]
-    id_col = "SNP" if ld_options["ld_reference"] == "pan_ukb" else "RSID"
+    bfiles = ld_options.get("ld_bfiles") or [None] * len(ancestries)
+    uses_keys = ld_options["ld_reference"] == "pan_ukb" or any(bfiles)
+    id_col = "SNP" if uses_keys else "RSID"
 
     ancestry_data = []
     for i, (gwas_df, ancestry, n) in enumerate(zip(gwas_dfs, ancestries, sample_sizes)):
@@ -529,7 +677,8 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
         ancestry_data.append({
             "gwas": locus_gwas,
             "ancestry": ancestry,
-            "n": n
+            "n": locus_sample_size(locus_gwas, n),
+            "bfile": bfiles[i],
         })
 
     shared_ids = set(ancestry_data[0]["gwas"][id_col])
@@ -547,9 +696,16 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
         gwas_sub = gwas_sub.drop_duplicates(subset=id_col)
         gwas_sub = gwas_sub.set_index(id_col).loc[shared_ids_list].reset_index()
 
-        R, snp_order = compute_ld_from_reference(shared_ids_list, chrom, ad["ancestry"], ld_options)
+        ld = compute_ld_from_reference(shared_ids_list, chrom, ad["ancestry"], ld_options, ad["bfile"])
+        R, snp_order = ld[0], ld[1]
         if R is None:
             return None
+        if len(ld) == 4:
+            # matched on RSID: orient r to the GWAS effect allele and drop variants whose alleles differ
+            by_id = gwas_sub.set_index(id_col).reindex(snp_order)
+            R, matched = align_to_gwas_alleles(R, by_id, ld[2], ld[3])
+            snp_order = [s for s, keep in zip(snp_order, matched) if keep]
+            R = R[np.ix_(matched, matched)]
 
         ancestry_ld.append({
             "gwas_sub": gwas_sub,
@@ -557,6 +713,7 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
             "snp_order": snp_order,
             "ancestry": ad["ancestry"],
             "n": ad["n"],
+            "bfile": ad["bfile"],
         })
 
     final_ids = set(shared_ids_list)
@@ -578,7 +735,7 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
         snp_to_idx = {variant: idx for idx, variant in enumerate(snp_order)}
         ld_idx = [snp_to_idx[r] for r in final_ids]
         R_sub = np.ascontiguousarray(entry["R"][np.ix_(ld_idx, ld_idx)], dtype=np.float64)
-        if ld_options["ld_reference"] == "pan_ukb":
+        if ld_options["ld_reference"] == "pan_ukb" and not entry.get("bfile"):
             # pairs beyond the pack radius are r = 0 and r is quantised; keep R positive semi-definite
             R_sub, _ = make_positive_semidefinite(R_sub)
 
@@ -673,7 +830,10 @@ def _run_locus_job(job):
     cs_sets_df, cs_variants_df = result
     if len(cs_sets_df) == 0:
         return i, n_loci, locus_label, False
-    safe_name = f"{locus['chr']}_{locus['center']}"
+    if locus.get("cluster") is not None and "POS" in cs_variants_df.columns:
+        # overlapping tiles: each variant's result is taken from the tile whose centre is nearest
+        cs_variants_df["TILE_CORE"] = tile_core_mask(cs_variants_df["POS"].astype(float), ctx["loci"], i - 1)
+    safe_name = locus.get("name", f"{locus['chr']}_{locus['center']}")
     output_dir = ctx["output_dir"]
     cs_file = os.path.join(output_dir, f"{safe_name}_locus_credible_sets.tsv")
     cs_variants_file = os.path.join(
@@ -714,14 +874,37 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
 
     window_bp = args.window_kb * 1000
+    ld_bfiles = [None if b in (None, "", "none", "NA") else b for b in (args.ld_bfiles or [None] * n_ancestries)]
+    if len(ld_bfiles) != n_ancestries:
+        print("ERROR: give one --ld_bfiles entry per ancestry ('none' where there is no user LD).", file=sys.stderr)
+        sys.exit(1)
 
     print(f"Loading {n_ancestries} GWAS datasets...")
     gwas_dfs = [read_gwas(f) for f in args.gwas_files]
     clumped_dfs = [read_clumped(f) for f in args.clumped_files]
 
     print("Merging lead SNPs across ancestries into loci...")
-    loci = get_union_loci(clumped_dfs, window_bp)
-    print(f"  {len(loci)} loci to fine-map")
+    loci = get_union_loci(clumped_dfs, window_bp, args.max_region_kb * 1000, args.region_strategy)
+    print(f"  {len(loci)} loci to fine-map ({args.region_strategy} regions)")
+    names = [f"{locus['chr']}_{locus['center']}" for locus in loci]
+    for locus, name in zip(loci, names):
+        locus["name"] = name if names.count(name) == 1 else f"{name}_{locus['start']}"
+
+    ld_options = {"ld_reference": args.ld_reference, "thousand_genomes_dir": args.thousand_genomes_dir,
+                  "ld_pack_dir": args.ld_pack_dir, "build": args.build, "ld_bfiles": ld_bfiles}
+    gwas_sizes = [locus_sample_size(df, n) for df, n in zip(gwas_dfs, args.sample_sizes)]
+    reference_sizes = [ld_reference_n_samples(a, ld_options, b) for a, b in zip(args.ancestries, ld_bfiles)]
+    max_causal, l_rule = choose_max_causal(args.max_causal, gwas_sizes, reference_sizes, args.max_n_ratio)
+    print(f"MultiSuSiE L = {max_causal} ({l_rule})")
+    if max_causal == 1 and str(args.max_causal).lower() == "auto":
+        print("WARNING: the GWAS are much larger than their LD references, so only one signal per locus is fitted. "
+              "Use in-sample LD (ld_bfile), or set finemap.max_causal to fit more.", file=sys.stderr)
+    settings = pd.DataFrame({
+        "ANCESTRY": args.ancestries, "N_GWAS": gwas_sizes, "N_REF": reference_sizes,
+        "LD_REFERENCE": [f"user:{os.path.basename(b)}" if b else args.ld_reference for b in ld_bfiles],
+        "L": max_causal, "L_RULE": l_rule, "REGION_STRATEGY": args.region_strategy,
+        "WINDOW_KB": args.window_kb, "MAX_REGION_KB": args.max_region_kb, "N_LOCI": len(loci)})
+    settings.to_csv(os.path.join(args.output_dir, "multisusie_settings.tsv"), sep="\t", index=False)
 
     if len(loci) == 0:
         print("No loci to fine-map.")
@@ -732,12 +915,12 @@ def main():
         "gwas_dfs": gwas_dfs,
         "ancestries": args.ancestries,
         "sample_sizes": args.sample_sizes,
-        "ld_options": {"ld_reference": args.ld_reference, "thousand_genomes_dir": args.thousand_genomes_dir,
-                       "ld_pack_dir": args.ld_pack_dir, "build": args.build},
-        "max_causal": args.max_causal,
+        "ld_options": ld_options,
+        "max_causal": max_causal,
         "coverage": args.coverage,
         "min_abs_corr": args.min_abs_corr,
         "output_dir": args.output_dir,
+        "loci": loci,
     }
     jobs = [(i + 1, len(loci), locus) for i, locus in enumerate(loci)]
     max_workers = min(

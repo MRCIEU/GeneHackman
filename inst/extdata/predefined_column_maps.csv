@@ -1,8 +1,9 @@
-name,SNP,CHR,BP,EA,OA,EAF,BETA,SE,OR,P,LOG_P,Z,OR_LB,OR_UB,RSID,N,N_CASES,ENSEMBL_ID,GENE_NAME
-default,SNP,CHR,BP,EA,OA,EAF,BETA,SE,OR,P,LOG_P,Z,OR_LB,OR_UB,RSID,N,N_CASES,ENSEMBL_ID,GENE_NAME
-metal,MarkerName,,,Allele1,Allele2,Freq1,Effect,StdErr,,P-value,,,,,,,,,
-opengwas,,CHROM,POS,ALT,REF,AF,ES,SE,,,LP,,,,ID,SS,,,
-opengwas_phewas,,chr,position,ea,nea,eaf,beta,se,,p,,,,,rsid,n,,,
-ieu_ukb,,CHR,BP,ALLELE1,ALLELE0,A1FREQ,BETA,SE,,P_BOLT_LMM_INF,,,,,,,,,
-gwama,,chromosome,position,reference_allele,other_allele,eaf,beta,se,,p-value,,,,,rs_number,n_samples,,,
-ieugwasr,,chr,position,ea,nea,eaf,beta,se,,p,,,,,,n,,,
+name,SNP,CHR,BP,EA,OA,EAF,BETA,SE,OR,P,LOG_P,Z,OR_LB,OR_UB,RSID,N,N_CASES,ENSEMBL_ID,GENE_NAME,N_CONTROLS,N_EFF
+default,SNP,CHR,BP,EA,OA,EAF,BETA,SE,OR,P,LOG_P,Z,OR_LB,OR_UB,RSID,N,N_CASES,ENSEMBL_ID,GENE_NAME,N_CONTROLS,N_EFF
+metal,MarkerName,,,Allele1,Allele2,Freq1,Effect,StdErr,,P-value,,,,,,,,,,,
+opengwas,,CHROM,POS,ALT,REF,AF,ES,SE,,,LP,,,,ID,SS,,,,,
+opengwas_phewas,,chr,position,ea,nea,eaf,beta,se,,p,,,,,rsid,n,,,,,
+ieu_ukb,,CHR,BP,ALLELE1,ALLELE0,A1FREQ,BETA,SE,,P_BOLT_LMM_INF,,,,,,,,,,,
+gwama,,chromosome,position,reference_allele,other_allele,eaf,beta,se,,p-value,,,,,rs_number,n_samples,,,,,
+ieugwasr,,chr,position,ea,nea,eaf,beta,se,,p,,,,,,n,,,,,
+gwas_catalog,,chromosome,base_pair_location,effect_allele,other_allele,effect_allele_frequency,beta,standard_error,odds_ratio,p_value,neg_log_10_p_value,,ci_lower,ci_upper,rsid,n,,,,,
