@@ -1,0 +1,46 @@
+# Revision 1 re-analysis of the heart failure demonstration (disease progression: incident HF vs all-cause death in HF, slopehunter correction).
+# Run from the repository root with ./run_pipeline.sh; hf_data/ is a symlink to the folder holding the GWAS files
+# (see REVISION1_PLAN2.md). Case and control counts marked TODO must be filled in before running: 0 stops the
+# pipeline with a message.
+gwases:
+  - file: hf_data/FORMAT-METAL_Pheno1_EUR.tsv.gz
+    columns: &hermes_columns
+      SNP: rsID
+      CHR: chr
+      BP: pos_b37
+      EA: A1
+      OA: A2
+      EAF: A1_freq
+      BETA: A1_beta
+      SE: se
+      P: pval
+      # add per-variant counts if the file has them (check the header first), e.g. N_CASES: <col>, N_CONTROLS: <col>
+    build: GRCh37
+    ancestry: EUR
+    label: HFall
+    study_type: binary
+    N_case: 0  # TODO: HFall cases, Henry et al. 2025 Table 1
+    N_control: 0  # TODO: HFall controls
+    prevalence: 0.02  # population prevalence of HF: decide (0.01-0.02 in most LDSC analyses of HF)
+  - file: hf_data/hf_progression_allcause_death.autosomes.gz
+    columns:
+      SNP: rsid
+      CHR: chr
+      BP: bp
+      EA: ea
+      OA: oa
+      EAF: eaf
+      BETA: beta
+      SE: se
+      P: p
+    build: GRCh37  # TODO: check
+    ancestry: EUR
+    label: HF-death
+    study_type: binary
+    N_case: 0     # TODO: deaths, Sunderland et al. 2025
+    N_control: 0  # TODO: survivors
+plink_clump_arguments: "--clump-p2 0.001 --clump-r2 0.3 --clump-kb 500"  # as in the submitted analysis
+output:
+  adjusted_gwas:
+    type: slopehunter
+    p_val: 0.001

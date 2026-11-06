@@ -125,6 +125,8 @@ The tracked response letter now describes what exists. These were removed or rew
 
 ## 4. What Andrew runs on ieup1 to fill the placeholders
 
+The full step-by-step plan, with commands and the configs in `paper/revision1_hf/`, is `REVISION1_PLAN2.md`. In short:
+
 1. Rebuild the container (EnsDb v86), upload bundle 1.2.0, bump DESCRIPTION.
 2. `scripts/validation/compare_with_mungesumstats.R` (see `scripts/validation/README.md`): HFall, BBJ, and BBJ with `--chrpos_only` (Reviewer 1's chr:pos:a1:a2 case). This needs dbSNP and MungeSumstats' reference packages, so it can't run in Claude's sandbox; it is the main outstanding check for R1-M3 and R2-1.
 3. LDSC benchmark (runbook step 8) and the HF compare_gwases run with `study_type: binary`, `N_case`, `N_control`, `prevalence` (HF prevalence: decide, e.g. 0.02).

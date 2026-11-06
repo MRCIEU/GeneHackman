@@ -15,3 +15,6 @@ __pycache__/
 
 /.quarto/
 **/*.quarto_ipynb
+
+# Revision 1 HF re-analysis input (symlink to the GWAS files, see REVISION1_PLAN2.md)
+/hf_data

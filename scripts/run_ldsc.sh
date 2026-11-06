@@ -135,7 +135,8 @@ done
 
 cat "${LOGS[@]}" > "$OUTPUT"
 
-Rscript "$SCRIPT_DIR/parse_ldsc_results.R" \
+cd "$SCRIPT_DIR"   # parse_ldsc_results.R sources load.R from the scripts folder
+Rscript parse_ldsc_results.R \
   --logs "$(join_by_comma "${LOGS[@]}")" \
   --sumstats "$(join_by_comma "${SUMSTATS_FILES[@]}")" \
   --labels "$(join_by_comma "${LABELS[@]}")" \

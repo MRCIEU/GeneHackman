@@ -1,0 +1,34 @@
+# Revision 1 re-analysis of the heart failure demonstration (QTL MR and coloc, HFall vs eqtlgen cis-QTLs).
+# Run from the repository root with ./run_pipeline.sh; hf_data/ is a symlink to the folder holding the GWAS files
+# (see REVISION1_PLAN2.md). Case and control counts marked TODO must be filled in before running: 0 stops the
+# pipeline with a message.
+gwases:
+  - file: hf_data/FORMAT-METAL_Pheno1_EUR.tsv.gz
+    columns: &hermes_columns
+      SNP: rsID
+      CHR: chr
+      BP: pos_b37
+      EA: A1
+      OA: A2
+      EAF: A1_freq
+      BETA: A1_beta
+      SE: se
+      P: pval
+      # add per-variant counts if the file has them (check the header first), e.g. N_CASES: <col>, N_CONTROLS: <col>
+    build: GRCh37
+    ancestry: EUR
+    label: HFall
+    study_type: binary
+    N_case: 0  # TODO: HFall cases, Henry et al. 2025 Table 1
+    N_control: 0  # TODO: HFall controls
+    prevalence: 0.02  # population prevalence of HF: decide (0.01-0.02 in most LDSC analyses of HF)
+plink_clump_arguments: "--clump-p1 5e-8 --clump-r2 0.01 --clump-kb 1000"
+finemap:
+  window_kb: 1000
+  max_causal: auto
+  coverage: 0.95
+  min_abs_corr: 0.5
+  region_strategy: merge
+  max_region_kb: 3000
+qtl:
+  dataset: eqtlgen
