@@ -30,7 +30,7 @@ Notes:
 
 ## C0. Get the code onto ieup1
 
-All the work is on `feature/1.1.1-reviewer-feedback`. On the laptop it is 8 commits ahead of `origin` (which is at `168f299`), and nothing has been pushed.
+All the work is on `feature/1.1.1-reviewer-feedback`. You pushed it up to `f606718`; the commits after that (the LD-mismatch report work, this plan and the HF configs) are on the laptop and not pushed yet.
 
 ```bash
 # laptop, after reviewing
