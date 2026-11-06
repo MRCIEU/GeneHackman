@@ -25,7 +25,7 @@ Tests: testthat 138 blocks pass (110 before; +28), Python 17 pass with MultiSuSi
 
 | Point | Asked | Status | Evidence | Still to do |
 |---|---|---|---|---|
-| Overall: positioning | Place GeneHackman among harmonisation and post-GWAS tools | **Open (manuscript)** | Draft paragraph in the tracked manuscript | Andrew/Gibran: check the tool list. Gibran's comment adds MR-specific pipelines and the Virtual Lab (vl.genoma.io). |
+| Overall: positioning | Place GeneHackman among harmonisation and post-GWAS tools | **Done (manuscript, short)** | One Background paragraph: dedicated tools (MungeSumstats, GWAS-VCF) standardise as an end in themselves; GeneHackman's standardisation is the first step of its own downstream analyses | Andrew (6 Nov): no tool-by-tool comparison or supplementary table. Gibran's broader suggestion (MR pipelines, vl.genoma.io, FUMA) not taken up; check he agrees. |
 | Overall: best practice | Fine-mapping and LDSC to follow best practice | **Done** | See M1, M2, m1, m4, m7, m12 | – |
 | Overall: critical evaluation | Results presented without critical evaluation | **Open (re-analysis + text)** | Placeholders in the manuscript | Gibran: "high level interpretation of each component" (work plan E1). |
 | M1 | LD scores built with `--ld-wind-kb 1`; benchmark against public scores | **Code done, needs benchmark** | Pan-UKB LD scores are the default (`ldsc.ld_scores: pan_ukb`, 1.2.0 bundle); `reference_data/grch38/20_import_pan_ukb_ldscores.py` | Runbook step 8: benchmark against the Alkes Price EUR/EAS scores (needs HF GWAS paths). Gibran asked to show that we reproduce existing scores. The draft's "ldsc.ref_ld_chr / w_ld_chr" YAML options don't exist: the letter now says `ldsc.ld_scores`. Confirm the `--ld-wind-kb` flag in the v1.1.0 `.log` files. |
@@ -116,6 +116,7 @@ The tracked response letter now describes what exists. These were removed or rew
 | `ldsc.ref_ld_chr` / `ldsc.w_ld_chr` YAML options | `ldsc.ld_scores: pan_ukb` (default) or `1000genomes_b37`; Pan-UKB scores for all ancestries, benchmarked against the Alkes Price scores |
 | Alkes Price scores as EUR default | Pan-UKB scores (Andrew's decision, 5 Nov), benchmark reported |
 | Precomputed LD matrices (.bcor, .npz) | PLINK genotypes (`ld_bfile`) and the Pan-UKB LD pack |
+| Related-work paragraph plus a supplementary table comparing ~14 tools | A few sentences on the different purpose of GeneHackman's standardisation (Andrew, 6 Nov) |
 | `finemap.method` selectable | Documented interface and worked example; method option is the extension route |
 | MungeSumstats as engine (D1), HyPrColoc (D5), LDAK (D5), Popcorn (D4) | Not added; listed as extensions/limitations |
 | Fine-mapping HTML report | Region and credible-set tables |
