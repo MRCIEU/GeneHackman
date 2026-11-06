@@ -77,6 +77,10 @@ run_bf_bf_coloc <- function(finemap_dirs,
     message(paste(" colocalization complete:", nrow(combined), "signal pair(s) tested."))
   }
 
+  if (nrow(combined) > 0) {
+    combined <- annotate_coloc_with_ld_flags(combined, finemap_dirs)
+  }
+
   if (!is.null(output_file)) {
     vroom::vroom_write(combined, output_file)
   }
@@ -280,4 +284,33 @@ parse_pairwise_bf_bf_result <- function(result, trait1, trait2, locus1, locus2, 
     PP.H3.abf = NA_real_,
     PP.H4.abf = NA_real_
   )
+}
+
+
+#' Add the fine-mapping LD diagnostics of both loci to pairwise coloc results.
+#'
+#' For each result row, \code{ld_flag1} and \code{ld_flag2} are the \code{LD_FLAG} of each trait's fine-mapping
+#' region (\code{locus1}, \code{locus2}) from \verb{finemap_regions.tsv}, and \code{ld_check} is TRUE when either is
+#' not "OK": a colocalization of credible sets from a region with LD mismatch may be spurious.
+#' @param results coloc results (trait1, trait2, locus1, locus2, ...)
+#' @param finemap_dirs fine-mapping directories, named by trait
+#' @return results with ld_flag1, ld_flag2 and ld_check
+#' @keywords internal
+annotate_coloc_with_ld_flags <- function(results, finemap_dirs) {
+  flags <- do.call(rbind, lapply(names(finemap_dirs), function(trait) {
+    regions_file <- file.path(finemap_dirs[[trait]], "finemap_regions.tsv")
+    if (!file.exists(regions_file)) return(NULL)
+    regions <- data.table::fread(regions_file)
+    if (!all(c("LOCUS", "LD_FLAG") %in% names(regions))) return(NULL)
+    data.frame(key = paste(trait, regions$LOCUS), flag = as.character(regions$LD_FLAG))
+  }))
+  lookup <- function(trait, locus) {
+    if (is.null(flags)) return(rep(NA_character_, length(trait)))
+    flags$flag[match(paste(trait, locus), flags$key)]
+  }
+  results$ld_flag1 <- lookup(results$trait1, results$locus1)
+  results$ld_flag2 <- lookup(results$trait2, results$locus2)
+  results$ld_check <- (!is.na(results$ld_flag1) & results$ld_flag1 != "OK") |
+    (!is.na(results$ld_flag2) & results$ld_flag2 != "OK")
+  results
 }

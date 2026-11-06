@@ -248,6 +248,12 @@ finemap_gwas <- function(gwas,
         cs_summary <- cbind(data.table::data.table(LOCUS = locus_name), cs_summary)
         # tiles overlap: a credible set is reported by the tile whose centre is nearest its lead variant
         cs_summary$LEAD_IN_TILE_CORE <- tile_core_flags(cs_summary$LEAD_BP, regions, i)
+        cs_summary$LD_MISMATCH_S <- mismatch$s
+        cs_summary$N_LD_OUTLIERS_IN_CS <- vapply(cs_summary$CS, function(k) {
+          as.integer(sum(locus_lbf$LD_OUTLIER[!is.na(locus_lbf$CS) & locus_lbf$CS == k]))
+        }, integer(1))
+        cs_summary$LD_FLAG <- ld_mismatch_flag(mismatch$s, sum(mismatch$outlier), cs_summary$N_LD_OUTLIERS_IN_CS,
+                                               regions$MHC[i])
       }
 
       lbf_nm <- grep("^LBF_[0-9]+$", names(locus_lbf), value = TRUE)
@@ -309,6 +315,9 @@ finemap_gwas <- function(gwas,
                                           FUN.VALUE = numeric(1))
   regions$LD_MIN_EIGENVALUE <- vapply(locus_results, function(x) as.numeric(x$min_eigenvalue %||% NA)[1],
                                       FUN.VALUE = numeric(1))
+  regions$LD_FLAG <- ifelse(regions$STATUS == "fine-mapped",
+                            ld_mismatch_flag(regions$LD_MISMATCH_S, regions$N_LD_OUTLIERS, 0L, regions$MHC),
+                            NA_character_)
   data.table::fwrite(regions, regions_file, sep = "\t")
 
   cs_tables <- Filter(function(x) !is.null(x) && nrow(x) > 0L, lapply(locus_results, function(x) x$cs_summary))
@@ -523,8 +532,86 @@ add_region_status_columns <- function(regions) {
   regions$N_LD_OUTLIERS <- rep(NA_integer_, nrow(regions))
   regions$N_ALLELE_MISMATCH <- rep(NA_integer_, nrow(regions))
   regions$LD_OUTLIERS_REMOVED <- rep(NA, nrow(regions))
+  regions$LD_FLAG <- rep(NA_character_, nrow(regions))
   regions
 }
+
+
+#' Threshold on the SuSiE-RSS estimate s above which a region's z-scores and LD are reported as inconsistent.
+#' s is 0 when they are consistent; values well above 0 suggest LD mismatch (Zou et al. 2022).
+#' @keywords internal
+ld_mismatch_s_threshold <- 0.1
+
+
+#' Flag fine-mapping results that may be affected by LD mismatch or the MHC.
+#'
+#' \describe{
+#'   \item{OUTLIER_IN_CS}{a variant in the credible set is an LD outlier (its z-score is unlikely given the
+#'     others' and the LD; a flipped allele is the typical cause). The credible set itself is suspect.}
+#'   \item{LD_MISMATCH}{the region's estimated inconsistency s is above \code{ld_mismatch_s_threshold}: the LD
+#'     reference fits the z-scores poorly, so credible sets other than the lead one may be spurious.}
+#'   \item{OUTLIERS_IN_REGION}{the region has LD outliers, outside this credible set.}
+#'   \item{MHC}{the region overlaps the MHC.}
+#' }
+#' Several flags are joined with ";"; "OK" when none applies.  The flags matter most for multi-signal
+#' fine-mapping (L > 1): with L = 1 the posterior inclusion probabilities don't depend on the LD matrix.
+#' @param s estimated inconsistency per region (NA if not computed)
+#' @param n_outliers_region LD outliers in the region
+#' @param n_outliers_cs LD outliers in the credible set (0 for a region-level flag)
+#' @param mhc whether the region overlaps the MHC
+#' @return character vector of flags
+#' @keywords internal
+ld_mismatch_flag <- function(s, n_outliers_region, n_outliers_cs = 0L, mhc = FALSE) {
+  if (length(s) == 0 || length(n_outliers_region) == 0) return(character())
+  n <- max(length(s), length(n_outliers_region), length(n_outliers_cs), length(mhc))
+  s <- rep_len(as.numeric(s), n)
+  n_outliers_region <- rep_len(as.integer(n_outliers_region), n)
+  n_outliers_cs <- rep_len(as.integer(n_outliers_cs), n)
+  mhc <- rep_len(as.logical(mhc), n)
+  vapply(seq_len(n), function(i) {
+    in_cs <- !is.na(n_outliers_cs[i]) && n_outliers_cs[i] > 0
+    flags <- c(
+      if (in_cs) "OUTLIER_IN_CS",
+      if (!is.na(s[i]) && s[i] > ld_mismatch_s_threshold) "LD_MISMATCH",
+      if (!in_cs && !is.na(n_outliers_region[i]) && n_outliers_region[i] > 0) "OUTLIERS_IN_REGION",
+      if (isTRUE(mhc[i])) "MHC"
+    )
+    if (length(flags) == 0) "OK" else paste(flags, collapse = ";")
+  }, character(1))
+}
+
+
+#' Fine-mapping results and LD diagnostics of one output directory, for the HTML reports.
+#'
+#' @param finemap_dir directory written by \code{finemap_gwas()}
+#' @return list with \code{regions} and \code{credible_sets} (data.tables, empty when missing) and \code{summary},
+#'   a one-row data.table: regions, regions fine-mapped, L and the rule that set it, LD reference, credible sets,
+#'   flagged credible sets, regions with s above the threshold, regions with LD outliers, MHC regions
+#' @export
+finemap_diagnostics <- function(finemap_dir) {
+  read_or_empty <- function(f) {
+    if (file.exists(f) && file.size(f) > 0) data.table::fread(f) else data.table::data.table()
+  }
+  regions <- read_or_empty(file.path(finemap_dir, "finemap_regions.tsv"))
+  credible_sets <- read_or_empty(file.path(finemap_dir, "finemap_credible_sets.tsv"))
+  column <- function(dt, name, default = NA) if (name %in% names(dt)) dt[[name]] else rep(default, nrow(dt))
+  count <- function(x) as.integer(sum(x, na.rm = TRUE))
+  cs_flags <- column(credible_sets, "LD_FLAG")
+  summary <- data.table::data.table(
+    REGIONS = nrow(regions),
+    FINE_MAPPED = count(column(regions, "STATUS") == "fine-mapped"),
+    L = paste(unique(stats::na.omit(column(regions, "L"))), collapse = ", "),
+    L_RULE = paste(unique(stats::na.omit(column(regions, "L_RULE"))), collapse = "; "),
+    LD_REFERENCE = paste(unique(stats::na.omit(column(regions, "LD_REFERENCE"))), collapse = ", "),
+    CREDIBLE_SETS = nrow(credible_sets),
+    CREDIBLE_SETS_FLAGGED = count(!is.na(cs_flags) & cs_flags != "OK"),
+    REGIONS_LD_MISMATCH = count(column(regions, "LD_MISMATCH_S") > ld_mismatch_s_threshold),
+    REGIONS_WITH_LD_OUTLIERS = count(column(regions, "N_LD_OUTLIERS") > 0),
+    MHC_REGIONS = count(column(regions, "MHC", FALSE))
+  )
+  list(regions = regions, credible_sets = credible_sets, summary = summary)
+}
+
 
 
 #' Empty credible-set summary with the columns of finemap_credible_sets.tsv.
@@ -534,7 +621,8 @@ empty_credible_set_summary <- function() {
     LOCUS = character(), CS = integer(), CS_SIZE = integer(), COVERAGE = numeric(),
     MIN_ABS_CORR = numeric(), MEAN_ABS_CORR = numeric(), MEDIAN_ABS_CORR = numeric(),
     LEAD_SNP = character(), LEAD_RSID = character(), LEAD_BP = numeric(), LEAD_PIP = numeric(),
-    LOG_BF = numeric(), LEAD_IN_TILE_CORE = logical()
+    LOG_BF = numeric(), LEAD_IN_TILE_CORE = logical(), LD_MISMATCH_S = numeric(), N_LD_OUTLIERS_IN_CS = integer(),
+    LD_FLAG = character()
   )
 }
 
@@ -779,7 +867,7 @@ susie_credible_set_summary <- function(fitted, snp_info, pip) {
   LOCUS = NULL # silence R CMD check note for data.table column
   cs_list <- fitted$sets$cs
   summary <- empty_credible_set_summary()
-  summary[, c("LOCUS", "LEAD_IN_TILE_CORE") := NULL]
+  summary[, c("LOCUS", "LEAD_IN_TILE_CORE", "LD_MISMATCH_S", "N_LD_OUTLIERS_IN_CS", "LD_FLAG") := NULL]
   if (is.null(cs_list) || length(cs_list) == 0L) return(summary)
 
   sets <- fitted$sets

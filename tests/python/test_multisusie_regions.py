@@ -73,6 +73,41 @@ class TestRegions(unittest.TestCase):
         self.assertEqual(aligned[0, 1], -0.5)
 
 
+KRIGING = os.path.join(REPO, "tests", "python", "data", "kriging")
+
+
+@unittest.skipIf(run_multisusie is None, "MultiSuSiE is not installed")
+class TestLdMismatch(unittest.TestCase):
+    """The Python port of susieR's estimate_s_rss / kriging_rss against susieR 0.14.2's output (fixture made in R:
+    40 simulated variants, one causal, variant 5's allele flipped, N = 50,000)."""
+
+    def setUp(self):
+        self.r = np.loadtxt(os.path.join(KRIGING, "R.tsv"))
+        self.z = np.loadtxt(os.path.join(KRIGING, "z.txt"))
+        self.expected = pd.read_csv(os.path.join(KRIGING, "k.tsv"), sep="\t")
+
+    def test_matches_susier(self):
+        s = run_multisusie.estimate_s_rss(self.z, self.r, 50000)
+        self.assertAlmostEqual(s, 0.782257, places=5)
+        z_adj, condmean, condvar, log_lr = run_multisusie.kriging_rss(self.z, self.r, 50000, s)
+        np.testing.assert_allclose(condmean, self.expected["condmean"], atol=1e-5)
+        np.testing.assert_allclose(condvar, self.expected["condvar"], atol=1e-5)
+        # mixture weights by EM rather than mixsqp: logLR agrees closely, not exactly
+        np.testing.assert_allclose(log_lr, self.expected["logLR"], atol=0.05)
+
+    def test_flipped_allele_is_the_only_outlier(self):
+        s, outlier = run_multisusie.ld_mismatch_qc(self.z, self.r, 50000)
+        self.assertEqual(list(np.where(outlier)[0]), [4])
+        self.assertGreater(s, 0.5)
+
+    def test_flags(self):
+        self.assertEqual(run_multisusie.ld_mismatch_flag(0.01, 0, 0), "OK")
+        self.assertEqual(run_multisusie.ld_mismatch_flag(0.3, 2, 1, True), "OUTLIER_IN_CS;LD_MISMATCH;MHC")
+        self.assertEqual(run_multisusie.ld_mismatch_flag(float("nan"), 1, 0), "OUTLIERS_IN_REGION")
+        self.assertTrue(run_multisusie.overlaps_mhc("6", 30e6, 31e6))
+        self.assertFalse(run_multisusie.overlaps_mhc("6", 40e6, 41e6))
+
+
 @unittest.skipIf(run_multisusie is None or shutil.which("plink1.9") is None, "needs MultiSuSiE and plink1.9")
 class TestUserLd(unittest.TestCase):
     def test_bfile_ld_is_oriented_to_the_gwas_effect_allele(self):

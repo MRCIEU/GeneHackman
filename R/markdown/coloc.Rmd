@@ -105,6 +105,33 @@ if (!is.null(coloc_tbl) && nrow(coloc_tbl) > 0L) {
 }
 ```
 
+### Fine-mapping diagnostics
+
+Colocalization uses the credible sets from fine-mapping, so a credible set that fine-mapping flagged is also suspect in colocalization. Fine-mapping uses reference-panel LD unless in-sample genotypes were given; each region is checked for inconsistency between the z-scores and the LD (`LD_MISMATCH_S`, 0 = consistent; flagged above `r ld_mismatch_s_threshold`) and for variants whose z-score is unlikely given their neighbours' (`N_LD_OUTLIERS`; a flipped allele is the typical cause). `LD_FLAG`: `OUTLIER_IN_CS` (an outlier is in the credible set), `LD_MISMATCH` (credible sets beyond the lead one may be spurious), `OUTLIERS_IN_REGION`, `MHC`. These checks matter most when more than one signal per region was fitted (L > 1); with L = 1 the PIPs don't depend on the LD.
+
+```{r echo = FALSE, results = "asis"}
+fm_dirs <- if (is.null(params$finemap_dirs) || !nzchar(as.character(params$finemap_dirs))) character() else
+  unlist(strsplit(as.character(params$finemap_dirs), "|", fixed = TRUE))
+fm_labels <- if (length(traits_v) == length(fm_dirs)) traits_v else basename(fm_dirs)
+if (length(fm_dirs) > 0) {
+  summaries <- lapply(seq_along(fm_dirs), function(k) cbind(TRAIT = fm_labels[k], finemap_diagnostics(fm_dirs[k])$summary))
+  print(knitr::kable(data.table::rbindlist(summaries, fill = TRUE), caption = "Fine-mapping per trait"))
+  flagged <- data.table::rbindlist(lapply(seq_along(fm_dirs), function(k) {
+    cs <- finemap_diagnostics(fm_dirs[k])$credible_sets
+    if (nrow(cs) == 0 || !"LD_FLAG" %in% names(cs)) return(NULL)
+    cbind(TRAIT = fm_labels[k], cs[LD_FLAG != "OK", intersect(c("LOCUS", "CS", "LEAD_RSID", "LEAD_PIP", "LD_MISMATCH_S",
+                                                            "N_LD_OUTLIERS_IN_CS", "LD_FLAG"), names(cs)), with = FALSE])
+  }), fill = TRUE)
+  if (nrow(flagged) > 0) print(knitr::kable(flagged, digits = 3, caption = "Flagged credible sets")) else
+    cat("\nNo credible set was flagged.\n")
+}
+if (!is.null(coloc_tbl) && "ld_check" %in% names(coloc_tbl)) {
+  n_checked <- sum(coloc_tbl$ld_check & coloc_tbl$PP.H4.abf > 0.8, na.rm = TRUE)
+  cat("\n\n", n_checked, " of ", sum(coloc_tbl$PP.H4.abf > 0.8, na.rm = TRUE),
+      " colocalizations with PP.H4 > 0.8 involve a fine-mapping region with an LD flag (`ld_check` in the table above).\n", sep = "")
+}
+```
+
 ### Additional info
 
 **Please do us a favour and cite this pipeline: https://doi.org/10.5281/zenodo.10624713**

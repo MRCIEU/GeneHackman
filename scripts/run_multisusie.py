@@ -94,6 +94,8 @@ def parse_args():
                         help="Fine-mapping regions: merge, none or tile (as define_finemap_regions in R/finemap.R)")
     parser.add_argument("--ld_bfiles", nargs="+", default=None,
                         help="Per ancestry: PLINK prefix of in-sample/user genotypes for LD, or 'none'")
+    parser.add_argument("--remove_ld_outliers", action="store_true",
+                        help="Remove variants flagged by the LD-mismatch check (any ancestry) before fitting")
     parser.add_argument("--max_causal", default="auto",
                         help="Maximum number of causal signals (L)")
     parser.add_argument("--coverage", type=float, default=0.95,
@@ -130,6 +132,114 @@ def read_clumped(clumped_file):
 
 
 REGION_STRATEGIES = ["merge", "none", "tile"]
+LD_MISMATCH_S_THRESHOLD = 0.1  # as ld_mismatch_s_threshold in R/finemap.R
+MHC_BOUNDS = {"GRCh38": (28510120, 33480577), "GRCh37": (28477797, 33448354)}
+
+
+def _pve_adjusted_z(z, n):
+    """z rescaled for the variance it explains, as susieR's estimate_s_rss() and kriging_rss() do."""
+    z = np.nan_to_num(np.asarray(z, dtype=float))
+    return np.sqrt((n - 1) / (z ** 2 + n - 2)) * z
+
+
+def estimate_s_rss(z, r_matrix, n, r_tol=1e-8):
+    """Port of susieR::estimate_s_rss(method = "null-mle"): the s that maximises the likelihood of
+    z ~ N(0, (1 - s) R + s I).  0 when the z-scores and the LD are consistent."""
+    from scipy.optimize import minimize_scalar
+    z = _pve_adjusted_z(z, n)
+    values, vectors = np.linalg.eigh(r_matrix)
+    values = np.where(values < r_tol, 0.0, values)
+    ztv = vectors.T @ z
+
+    def negloglik(s):
+        d = (1 - s) * values + s
+        return 0.5 * np.sum(np.log(d)) + 0.5 * np.sum(ztv ** 2 / d)
+    return float(minimize_scalar(negloglik, bounds=(0, 1), method="bounded").x)
+
+
+def _mixture_weights(log_lik, iterations=500, tol=1e-8):
+    """Maximum-likelihood mixture proportions by EM (susieR uses mixsqp for the same convex problem)."""
+    lik = np.exp(log_lik)
+    w = np.full(lik.shape[1], 1.0 / lik.shape[1])
+    for _ in range(iterations):
+        post = lik * w
+        post /= post.sum(axis=1, keepdims=True)
+        new = post.mean(axis=0)
+        if np.max(np.abs(new - w)) < tol:
+            return new
+        w = new
+    return w
+
+
+def kriging_rss(z, r_matrix, n, s=None, r_tol=1e-8):
+    """Port of susieR::kriging_rss(): each z-score's expectation given the others (condmean, condvar) and the
+    log likelihood ratio for an allele flip (logLR).  Returns (adjusted z, condmean, condvar, logLR)."""
+    from scipy.stats import norm
+    if s is None:
+        s = estimate_s_rss(z, r_matrix, n, r_tol)
+    s = min(max(s, 0.0), 0.8 if s > 1 else 1.0)
+    z = _pve_adjusted_z(z, n)
+    values, vectors = np.linalg.eigh(r_matrix)
+    values = np.where(values < r_tol, 0.0, values)
+    with np.errstate(divide="ignore"):
+        dinv = 1 / ((1 - s) * values + s)
+    dinv[~np.isfinite(dinv)] = 0
+    precision = (vectors * dinv) @ vectors.T
+    diag = np.diag(precision)
+    condmean = -(precision @ z - diag * z) / diag
+    condvar = 1 / diag
+    z_std_diff = (z - condmean) / np.sqrt(condvar)
+    a_min = 0.8
+    a_max = 2.0 if np.max(z_std_diff ** 2) < 1 else 2 * np.sqrt(np.max(z_std_diff ** 2))
+    npoint = int(np.ceil(np.log2(a_max / a_min) / np.log2(1.05)))
+    a_grid = 1.05 ** np.arange(-npoint, 1) * a_max
+    sd = np.outer(np.sqrt(condvar), a_grid)
+
+    def log_mixture(x, w=None):
+        llik = norm.logpdf(x[:, None], scale=sd)
+        factors = llik.max(axis=1, keepdims=True)
+        llik = llik - factors
+        if w is None:
+            return llik, factors
+        return np.log(np.exp(llik) @ (w + 1e-15)) + factors[:, 0]
+    llik0, _ = log_mixture(z - condmean)
+    w = _mixture_weights(llik0)
+    log_lr = log_mixture(z + condmean, w) - log_mixture(z - condmean, w)
+    return z, condmean, condvar, log_lr
+
+
+def ld_mismatch_qc(z, r_matrix, n):
+    """As ld_mismatch_qc() in R/ld_reference.R: (s, outlier mask with logLR > 2 and |z| > 2)."""
+    z = np.asarray(z, dtype=float)
+    if len(z) < 3:
+        return float("nan"), np.zeros(len(z), dtype=bool)
+    try:
+        s = estimate_s_rss(z, r_matrix, n)
+        z_adj, _, _, log_lr = kriging_rss(z, r_matrix, n, s)
+        return s, (log_lr > 2) & (np.abs(z_adj) > 2)
+    except Exception as e:  # diagnostics must never stop fine-mapping
+        print(f"  LD mismatch check failed: {e}", file=sys.stderr)
+        return float("nan"), np.zeros(len(z), dtype=bool)
+
+
+def ld_mismatch_flag(s, n_outliers_region, n_outliers_cs=0, mhc=False):
+    """As ld_mismatch_flag() in R/finemap.R: OUTLIER_IN_CS, LD_MISMATCH, OUTLIERS_IN_REGION, MHC, or OK."""
+    flags = []
+    in_cs = n_outliers_cs is not None and n_outliers_cs > 0
+    if in_cs:
+        flags.append("OUTLIER_IN_CS")
+    if s is not None and s == s and s > LD_MISMATCH_S_THRESHOLD:
+        flags.append("LD_MISMATCH")
+    if not in_cs and n_outliers_region:
+        flags.append("OUTLIERS_IN_REGION")
+    if mhc:
+        flags.append("MHC")
+    return ";".join(flags) if flags else "OK"
+
+
+def overlaps_mhc(chrom, start, end, build="GRCh38"):
+    low, high = MHC_BOUNDS.get(build, MHC_BOUNDS["GRCh38"])
+    return str(chrom) == "6" and start <= high and end >= low
 
 
 def define_regions(leads, window_bp, max_region_bp=3_000_000, strategy="merge"):
@@ -403,7 +513,7 @@ def _append_variant_ancestry_columns(result_df, fit, ancestry_gwas, ancestries, 
             result_df[f"COEF_SD_{ancestry}"] = np.nan
 
 
-def build_locus_credible_sets_df(fit, final_rsids, r_list, ancestries, snp_keys=None):
+def build_locus_credible_sets_df(fit, final_rsids, r_list, ancestries, snp_keys=None, outlier=None):
     """One row per credible set for locus_credible_sets.tsv.
 
     final_rsids are the variant labels reported as TOP_SNP_RSID (RSIDs, or SNP keys when the GWAS has
@@ -433,6 +543,7 @@ def build_locus_credible_sets_df(fit, final_rsids, r_list, ancestries, snp_keys=
             "COVERAGE": cs["coverage"],
             "PURITY": cs["purity"],
             "PASS_FILTER": cs["pass_filter"],
+            "N_LD_OUTLIERS_IN_CS": int(np.sum(outlier[indices])) if outlier is not None else 0,
         }
         for k, ancestry in enumerate(ancestries):
             row[f"PURITY_{ancestry}"] = _compute_cs_purity(indices, r_list[k])
@@ -455,6 +566,7 @@ def build_locus_credible_sets_df(fit, final_rsids, r_list, ancestries, snp_keys=
             "PURITY",
             "PASS_FILTER",
             *purity_cols,
+            "N_LD_OUTLIERS_IN_CS",
         ]
     ]
 
@@ -651,7 +763,7 @@ def compute_ld_from_reference(ids, chrom, ancestry, ld_options, bfile=None):
 
 def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
                              ld_options, max_causal, coverage,
-                             min_abs_corr):
+                             min_abs_corr, remove_ld_outliers=False):
     """Run MultiSuSiE on a single locus across ancestries.
 
     Variants are matched across ancestries and to the LD reference on RSID (1000genomes) or on the
@@ -728,6 +840,7 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
     R_list = []
     n_list = []
     varY_list = []
+    eaf_list = []
 
     locus_label = f"chr{chrom}:{start}-{end}"
     for entry in ancestry_ld:
@@ -755,9 +868,32 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
         R_list.append(R_sub)
         n_list.append(entry["n"])
         varY_list.append(estimate_var_y(se, eaf, entry["n"]))
+        eaf_list.append(eaf)
 
     if not _validate_multisusie_inputs(b_list, s_list, R_list, ancestries, locus_label):
         return None
+
+    # LD mismatch check per ancestry (each against its own LD reference)
+    qc = [ld_mismatch_qc(b / s_, r, n) for b, s_, r, n in zip(b_list, s_list, R_list, n_list)]
+    outlier = np.zeros(len(final_ids), dtype=bool)
+    for _, mask in qc:
+        outlier |= mask
+    region = {"N_VARIANTS": len(final_ids), "N_LD_OUTLIERS": int(outlier.sum()),
+              "LD_OUTLIERS_REMOVED": bool(remove_ld_outliers)}
+    for ancestry, (s_value, mask) in zip(ancestries, qc):
+        region[f"LD_MISMATCH_S_{ancestry}"] = s_value
+        region[f"N_LD_OUTLIERS_{ancestry}"] = int(mask.sum())
+    if remove_ld_outliers and outlier.any():
+        keep = ~outlier
+        if keep.sum() < 2:
+            return None
+        print(f"  {locus_label}: removing {int(outlier.sum())} LD outlier(s) before fitting", file=sys.stderr)
+        b_list = [b[keep] for b in b_list]
+        s_list = [x[keep] for x in s_list]
+        R_list = [np.ascontiguousarray(r[np.ix_(keep, keep)]) for r in R_list]
+        varY_list = [estimate_var_y(x, None if e is None else e[keep], n) for x, e, n in zip(s_list, eaf_list, n_list)]
+        final_ids = [f for f, k in zip(final_ids, keep) if k]
+        outlier = outlier[keep]
 
     try:
         fit = MultiSuSiE.multisusie_rss(
@@ -792,7 +928,16 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
     if id_col == "SNP" and "RSID" in ref_gwas.columns:
         labels = [r if isinstance(r, str) and r else s for r, s in zip(ref_gwas["RSID"], ref_gwas["SNP"])]
     snp_keys = list(ref_gwas["SNP"]) if "SNP" in ref_gwas.columns else None
-    cs_sets_df = build_locus_credible_sets_df(fit, labels, R_list, ancestries, snp_keys=snp_keys)
+    cs_sets_df = build_locus_credible_sets_df(fit, labels, R_list, ancestries, snp_keys=snp_keys, outlier=outlier)
+    max_s = max((q[0] for q in qc if q[0] == q[0]), default=float("nan"))
+    mhc = bool(locus.get("mhc", False))
+    region["LD_FLAG"] = ld_mismatch_flag(max_s, region["N_LD_OUTLIERS"], 0, mhc)
+    if len(cs_sets_df):
+        cs_sets_df.insert(0, "LOCUS", locus.get("name", f"{chrom}_{locus['center']}"))
+        cs_sets_df["MAX_LD_MISMATCH_S"] = max_s
+        cs_sets_df["LD_FLAG"] = [ld_mismatch_flag(max_s, region["N_LD_OUTLIERS"], k, mhc)
+                                 for k in cs_sets_df["N_LD_OUTLIERS_IN_CS"]]
+    cs_sets_df.attrs["region"] = region
     cs_variants_df = build_locus_credible_set_variants_df(
         fit, labels, ref_gwas, ancestry_gwas, ancestries
     )
@@ -822,14 +967,22 @@ def _run_locus_job(job):
         max_causal=ctx["max_causal"],
         coverage=ctx["coverage"],
         min_abs_corr=ctx["min_abs_corr"],
+        remove_ld_outliers=ctx.get("remove_ld_outliers", False),
     )
+    region = {"LOCUS": locus.get("name", f"{locus['chr']}_{locus['center']}"), "CHR": locus["chr"],
+              "START": locus["start"], "END": locus["end"], "LEADS": ",".join(map(str, locus.get("leads", []))),
+              "MHC": bool(locus.get("mhc", False))}
 
     if result is None:
-        return i, n_loci, locus_label, False
+        region["STATUS"] = "skipped: too few shared variants, no LD, or MultiSuSiE failed"
+        return i, n_loci, locus_label, False, region
 
     cs_sets_df, cs_variants_df = result
+    region.update(cs_sets_df.attrs.get("region", {}))
+    region["N_CS"] = len(cs_sets_df)
+    region["STATUS"] = "fine-mapped"
     if len(cs_sets_df) == 0:
-        return i, n_loci, locus_label, False
+        return i, n_loci, locus_label, False, region
     if locus.get("cluster") is not None and "POS" in cs_variants_df.columns:
         # overlapping tiles: each variant's result is taken from the tile whose centre is nearest
         cs_variants_df["TILE_CORE"] = tile_core_mask(cs_variants_df["POS"].astype(float), ctx["loci"], i - 1)
@@ -841,7 +994,7 @@ def _run_locus_job(job):
     )
     cs_sets_df.to_csv(cs_file, sep="\t", index=False)
     cs_variants_df.to_csv(cs_variants_file, sep="\t", index=False)
-    return i, n_loci, locus_label, True
+    return i, n_loci, locus_label, True, region
 
 
 def main():
@@ -889,6 +1042,7 @@ def main():
     names = [f"{locus['chr']}_{locus['center']}" for locus in loci]
     for locus, name in zip(loci, names):
         locus["name"] = name if names.count(name) == 1 else f"{name}_{locus['start']}"
+        locus["mhc"] = overlaps_mhc(locus["chr"], locus["start"], locus["end"], args.build)
 
     ld_options = {"ld_reference": args.ld_reference, "thousand_genomes_dir": args.thousand_genomes_dir,
                   "ld_pack_dir": args.ld_pack_dir, "build": args.build, "ld_bfiles": ld_bfiles}
@@ -908,6 +1062,8 @@ def main():
 
     if len(loci) == 0:
         print("No loci to fine-map.")
+        pd.DataFrame(columns=["LOCUS", "CHR", "START", "END", "STATUS"]).to_csv(
+            os.path.join(args.output_dir, "multisusie_regions.tsv"), sep="\t", index=False)
         _write_completion(args.completion_file, 0)
         return
 
@@ -921,6 +1077,7 @@ def main():
         "min_abs_corr": args.min_abs_corr,
         "output_dir": args.output_dir,
         "loci": loci,
+        "remove_ld_outliers": args.remove_ld_outliers,
     }
     jobs = [(i + 1, len(loci), locus) for i, locus in enumerate(loci)]
     max_workers = min(
@@ -931,6 +1088,7 @@ def main():
 
     n_success = 0
     n_fail = 0
+    region_rows = []
 
     with ProcessPoolExecutor(
         max_workers=max_workers,
@@ -939,7 +1097,8 @@ def main():
     ) as executor:
         futures = [executor.submit(_run_locus_job, job) for job in jobs]
         for future in as_completed(futures):
-            i, n_loci, locus_label, ok = future.result()
+            i, n_loci, locus_label, ok, region = future.result()
+            region_rows.append(region)
             if ok:
                 n_success += 1
                 print(f"  [{i}/{n_loci}] Completed {locus_label}")
@@ -948,6 +1107,11 @@ def main():
                 print(f"  [{i}/{n_loci}] Skipped {locus_label} "
                       f"(insufficient shared data or MultiSuSiE failure)")
 
+    regions_df = pd.DataFrame(region_rows)
+    if len(regions_df):
+        regions_df = regions_df.sort_values(
+            ["CHR", "START"], key=lambda c: c.map(_chrom_order) if c.name == "CHR" else c)
+    regions_df.to_csv(os.path.join(args.output_dir, "multisusie_regions.tsv"), sep="\t", index=False)
     print(f"\nMultiSuSiE complete: {n_success} loci succeeded, {n_fail} skipped/failed.")
     _write_completion(args.completion_file, n_success)
 

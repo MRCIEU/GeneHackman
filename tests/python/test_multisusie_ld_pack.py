@@ -60,6 +60,8 @@ class TestMultiSusieWithPack(unittest.TestCase):
         credible_sets, variants = run_multisusie.run_multisusie_for_locus(
             locus, [gwas_eur, gwas_csa], ["EUR", "CSA"], [50000, 20000], options, 3, 0.95, 0.5)
         self.assertEqual(credible_sets["TOP_SNP_RSID"].iloc[0], "rs25")
+        self.assertEqual(credible_sets["LD_FLAG"].iloc[0], "OK")  # simulated from the pack's own LD
+        self.assertIn("LD_MISMATCH_S_EUR", credible_sets.attrs["region"])
         self.assertEqual(credible_sets["TOP_SNP"].iloc[0], gwas_eur["SNP"].iloc[25])
 
 

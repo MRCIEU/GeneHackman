@@ -20,6 +20,7 @@ rule run_multi_ancestry_finemapping:
         max_region_kb = finemap_max_region_kb,
         region_strategy = pipeline.finemap.region_strategy,
         max_n_ratio = pipeline.finemap.max_n_ratio,
+        remove_ld_outliers = "--remove_ld_outliers" if pipeline.finemap.remove_ld_outliers else "",
         ld_reference = pipeline.ld_reference,
         build = pipeline.output.build,
         panel_dir = thousand_genomes_dir(pipeline.output.build)
@@ -40,7 +41,7 @@ rule run_multi_ancestry_finemapping:
             --max_region_kb {params.max_region_kb} \
             --region_strategy {params.region_strategy} \
             --max_n_ratio {params.max_n_ratio} \
-            --ld_bfiles {params.ld_bfiles} \
+            --ld_bfiles {params.ld_bfiles} {params.remove_ld_outliers} \
             --thousand_genomes_dir {params.panel_dir} \
             --ld_reference {params.ld_reference} \
             --ld_pack_dir {LD_PACK_DIR} \

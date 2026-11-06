@@ -208,4 +208,58 @@ test_that("finemap_gwas runs with user-supplied LD, chooses L automatically and 
   per_variant <- data.table::fread(list.files(out, pattern = "_finemap.tsv.gz$", full.names = TRUE))
   expect_equal(per_variant$SNP[which.max(per_variant$PIP)], gwas$SNP[10])
   expect_true(all(c("LD_OUTLIER", "TILE_CORE") %in% names(per_variant)))
+  expect_equal(regions$LD_FLAG, "OK")
+  credible_sets <- data.table::fread(file.path(out, "finemap_credible_sets.tsv"))
+  expect_equal(credible_sets$LD_FLAG, "OK")
+  expect_equal(credible_sets$N_LD_OUTLIERS_IN_CS, 0L)
+})
+
+test_that("ld_mismatch_flag combines outliers, mismatch and MHC", {
+  expect_equal(ld_mismatch_flag(0.01, 0L), "OK")
+  expect_equal(ld_mismatch_flag(0.3, 2L, 1L, TRUE), "OUTLIER_IN_CS;LD_MISMATCH;MHC")
+  expect_equal(ld_mismatch_flag(NA, 1L, 0L), "OUTLIERS_IN_REGION")
+  expect_equal(ld_mismatch_flag(c(0.01, 0.5), c(0L, 0L)), c("OK", "LD_MISMATCH"))
+  expect_equal(ld_mismatch_flag(numeric(), integer()), character())
+  expect_equal(ld_mismatch_flag(0.01, 3L, c(0L, 2L)), c("OUTLIERS_IN_REGION", "OUTLIER_IN_CS"))
+})
+
+test_that("finemap_diagnostics summarises regions and flagged credible sets, and coloc rows get the flags", {
+  dir <- withr::local_tempdir()
+  data.table::fwrite(data.frame(LOCUS = c("1_100", "2_200"), STATUS = "fine-mapped", L = 1L, L_RULE = "auto",
+                                LD_REFERENCE = "1000genomes", LD_MISMATCH_S = c(0.02, 0.4), N_LD_OUTLIERS = c(0L, 3L),
+                                MHC = FALSE, LD_FLAG = c("OK", "LD_MISMATCH;OUTLIERS_IN_REGION")),
+                     file.path(dir, "finemap_regions.tsv"), sep = "\t")
+  data.table::fwrite(data.frame(LOCUS = c("1_100", "2_200"), CS = 1L, LD_FLAG = c("OK", "OUTLIER_IN_CS;LD_MISMATCH")),
+                     file.path(dir, "finemap_credible_sets.tsv"), sep = "\t")
+  diagnostics <- finemap_diagnostics(dir)
+  expect_equal(diagnostics$summary$REGIONS, 2L)
+  expect_equal(diagnostics$summary$CREDIBLE_SETS_FLAGGED, 1L)
+  expect_equal(diagnostics$summary$REGIONS_LD_MISMATCH, 1L)
+  expect_equal(diagnostics$summary$REGIONS_WITH_LD_OUTLIERS, 1L)
+  expect_equal(finemap_diagnostics(withr::local_tempdir())$summary$REGIONS, 0L)
+
+  coloc <- data.frame(trait1 = "A", trait2 = "B", locus1 = c("1_100", "2_200"), locus2 = c("1_100", "9_9"),
+                      PP.H4.abf = c(0.9, 0.95))
+  annotated <- annotate_coloc_with_ld_flags(coloc, c(A = dir, B = withr::local_tempdir()))
+  expect_equal(annotated$ld_flag1, c("OK", "LD_MISMATCH;OUTLIERS_IN_REGION"))
+  expect_true(all(is.na(annotated$ld_flag2)))
+  expect_equal(annotated$ld_check, c(FALSE, TRUE))
+})
+
+test_that("the fine-mapping report renders with the diagnostics", {
+  dir <- withr::local_tempdir()
+  data.table::fwrite(data.frame(LOCUS = "1_100", STATUS = "fine-mapped", N_SNPS = 30L, N_CS = 1L, L = 1L,
+                                LD_MISMATCH_S = 0.4, N_LD_OUTLIERS = 1L, MHC = FALSE, LD_FLAG = "LD_MISMATCH"),
+                     file.path(dir, "finemap_regions.tsv"), sep = "\t")
+  data.table::fwrite(data.frame(LOCUS = "1_100", CS = 1L, CS_SIZE = 2L, LEAD_RSID = "rs1", LEAD_PIP = 0.9,
+                                LD_FLAG = "OUTLIER_IN_CS"), file.path(dir, "finemap_credible_sets.tsv"), sep = "\t")
+  html <- tempfile(fileext = ".html")
+  rmd <- if (file.exists("../../R/markdown/finemap.Rmd")) "../../R/markdown/finemap.Rmd" else
+    system.file("markdown", "finemap.Rmd", package = "GeneHackman")
+  skip_if(!nzchar(rmd) || !file.exists(rmd), "finemap.Rmd not found")
+  suppressWarnings(create_html_from_rmd(normalizePath(rmd), list(finemap_dirs = dir, labels = "Trait_A",
+                                                                  multi_ancestry_dir = "none"), html))
+  page <- paste(readLines(html, warn = FALSE), collapse = "\n")
+  expect_match(page, "OUTLIER_IN_CS")
+  expect_match(page, "Trait_A")
 })

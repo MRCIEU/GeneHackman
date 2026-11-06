@@ -99,6 +99,7 @@ rule run_coloc:
 rmd_report_params = {
     "coloc_results": coloc_results,
     "traits_ordered": trait_bar,
+    "finemap_dirs": "|".join(g.finemap_dir for g in pipeline.gwases),
     "ancestries_ordered": ancestry_bar,
     "overlap_kb": str(coloc_overlap_kb),
     "p1": str(coloc_p1),

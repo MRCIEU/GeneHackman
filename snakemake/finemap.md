@@ -106,6 +106,8 @@ By default, LD for fine-mapping comes from a **reference panel**: the 1000 Genom
 - aligns LD to the GWAS effect alleles: variants are matched to the panel on position and alleles (Pan-UKB, user LD) or rsID plus alleles (1000 Genomes), r is flipped where the panel counts the other allele, and variants whose alleles don't match are removed (`N_ALLELE_MISMATCH`);
 - checks each region for inconsistency between z-scores and LD with SuSiE-RSS's diagnostics (`susieR::estimate_s_rss` and `kriging_rss`; Zou et al. 2022). `LD_MISMATCH_S` is the estimated inconsistency (0 = consistent; above about 0.1–0.2 suggests mismatch) and `N_LD_OUTLIERS` the variants whose z-score is unlikely given the others (`logLR > 2` and `|z| > 2`), flagged per variant in `LD_OUTLIER`. A flipped allele is the typical outlier.
 
+Each credible set gets an `LD_FLAG`: `OUTLIER_IN_CS` (an LD outlier is in the set: treat the set as suspect), `LD_MISMATCH` (the region's `LD_MISMATCH_S` is above 0.1: credible sets beyond the lead one may be spurious), `OUTLIERS_IN_REGION`, `MHC`, or `OK`. By default nothing is removed; `finemap.remove_ld_outliers: true` removes the flagged variants and fits once more. The same checks run in multi-ancestry fine-mapping, against each ancestry's LD reference (a Python port of the susieR functions, tested against susieR's output). The HTML report lists the flagged credible sets first.
+
 Treat multi-signal results from reference LD as exploratory.
 
 ### In-sample and user-supplied LD
@@ -143,7 +145,8 @@ what should be kept.
 | `finemap/<prefix>/finemap_complete_<prefix>.txt` | **Snakemake target.** One line = number of fine-mapping regions processed. |
 | `finemap/<prefix>/<CHR>_<BP>_finemap.tsv.gz` | Per-region fine-mapping table: every GWAS variant in the region, with SuSiE `Z`, posterior inclusion probability `PIP`, credible-set membership `CS` and per-credible-set log Bayes factors `LBF_1`, `LBF_2`, … (empty for variants not in the LD panel). |
 | `finemap/<prefix>/finemap_regions.tsv` | One row per region: bounds, lead SNP(s), `STATUS` (fine-mapped, or why it was skipped), number of variants with LD, number of credible sets, SuSiE convergence, `LD_REFERENCE`, `N_REF` (people the LD comes from), `N_GWAS` (sample size used), `L` and `L_RULE`, `LD_MISMATCH_S`, `N_LD_OUTLIERS`, `N_ALLELE_MISMATCH`, `MHC`, `REGION_STRATEGY`, `FRAC_BEYOND_LD_RADIUS` (share of variant pairs further apart than the pack's 1 Mb radius, set to r = 0) and `LD_MIN_EIGENVALUE` (smallest eigenvalue of the pack LD matrix; below 0 means its negative eigenvalues were set to 0 to make it positive semi-definite). |
-| `finemap/<prefix>/finemap_credible_sets.tsv` | One row per credible set: size, coverage, purity (min/mean/median \|r\|), lead variant and its PIP, log Bayes factor. |
+| `finemap/<prefix>/finemap_credible_sets.tsv` | One row per credible set: size, coverage, purity (min/mean/median \|r\|), lead variant and its PIP, log Bayes factor, `LD_MISMATCH_S`, `N_LD_OUTLIERS_IN_CS` and `LD_FLAG`. |
+| `finemap/result_finemap_<gwas_prefixes>.html` | **HTML report**: settings, a summary per GWAS (L used, credible sets, flagged credible sets, regions with LD mismatch or outliers, MHC regions), credible sets with flagged ones first, and the region table. |
 
 ### Results — multi-ancestry MultiSuSiE (`results/finemap/multi_ancestry/`)
 
@@ -152,6 +155,7 @@ Full documentation for interpreting MultiSuSiE results can be [found here](https
 | Path | Description |
 | ---- | ----------- |
 | `finemap/multi_ancestry/finemap_complete_<gwas_prefixes>.txt` | **Snakemake target.** One line = number of successfully fine-mapped loci. `<gwas_prefixes>` is sorted input GWAS file prefixes joined with `_`. |
+| `finemap/multi_ancestry/multisusie_regions.tsv` | One row per region: bounds, status, number of credible sets, `LD_MISMATCH_S_<ancestry>` and `N_LD_OUTLIERS_<ancestry>`, `MHC`, `LD_FLAG`. Credible-set files also get `N_LD_OUTLIERS_IN_CS`, `MAX_LD_MISMATCH_S` and `LD_FLAG`. |
 | `finemap/multi_ancestry/multisusie_settings.tsv` | Per ancestry: GWAS N, LD reference and its N, and the `L`, region strategy and window used. |
 | `finemap/multi_ancestry/<CHR>_<center>_locus_credible_sets.tsv` | One row per credible set: size, top variant PIP/LBF, `COVERAGE`, MultiSuSiE `PURITY`, `PASS_FILTER`, and per-ancestry `PURITY_*` diagnostics. |
 | `finemap/multi_ancestry/<CHR>_<center>_locus_credible_set_variants.tsv` | One row per variant in any credible set: coordinates, alleles, global PIP, per-ancestry `COEF`/`COEF_SD`, and input `BETA`/`SE`/`P`. |

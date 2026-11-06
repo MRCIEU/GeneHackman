@@ -1,0 +1,73 @@
+---
+title: "Fine-mapping results"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+---
+```{r include = FALSE}
+split_param <- function(x) {
+  if (is.null(x) || !nzchar(as.character(x)) || identical(as.character(x), "none")) character() else unlist(strsplit(as.character(x), "|", fixed = TRUE))
+}
+finemap_dirs <- split_param(params$finemap_dirs)
+labels <- split_param(params$labels)
+if (length(labels) != length(finemap_dirs)) labels <- basename(finemap_dirs)
+multi_dir <- if (is.null(params$multi_ancestry_dir) || identical(params$multi_ancestry_dir, "none")) "" else
+  as.character(params$multi_ancestry_dir)
+show <- function(dt, columns, ...) {
+  columns <- intersect(columns, names(dt))
+  if (nrow(dt) == 0 || length(columns) == 0) return(cat("None.\n\n"))
+  knitr::kable(as.data.frame(dt)[, columns, drop = FALSE], digits = 3, ...)
+}
+```
+
+## How to read these results
+
+Fine-mapping uses LD from a reference panel unless in-sample genotypes were given (`ld_bfile`). Reference-panel LD can miscalibrate fine-mapping, more so the larger the GWAS is relative to the panel. Three safeguards are reported here:
+
+* **Number of signals (L).** With `max_causal: auto`, L = 1 when the GWAS is more than 10 times larger than the LD reference. With L = 1, posterior inclusion probabilities (PIPs) don't depend on the LD matrix, so the LD diagnostics below matter mostly when L > 1.
+* **LD mismatch.** For each region, `LD_MISMATCH_S` estimates how inconsistent the z-scores are with the LD (0 = consistent; above `r ld_mismatch_s_threshold` the region is flagged), and `N_LD_OUTLIERS` counts variants whose z-score is unlikely given their neighbours' (SuSiE-RSS diagnostics; Zou et al. 2022). A flipped allele is the typical outlier. By default these variants are only reported; `finemap.remove_ld_outliers: true` removes them and fine-maps again.
+* **Flags** (`LD_FLAG`): `OUTLIER_IN_CS` (an LD outlier is in the credible set: treat the set as suspect), `LD_MISMATCH` (the region's s is high: credible sets beyond the lead one may be spurious), `OUTLIERS_IN_REGION`, and `MHC` (region overlaps the MHC, where LD is long-range and fine-mapping is unreliable). Credible sets flagged `OK` have none of these problems.
+
+```{r echo = FALSE, results = "asis"}
+for (k in seq_along(finemap_dirs)) {
+  diagnostics <- finemap_diagnostics(finemap_dirs[k])
+  cat("\n\n## ", labels[k], "\n\n", sep = "")
+  print(show(diagnostics$summary, names(diagnostics$summary), caption = "Summary"))
+  cs <- diagnostics$credible_sets
+  if (nrow(cs) > 0 && "LD_FLAG" %in% names(cs)) cs <- cs[order(cs$LD_FLAG == "OK", -cs$LEAD_PIP)]
+  cat("\n\n### Credible sets (flagged first)\n\n")
+  print(show(cs, c("LOCUS", "CS", "CS_SIZE", "LEAD_RSID", "LEAD_SNP", "LEAD_PIP", "MIN_ABS_CORR", "LD_MISMATCH_S",
+                   "N_LD_OUTLIERS_IN_CS", "LEAD_IN_TILE_CORE", "LD_FLAG")))
+  cat("\n\n### Regions\n\n")
+  print(show(diagnostics$regions, c("LOCUS", "STATUS", "N_SNPS", "N_CS", "L", "N_GWAS", "N_REF", "LD_MISMATCH_S",
+                                    "N_LD_OUTLIERS", "N_ALLELE_MISMATCH", "MHC", "LD_FLAG")))
+}
+```
+
+```{r echo = FALSE, results = "asis"}
+if (nzchar(multi_dir) && dir.exists(multi_dir)) {
+  cat("\n\n## Multi-ancestry fine-mapping (MultiSuSiE)\n\n")
+  settings_file <- file.path(multi_dir, "multisusie_settings.tsv")
+  if (file.exists(settings_file)) print(show(data.table::fread(settings_file), c("ANCESTRY", "N_GWAS", "N_REF",
+    "LD_REFERENCE", "L", "L_RULE", "REGION_STRATEGY"), caption = "Settings per ancestry"))
+  regions_file <- file.path(multi_dir, "multisusie_regions.tsv")
+  if (file.exists(regions_file)) {
+    regions <- data.table::fread(regions_file)
+    cat("\n\n### Regions\n\nLD diagnostics are computed separately for each ancestry's LD reference.\n\n")
+    print(show(regions, names(regions)))
+  }
+  cs_files <- list.files(multi_dir, pattern = "_locus_credible_sets\\.tsv$", full.names = TRUE)
+  if (length(cs_files) > 0) {
+    cs <- data.table::rbindlist(lapply(cs_files, data.table::fread), fill = TRUE)
+    if ("LD_FLAG" %in% names(cs)) cs <- cs[order(cs$LD_FLAG == "OK")]
+    cat("\n\n### Credible sets (flagged first)\n\n")
+    print(show(cs, intersect(c("LOCUS", "CS_ID", "CS_SIZE", "TOP_SNP", "TOP_SNP_RSID", "TOP_SNP_PIP", "PURITY", "PASS_FILTER", "LD_FLAG"),
+                             names(cs))))
+  }
+}
+```
+
+### Software versions
+
+`r report_provenance()`
