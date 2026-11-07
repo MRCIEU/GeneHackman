@@ -13,7 +13,7 @@ Each part can be started on its own ("start part C4"), in this order:
 | Part | What | Needs | Rough time |
 |---|---|---|---|
 | **C0** | Get the code onto ieup1 | Branch pushed, or a bundle | 10 min |
-| **C1** | Check the existing container (EnsDb v86, susieR); rebuild only if something is missing | C0 | 5 min (2 h if a rebuild is needed) |
+| **C1** | Container 1.2.0 (adds EnsDb v86): build, tag, push, check | C0 | 1–2 h (build) |
 | **C2** | Unit tests, Python tests and dry runs on ieup1 | C0, C1 | 30 min |
 | **C3** | HF data in place; fill in case and control counts | C0 | 30 min plus reading |
 | **C4** | HF re-analysis: 14 pipeline runs | C1–C3 | 1–2 days of machine time |
@@ -44,32 +44,39 @@ git log --oneline -1                         # expect the "REVISION1_PLAN2" comm
 
 If ieup1 has uncommitted changes (e.g. `reference_data/grch38/local_config.sh`, which is git-ignored), `git status` shows them. Commit or stash anything else before pulling.
 
-## C1. Container: check first, rebuild only if needed
+## C1. Container 1.2.0: build, tag and push
 
-**Not needed for the new code.** The pipelines bind the repository's `R/` and `scripts/` into the container, so the code changes take effect without a new image. MungeSumstats isn't part of the pipeline and never goes in the image; it is installed separately, only for the validation script (C6).
+**Why.** The new code doesn't need a new image: the pipelines bind the repository's `R/` and `scripts/` into the container, so code changes take effect straight away. MungeSumstats isn't part of the pipeline and never goes in the image; it's installed separately, only for the validation script (C6). The image is rebuilt for two reasons:
 
-**Possibly needed for one package.** GRCh38 gene tracks in LocusZoom (coloc, QTL MR) need `EnsDb.Hsapiens.v86`. It was added to `docker/requirements.R` on 1 Nov (`0e6b977`), so an image built before then lacks it. Check the image you already use:
+- **The missing package.** GRCh38 gene tracks in LocusZoom (coloc, QTL MR) need `EnsDb.Hsapiens.v86`. It was added to `docker/requirements.R` on 1 Nov (`0e6b977`), and no image has been built since.
+- **A citable tag.** The paper should cite 1.2.0 (audit B32). `DESCRIPTION` is now `Version: 1.2.0`, so `run_pipeline.sh` looks for `genehackman_1.2.0.sif` and pulls `docker://mrcieu/genehackman:1.2.0` if it isn't there. Push the image **before** running anything.
 
-```bash
-SIF=/local-scratch/data/pan_ukb_ld/genehackman_develop.sif   # or the one .env's DOCKER_VERSION points at
-apptainer exec $SIF Rscript -e 'for (p in c("EnsDb.Hsapiens.v86","susieR","coloc")) cat(p, tryCatch(as.character(packageVersion(p)), error = function(e) "MISSING"), "\n"); cat("kriging_rss:", exists("kriging_rss", asNamespace("susieR")), "\n")'
-apptainer exec $SIF python -c "import MultiSuSiE, scipy; print('python ok')"
-```
+**`EnsDb.Hsapiens.v75` stays.** It's the GRCh37 gene annotation, used when a run sets `output.build: GRCh37`. That option is still supported (the letter says so, and the `*_grch37` end-to-end tests use it). It adds well under 100 MB to the image. Remove it only if GRCh37 output is dropped altogether.
 
-- **All present** (susieR ≥ 0.12 has `kriging_rss`): use that image for everything below and skip the rest of C1.
-- **`EnsDb.Hsapiens.v86` missing:** everything except coloc and QTL MR still runs. Rebuild before those (and before the end-to-end tests):
-  ```bash
-  docker build --platform linux/amd64 -f docker/Dockerfile -t mrcieu/genehackman:develop . && docker push mrcieu/genehackman:develop
-  apptainer build --force $SIF docker://mrcieu/genehackman:develop
-  ```
-
-**Don't bump `DESCRIPTION` to 1.2.0 yet.** `run_pipeline.sh` would then look for `genehackman_1.2.0.sif` and try to pull an image that doesn't exist. Keep `DOCKER_VERSION` pointing at the image you checked until the release (C7), where the 1.2.0 tag and its digest are what the paper cites.
+1. **Build and push.** Run this from a machine with Docker and push access to `mrcieu`. `--platform linux/amd64` is needed on a Mac, and the build takes about 1–2 h there.
+   ```bash
+   cd GeneHackman && git checkout feature/1.1.1-reviewer-feedback
+   docker build --platform linux/amd64 -f docker/Dockerfile -t mrcieu/genehackman:1.2.0 -t mrcieu/genehackman:develop .
+   docker push mrcieu/genehackman:1.2.0 && docker push mrcieu/genehackman:develop
+   docker inspect --format '{{index .RepoDigests 0}}' mrcieu/genehackman:1.2.0   # the digest to cite in the paper
+   ```
+2. **SIF on ieup1.** In `.env`, unset `DOCKER_VERSION` (or set it to `1.2.0`); `run_pipeline.sh` then builds the SIF on first use. To build it by hand:
+   ```bash
+   apptainer build /home/wt23152/pipeline_data/genomic_data/pipeline/genehackman_1.2.0.sif docker://mrcieu/genehackman:1.2.0
+   ```
+3. **Check it.**
+   ```bash
+   SIF=/home/wt23152/pipeline_data/genomic_data/pipeline/genehackman_1.2.0.sif
+   apptainer exec $SIF Rscript -e 'for (p in c("EnsDb.Hsapiens.v86","EnsDb.Hsapiens.v75","susieR","coloc")) cat(p, tryCatch(as.character(packageVersion(p)), error = function(e) "MISSING"), "\n"); cat("kriging_rss:", exists("kriging_rss", asNamespace("susieR")), "\n")'
+   apptainer exec $SIF python -c "import MultiSuSiE, scipy; print('python ok')"
+   ```
+   Expect both EnsDb packages, susieR 0.12 or later with `kriging_rss: TRUE`, and `python ok`.
 
 ## C2. Tests and dry runs on ieup1
 
 ```bash
 cd /home/wt23152/GeneHackman
-SIF=/local-scratch/data/pan_ukb_ld/genehackman_develop.sif   # the image checked in C1
+SIF=/home/wt23152/pipeline_data/genomic_data/pipeline/genehackman_1.2.0.sif
 apptainer exec -B /local-scratch $SIF Rscript -e 'pkgload::load_all("."); r <- testthat::test_dir("tests/testthat", reporter = "summary", stop_on_failure = FALSE); df <- as.data.frame(r); cat("tests:", nrow(df), "failed:", sum(df$failed > 0), "errors:", sum(df$error), "\n")'
 apptainer exec $SIF python -m unittest discover tests/python
 ```
@@ -205,7 +212,7 @@ gsutil -u <billing-project> cp gs://broad-alkesgroup-public-requester-pays/LDSCO
 - writes `<prefix>_h2.tsv` and `<prefix>_rg.tsv`.
 
 ```bash
-WORK_DIR=/local-scratch/data/genehackman_grch38; SIF=/local-scratch/data/pan_ukb_ld/genehackman_develop.sif   # the image checked in C1
+WORK_DIR=/local-scratch/data/genehackman_grch38; SIF=/home/wt23152/pipeline_data/genomic_data/pipeline/genehackman_1.2.0.sif
 STD=$OUT/hf_1000g/data/gwas
 G=$STD/FORMAT-METAL_Pheno1_EUR_std.tsv.gz,$STD/FORMAT-METAL_Pheno3_EUR_std.tsv.gz,$STD/FORMAT-METAL_Pheno4_EUR_std.tsv.gz
 NS=<Neff1>,<Neff3>,<Neff4>                 # fallback only: the standardised files have N_EFF, which is used
@@ -235,7 +242,7 @@ The script is `scripts/validation/compare_with_mungesumstats.R`, and `scripts/va
 **1. Install MungeSumstats into a user library for the container's R.** This is about 6 GB and needs internet.
 
 ```bash
-SIF=/local-scratch/data/pan_ukb_ld/genehackman_develop.sif   # the image checked in C1
+SIF=/home/wt23152/pipeline_data/genomic_data/pipeline/genehackman_1.2.0.sif
 export R_LIBS_USER=/local-scratch/data/genehackman_validation/Rlib; mkdir -p $R_LIBS_USER
 apptainer exec --env R_LIBS_USER=$R_LIBS_USER -B /local-scratch $SIF Rscript -e '
   if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager", repos = "https://cloud.r-project.org")
@@ -282,7 +289,7 @@ These steps come from RUNBOOK §7 and §9:
    ```
    Before uploading the QTL bucket, decide on the eQTLGen, BrainMeta and UKB-PPP terms (REVISION1_PLAN §12 doesn't cover them).
 2. **End-to-end tests** with the published data, installed the way users will install it (RUNBOOK §9), then `./tests/e2e_tests/run_test_pipelines.sh`. The finemap runs now also produce the HTML report, which is a quick check that `finemap.Rmd` renders in the container.
-3. **Release.** Set `Version: 1.2.0` in `DESCRIPTION`, build and push `mrcieu/genehackman:1.2.0` (`docker build --platform linux/amd64 -f docker/Dockerfile -t mrcieu/genehackman:1.2.0 . && docker push mrcieu/genehackman:1.2.0`), record its digest (`docker inspect --format '{{index .RepoDigests 0}}' mrcieu/genehackman:1.2.0`) for the paper, commit `tests/testing_complete.txt` and tag `1.2.0`.
+3. **Release.** Commit `tests/testing_complete.txt`, tag the commit `1.2.0` (the image was tagged in C1), and put the image digest from C1 in the manuscript.
 
 ## C8. What to send back, and what it fills
 
