@@ -71,13 +71,13 @@ for ((i = 0; i < N_GWAS; i++)); do
 
   # sample size: per-variant effective N (binary traits), else per-variant N, else the given N
   if grep -qx "N_EFF" <<< "$header"; then
-    N_ARGS=(--N-col N_EFF)
+    n_column=N_EFF
     n_is_effective=true
   elif grep -qx "N" <<< "$header"; then
-    N_ARGS=(--N-col N)
+    n_column=N
     n_is_effective=false
   else
-    N_ARGS=(--N "${N_LIST[i]}")
+    n_column=""
     n_is_effective=false
   fi
 
@@ -94,13 +94,33 @@ for ((i = 0; i < N_GWAS; i++)); do
   SAMP+=("$samp")
   POP+=("$pop")
 
+  # munge_sumstats reads every column it recognises: N, N_EFF, N_CASES and N_CONTROLS would all count as sample
+  # sizes ("Found 2 different N columns"). So it gets only the columns it needs, with the chosen sample size as N.
+  munge_input="$LDSC_DATA/${file_prefix}.munge_input.tsv.gz"
+  zcat -f "$gwas" | awk -F'\t' -v OFS='\t' -v ncol="$n_column" '
+    NR == 1 {
+      for (i = 1; i <= NF; i++) col[$i] = i
+      split("RSID EA OA P BETA EAF", wanted, " ")
+      for (k = 1; k <= 6; k++) if (!(wanted[k] in col)) { print "run_ldsc.sh: no " wanted[k] " column" > "/dev/stderr"; exit 1 }
+      print "RSID", "EA", "OA", "P", "BETA", "EAF" (ncol != "" ? OFS "N" : "")
+      next
+    }
+    { print $col["RSID"], $col["EA"], $col["OA"], $col["P"], $col["BETA"], $col["EAF"] (ncol != "" ? OFS $col[ncol] : "") }
+  ' | gzip -1 > "$munge_input"
+  status=("${PIPESTATUS[@]}")
+  if [[ ${status[1]} != 0 || ${status[2]} != 0 ]]; then
+    echo "run_ldsc.sh: could not prepare $gwas for munge_sumstats" >&2; exit 1
+  fi
+  if [[ -n $n_column ]]; then N_ARGS=(--N-col N); else N_ARGS=(--N "${N_LIST[i]}"); fi
+
   python2.7 /home/ldsc/munge_sumstats.py \
-      --sumstats "${gwas}" \
+      --sumstats "$munge_input" \
       "${N_ARGS[@]}" \
       --merge-alleles "${LDSC_DIR}/w_hm3.snplist" \
       --snp RSID --a1 EA --a2 OA --p P --signed-sumstats BETA,0 --frq EAF \
       --chunksize 500000 \
       --out "$LDSC_DATA/${file_prefix}"
+  rm -f "$munge_input"
   SUMSTATS_FILES+=("${LDSC_DATA}/${file_prefix}.sumstats.gz")
 done
 

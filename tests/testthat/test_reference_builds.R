@@ -7,7 +7,8 @@ test_that("constants.thousand_genomes_dir_for picks the panel of the build and e
 })
 
 test_that("constants.qtl_dataset_dir uses the build's QTL files and stops when they are missing", {
-  expect_error(qtl_dataset_dir("eqtlgen", "top_hits", "GRCh38"), "eqtlgen/GRCh38/top_hits")
+  # a dataset that is never installed, so the test doesn't depend on which QTL data QTL_DATA_DIR holds
+  expect_error(qtl_dataset_dir("not_a_dataset", "top_hits", "GRCh38"), "not_a_dataset/GRCh38/top_hits")
 })
 
 test_that("locus_zoom.ensembl_db_for_build picks the gene annotation of the build", {
@@ -29,6 +30,18 @@ test_that("clumping.use_gwas_positions_in_clumped replaces panel positions with 
   expect_equal(result$BP, c(10500, 90000))
   expect_equal(result$SNP, c("rs100", "rs300"))
   expect_equal(result$SP2, c("rs200(1)", "NONE"))
+})
+
+test_that("clumping.use_gwas_positions_in_clumped drops the NA row PLINK's trailing blank lines produce", {
+  clumped <- tempfile(fileext = ".clumped")
+  writeLines(c(" CHR    F         SNP         BP          P    TOTAL   NSIG    S05    S01   S001  S0001    SP2",
+               "   1    1       rs100      10000   1.00e-10        1      0      0      0      0      1 rs200(1)",
+               "", "", "          "), clumped)
+  use_gwas_positions_in_clumped(clumped, data.frame(RSID = "rs100", BP = 10500, CHR = 1))
+  result <- data.table::fread(clumped)
+  expect_equal(result$SNP, "rs100")
+  expect_false(any(grepl("^\\s*NA\\s*$", readLines(clumped))))
+  expect_equal(nrow(read_clumped_leads(clumped)), 1)
 })
 
 test_that("clumping.use_gwas_positions_in_clumped leaves an empty clump file alone", {

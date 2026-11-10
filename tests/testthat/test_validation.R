@@ -24,3 +24,11 @@ test_that("as_chrpos_identifiers reproduces the reviewer's input, and standardis
     populate_rsid_option = populate_rsid_options$none, check_build = FALSE, strand_check = FALSE)))
   expect_equal(c(out$SNP, out$EA, out$BETA), c("1:1000_A_G", "A", "0.1"))
 })
+
+test_that("as_chrpos_identifiers returns a table for data.table input too (as compare_with_mungesumstats.R passes)", {
+  dt <- data.table::data.table(SNP = "rs1", CHR = 1, BP = 12345, EA = "A", OA = "G", BETA = 0.1, RSID = "rs1")
+  result <- as_chrpos_identifiers(dt)
+  expect_true(data.table::is.data.table(result))
+  expect_equal(names(result), c("SNP", "EA", "OA", "BETA"))
+  expect_equal(result$SNP, "chr1:12345:G:A")
+})

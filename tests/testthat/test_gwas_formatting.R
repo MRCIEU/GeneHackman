@@ -362,3 +362,11 @@ test_that("gwas_formatting.standardise_gwas looks up RSIDs in the output referen
 
   expect_equal(captured_build, reference_builds$GRCh38)
 })
+
+test_that("gwas_formatting.change_column_names with remove_extra_columns keeps every column when none is extra", {
+  df <- data.frame(SNP = "rs1", CHR = 1, BP = 1, EA = "A", OA = "G")
+  map <- list(SNP = "SNP", CHR = "CHR", BP = "BP", EA = "EA", OA = "OA")
+  expect_equal(change_column_names(df, map, remove_extra_columns = TRUE), df)
+  extra <- change_column_names(cbind(df, logP = 2), map, remove_extra_columns = TRUE)
+  expect_equal(names(extra), names(df))
+})

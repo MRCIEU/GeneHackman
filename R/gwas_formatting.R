@@ -67,6 +67,7 @@ standardise_gwas <- function(gwas,
 
   gwas <- get_file_or_dataframe(gwas) |>
     change_column_names(input_gwas_columns, remove_extra_columns) |>
+    derive_n_controls() |>
     standardise_columns(N) |>
     filter_incomplete_rows() |>
     populate_effective_n(study_type, n_case, n_control)
@@ -271,7 +272,9 @@ normalise_study_type <- function(study_type) {
 #' \enumerate{
 #'   \item an N_EFF column already in the file is kept (for a meta-analysis, the sum of the cohorts'
 #'     effective sample sizes; Grotzinger et al. 2023);
-#'   \item per-variant N_CASES and N_CONTROLS columns: N_EFF = 4 / (1/N_CASES + 1/N_CONTROLS);
+#'   \item per-variant N_CASES and N_CONTROLS columns: N_EFF = 4 / (1/N_CASES + 1/N_CONTROLS).  A file with
+#'     N_CASES and a total N but no N_CONTROLS gets N_CONTROLS = N - N_CASES (\code{derive_n_controls()}).
+#'     Variants without per-variant counts get the study's N_EFF, if the study counts are given;
 #'   \item a per-variant N column and the study's case and control counts: N_EFF = N x 4 phi (1 - phi), with
 #'     phi = n_case / (n_case + n_control), which assumes the same case fraction at every variant;
 #'   \item the study's case and control counts alone: one N_EFF for every variant.
@@ -289,11 +292,17 @@ populate_effective_n <- function(gwas, study_type = study_types$continuous, n_ca
     gwas$N_EFF <- suppressWarnings(as.numeric(gwas$N_EFF))
     return(gwas)
   }
-  if (all(c("N_CASES", "N_CONTROLS") %in% columns)) {
-    gwas$N_EFF <- effective_sample_size(gwas$N_CASES, gwas$N_CONTROLS)
-    if (!all(is.na(gwas$N_EFF))) return(gwas)
-  }
+  gwas <- derive_n_controls(gwas)
+  columns <- colnames(gwas)
   study_n_eff <- effective_sample_size(n_case, n_control)
+  if (all(c("N_CASES", "N_CONTROLS") %in% columns)) {
+    per_variant <- effective_sample_size(gwas$N_CASES, gwas$N_CONTROLS)
+    if (!all(is.na(per_variant))) {
+      if (!is.na(study_n_eff)) per_variant[is.na(per_variant)] <- study_n_eff
+      gwas$N_EFF <- per_variant
+      return(gwas)
+    }
+  }
   if (is.na(study_n_eff)) {
     warning("Binary trait without case and control counts (N_case and N_control in the input, or N_CASES and ",
             "N_CONTROLS columns): N_EFF can't be computed, so the total N is used, which overstates the ",
@@ -307,6 +316,24 @@ populate_effective_n <- function(gwas, study_type = study_types$continuous, n_ca
   } else {
     gwas$N_EFF <- study_n_eff
   }
+  return(gwas)
+}
+
+#' Per-variant number of controls from the total: N_CONTROLS = N - N_CASES.
+#'
+#' For files that give the cases and the total per variant but not the controls (e.g. HERMES: N_case, N_total).
+#' Only used when the file has N_CASES and N but no N_CONTROLS; values that are missing or not positive
+#' are left missing.  Call it before the input's study N fills the N column, so that the totals come from the file.
+#' @param gwas GWAS data frame
+#' @return gwas, with N_CONTROLS when it can be derived
+#' @keywords internal
+derive_n_controls <- function(gwas) {
+  columns <- colnames(gwas)
+  if (!all(c("N_CASES", "N") %in% columns) || "N_CONTROLS" %in% columns) return(gwas)
+  n_cases <- suppressWarnings(as.numeric(gwas$N_CASES))
+  n_controls <- suppressWarnings(as.numeric(gwas$N)) - n_cases
+  n_controls[is.na(n_cases) | n_cases <= 0 | n_controls <= 0] <- NA
+  gwas$N_CONTROLS <- n_controls
   return(gwas)
 }
 
@@ -381,7 +408,8 @@ change_column_names <- function(gwas, columns = list(), remove_extra_columns = F
 
   if (remove_extra_columns) {
     columns_to_remove <- setdiff(colnames(gwas), names(columns))
-    gwas <- gwas[,-which(colnames(gwas) %in% columns_to_remove)]
+    # -which() of nothing would select no columns at all, so only drop when there is something to drop
+    if (length(columns_to_remove) > 0) gwas <- gwas[, -which(colnames(gwas) %in% columns_to_remove), drop = FALSE]
   }
 
   return(gwas)

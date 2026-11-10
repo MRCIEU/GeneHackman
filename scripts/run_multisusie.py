@@ -126,7 +126,12 @@ def read_clumped(clumped_file):
         df = pd.read_csv(clumped_file, sep=r"\s+", engine="python")
         if "SNP" not in df.columns or len(df) == 0:
             return pd.DataFrame(columns=["SNP", "CHR", "BP"])
-        return df[["SNP", "CHR", "BP"]]
+        # drop rows without a lead SNP or position (e.g. a row of NAs from trailing blank lines); such a row makes
+        # pandas read CHR and BP as floats, so restore the types the GWAS use (CHR as a string, "2" not "2.0")
+        df = df[["SNP", "CHR", "BP"]].dropna().reset_index(drop=True)
+        df["CHR"] = df["CHR"].astype(str).str.replace(r"\.0$", "", regex=True)
+        df["BP"] = df["BP"].astype("int64")
+        return df
     except Exception:
         return pd.DataFrame(columns=["SNP", "CHR", "BP"])
 

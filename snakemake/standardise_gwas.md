@@ -44,7 +44,7 @@ populate_rsid: false
 | ----- | -------- | ----- |
 | `file` | **Yes** | Path to VCF, CSV, TSV, or TXT (`.gz` / `.zip` supported). |
 | `columns` | No | Maps logical names to file headers, or a preset (`metal`, `gwama`, `opengwas`, `opengwas_phewas`, `gwas_catalog` for the GWAS Catalog's GWAS-SSF format, …). See [`inst/extdata/predefined_column_maps.csv`](../inst/extdata/predefined_column_maps.csv). **Column names are not detected automatically**: without `columns`, the file must already use GeneHackman's names (`CHR`, `BP`, `EA`, `OA`, `BETA`, `SE`, `EAF`, `P`, `N`, …). |
-| `study_type` | No | `continuous` (default) or `binary`. Binary traits get an effective sample size column `N_EFF`: kept from the file if present, else from `N_CASES`/`N_CONTROLS` columns, else from `N_case`/`N_control` below. |
+| `study_type` | No | `continuous` (default) or `binary`. Binary traits get an effective sample size column `N_EFF`: kept from the file if present, else from `N_CASES`/`N_CONTROLS` columns (or `N_CASES` and a per-variant total `N`, with controls = `N` − `N_CASES`), else from `N_case`/`N_control` below. |
 | `N_case`, `N_control` | No | Binary traits: numbers of cases and controls. |
 | `build` | No | Input reference build: `GRCh36`, `GRCh37`, `GRCh38`. Default `GRCh37`, because most published GWAS still are; standardisation stops if the positions match the other build much better (checked against the Pan-UKB LD pack). An already standardised `*_std.tsv.gz` input must declare `build` equal to `output.build`. |
 | `ancestry` | If `populate_eaf: true` | One of `AFR`, `AMR`, `EAS`, `EUR`, `SAS`; with `ld_reference: pan_ukb` EAF comes from the Pan-UKB LD pack (matched on SNP keys) and `CSA`, `MID` are also allowed. |

@@ -151,8 +151,10 @@ write_clumped_file <- function(clumps, output_file) {
 #' @keywords internal
 use_gwas_positions_in_clumped <- function(clumped_file, gwas) {
   BP = NULL # silence R CMD check note for data.table column
-  clumped <- data.table::fread(clumped_file, header = TRUE, fill = TRUE)
+  clumped <- data.table::fread(clumped_file, header = TRUE, fill = TRUE, blank.lines.skip = TRUE)
   if (nrow(clumped) == 0 || !"SNP" %in% colnames(clumped)) return(invisible(0L))
+  # PLINK ends the file with blank lines; with fill = TRUE they can come back as a row of NAs
+  clumped <- clumped[!is.na(clumped$SNP) & nzchar(as.character(clumped$SNP))]
   gwas <- get_file_or_dataframe(gwas, columns = c("RSID", "BP"))
   index <- match(clumped$SNP, gwas$RSID)
   found <- !is.na(index)

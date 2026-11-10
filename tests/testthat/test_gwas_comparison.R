@@ -106,6 +106,18 @@ test_that("gwas_comparison.compare_replication_across_all_gwas_permutations keep
   ))
 })
 
+test_that("LDSC h2 z-score uses the liability scale when LDSC 1.0.1 reports only that (prevalences given)", {
+  log <- tempfile(fileext = ".log")
+  writeLines(c("Total Liability scale h2: 0.0261 (0.0013)", "Lambda GC: 1.3101", "Mean Chi^2: 1.4047",
+               "Intercept: 1.0378 (0.0093)", "Ratio: 0.0935 (0.0229)"), log)
+  h2 <- parse_ldsc_h2_log(log)
+  expect_true(is.na(h2$H2_OBS))
+  tables <- ldsc_results_tables(h2_logs = log, rg_logs = character(0), sumstats = "/data/ldsc/hf_all.sumstats.gz",
+                                labels = "HFall", ancestry = "EUR", population_prevalences = "0.08")
+  expect_equal(tables$h2$H2_Z, 0.0261 / 0.0013)
+  expect_false(tables$h2$FLAG_LOW_H2_Z)
+})
+
 test_that("LDSC logs are parsed into heritability and genetic correlation tables with reliability flags", {
   dir <- test_path("data/ldsc")
   h2 <- parse_ldsc_h2_log(file.path(dir, "results_EUR_h2_1.log"))

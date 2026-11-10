@@ -28,7 +28,10 @@ if (!requireNamespace("MungeSumstats", quietly = TRUE)) {
 dir.create(dirname(args$output_prefix), recursive = TRUE, showWarnings = FALSE)
 
 # the same input for both tools, in GeneHackman's column names
-input <- data.table::as.data.table(change_column_names(get_file_or_dataframe(args$gwas), resolve_column_map(args$columns)))
+# Only the mapped columns are kept: MungeSumstats guesses columns from their names, so extra ones (e.g. HERMES's logP,
+# N_case, p_het) could be read as something else and make the two tools' inputs differ.
+input <- data.table::as.data.table(change_column_names(get_file_or_dataframe(args$gwas), resolve_column_map(args$columns),
+                                                       remove_extra_columns = TRUE))
 if (isTRUE(args$chrpos_only)) {
   input <- data.table::as.data.table(as_chrpos_identifiers(input))
   message("Input rewritten to chr:pos:a1:a2 identifiers only, e.g. ", input$SNP[1])

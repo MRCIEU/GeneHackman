@@ -52,7 +52,7 @@ Add more entries under `gwases:` for additional traits or ancestries.
 | `ancestry` | **Yes** | LD reference population for clumping and fine-mapping: `AFR`, `AMR`, `EAS`, `EUR`, `SAS` with `ld_reference: 1000genomes`; also `CSA` and `MID` with `ld_reference: pan_ukb` (`SAS` maps to `CSA`). |
 | `N` | Recommended | Sample size, used where the file has no per-variant `N` (a per-variant `N` column takes precedence). Fine-mapping uses the median per-variant `N_EFF` (binary traits) or `N` of each region. |
 | `study_type` | No | `continuous` (default) or `binary` (case-control). |
-| `N_case`, `N_control` | No | Binary traits: numbers of cases and controls, for the effective sample size N_eff = 4 / (1/N_case + 1/N_control) when the file has no `N_EFF` or `N_CASES`/`N_CONTROLS` columns. For a meta-analysis, give a per-variant `N_EFF` column (the sum of the cohorts' effective sample sizes) if you have one. |
+| `N_case`, `N_control` | No | Binary traits: numbers of cases and controls, for the effective sample size N_eff = 4 / (1/N_case + 1/N_control) when the file has no `N_EFF` or `N_CASES`/`N_CONTROLS` columns (a file with `N_CASES` and a per-variant total `N` gets controls = `N` − `N_CASES`). For a meta-analysis, give a per-variant `N_EFF` column (the sum of the cohorts' effective sample sizes) if you have one. |
 | `ld_bfile` | No | PLINK prefix (`.bed/.bim/.fam`) of **in-sample** or other user-supplied genotypes, in the output build, used for LD instead of `ld_reference`. Variants are matched on position and both alleles (IDs need only be unique). See [In-sample LD](#in-sample-and-user-supplied-ld). |
 | `label` | No | Name of the GWAS in plots and reports (default: the file name). |
 | `columns` | No | Column map or preset. |

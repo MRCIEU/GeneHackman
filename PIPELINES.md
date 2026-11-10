@@ -45,7 +45,7 @@ These apply to every pipeline unless a workflow doc says otherwise.
 - Effect: `BETA`+`SE`, or `OR`+`OR_LB`+`OR_UB`, or `Z`
 - P-value: `P` or `LOG_P`
 
-Default logical names: `SNP`, `CHR`, `BP`, `EA`, `OA`, `EAF`, `BETA`, `SE`, `OR`, `P`, `LOG_P`, `Z`, `OR_LB`, `OR_UB`, `RSID`, `N`, `N_CASES`, `ENSEMBL_ID`, `GENE_NAME`.
+Default logical names: `SNP`, `CHR`, `BP`, `EA`, `OA`, `EAF`, `BETA`, `SE`, `OR`, `P`, `LOG_P`, `Z`, `OR_LB`, `OR_UB`, `RSID`, `N`, `N_CASES`, `N_CONTROLS`, `N_EFF`, `ENSEMBL_ID`, `GENE_NAME`. For binary traits, per-variant `N_CASES` with `N_CONTROLS`, or `N_CASES` with a total `N`, give a per-variant effective sample size.
 
 **Allele harmonisation:** root `flip_alleles` defaults to `true`. Only [`standardise_gwas.smk`](snakemake/standardise_gwas.smk) accepts `flip_alleles: false`.
 

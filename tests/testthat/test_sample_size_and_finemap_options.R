@@ -30,6 +30,29 @@ test_that("populate_effective_n uses, in order: N_EFF, N_CASES/N_CONTROLS, N sca
   expect_error(normalise_study_type("ordinal"), "continuous or binary")
 })
 
+test_that("populate_effective_n derives N_CONTROLS = N - N_CASES when the file gives cases and the total", {
+  gwas <- data.frame(N_CASES = c(100, 50, NA, 10), N = c(1000, 1000, 1000, 5))
+  result <- populate_effective_n(gwas, "binary")
+  expect_equal(result$N_CONTROLS, c(900, 950, NA, NA))
+  expect_equal(result$N_EFF, c(effective_sample_size(c(100, 50), c(900, 950)), NA, NA))
+
+  # variants without per-variant counts get the study's N_EFF
+  filled <- populate_effective_n(gwas, "binary", n_case = 200, n_control = 1800)
+  expect_equal(filled$N_EFF[3:4], rep(effective_sample_size(200, 1800), 2))
+
+  # an N_CONTROLS column in the file is kept as it is
+  given <- populate_effective_n(data.frame(N_CASES = 100, N_CONTROLS = 300, N = 1000), "binary")
+  expect_equal(given$N_CONTROLS, 300)
+  expect_equal(given$N_EFF, effective_sample_size(100, 300))
+})
+
+test_that("standardise_gwas takes the per-variant totals from the file, not the input's N, for N_CONTROLS", {
+  # derive_n_controls runs before the input's N fills a missing N column, so no controls are invented
+  gwas <- data.frame(N_CASES = c(100, 50))
+  expect_false("N_CONTROLS" %in% colnames(derive_n_controls(gwas)))
+  expect_equal(derive_n_controls(data.frame(N_CASES = 100, N = "1000"))$N_CONTROLS, 900)
+})
+
 test_that("analysis_sample_size prefers the median N_EFF, then the median N, then the default", {
   expect_equal(analysis_sample_size(data.frame(N = c(10, 20, 30), N_EFF = c(4, 5, NA))), 4.5)
   expect_equal(analysis_sample_size(data.frame(N = c(10, 20, 30))), 20)

@@ -363,6 +363,7 @@ read_clumped_leads <- function(clumped_file) {
   header <- names(data.table::fread(clumped_file, nrows = 0))
   columns <- intersect(c("SNP", "CHR", "BP", "P"), header)
   leads <- data.table::fread(clumped_file, select = columns)
+  leads <- leads[!is.na(leads$SNP) & nzchar(as.character(leads$SNP))]
   if (!"P" %in% names(leads)) leads$P <- rep(NA_real_, nrow(leads))
   leads
 }

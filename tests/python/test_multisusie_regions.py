@@ -24,6 +24,22 @@ def leads(bps, chrom="1"):
 
 
 @unittest.skipIf(run_multisusie is None, "MultiSuSiE is not installed")
+class TestReadClumped(unittest.TestCase):
+    def test_na_row_from_trailing_blank_lines_is_dropped_and_types_kept(self):
+        tmp = tempfile.mkdtemp()
+        try:
+            path = os.path.join(tmp, "x.clumped")
+            with open(path, "w") as f:
+                f.write("CHR F SNP BP P TOTAL\n2 1 rs1 826282 1e-10 5\n16 1 rs2 868869 2e-9 3\nNA\n")
+            df = run_multisusie.read_clumped(path)
+            self.assertEqual(list(df["SNP"]), ["rs1", "rs2"])
+            self.assertEqual(list(df["CHR"]), ["2", "16"])
+            self.assertEqual(list(df["BP"]), [826282, 868869])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
+@unittest.skipIf(run_multisusie is None, "MultiSuSiE is not installed")
 class TestRegions(unittest.TestCase):
     def test_merge_is_capped_like_the_r_module(self):
         # the same case as test_finemap.R: leads every 400 kb, 500 kb windows, 1.5 Mb cap

@@ -1,7 +1,6 @@
 # Revision 1 re-analysis of the heart failure demonstration (disease progression: incident HF vs all-cause death in HF, slopehunter correction).
 # Run from the repository root with ./run_pipeline.sh; hf_data/ is a symlink to the folder holding the GWAS files
-# (see REVISION1_PLAN2.md). Case and control counts marked TODO must be filled in before running: 0 stops the
-# pipeline with a message.
+# (see REVISION1_PLAN2.md).
 gwases:
   - file: hf_data/FORMAT-METAL_Pheno1_EUR.tsv.gz
     columns: &hermes_columns
@@ -14,14 +13,15 @@ gwases:
       BETA: A1_beta
       SE: se
       P: pval
-      # add per-variant counts if the file has them (check the header first), e.g. N_CASES: <col>, N_CONTROLS: <col>
+      N_CASES: N_case  # per-variant cases and total, so N_EFF is per variant (controls = N_total - N_case)
+      N: N_total
     build: GRCh37
     ancestry: EUR
     label: HFall
     study_type: binary
-    N_case: 0  # TODO: HFall cases, Henry et al. 2025 Table 1
-    N_control: 0  # TODO: HFall controls
-    prevalence: 0.02  # population prevalence of HF: decide (0.01-0.02 in most LDSC analyses of HF)
+    N_case: 139533  # Henry et al. 2025, Supplementary Table 2, European; used only where a variant has no per-variant counts
+    N_control: 1568809
+    prevalence: 0.08168  # as Henry et al. 2025: the meta-analysis case fraction, 139,533 / 1,708,342 (EUR)
   - file: hf_data/hf_progression_allcause_death.autosomes.gz
     columns:
       SNP: rsid
@@ -33,12 +33,14 @@ gwases:
       BETA: beta
       SE: se
       P: p
-    build: GRCh37  # TODO: check
+    build: GRCh37  # checked 7 Nov 2026: 92% of its chr22 SNVs match the GRCh37 1000G EUR panel, 0.1% GRCh38
     ancestry: EUR
     label: HF-death
     study_type: binary
-    N_case: 0     # TODO: deaths, Sunderland et al. 2025
-    N_control: 0  # TODO: survivors
+    # Sunderland et al. 2026 (JACC 87:2981): 50,636 European HF patients, 11,454 deaths. The GWAS is a Cox model,
+    # so N_EFF from deaths and survivors is an approximation; the file's per-variant n is deliberately not mapped
+    N_case: 11454
+    N_control: 39182
 plink_clump_arguments: "--clump-p2 0.001 --clump-r2 0.3 --clump-kb 500"  # as in the submitted analysis
 output:
   adjusted_gwas:

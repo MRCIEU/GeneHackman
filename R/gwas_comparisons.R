@@ -294,7 +294,7 @@ parse_ldsc_rg_log <- function(log_file) {
 
 #' Tables of LDSC heritability and genetic correlation results, with reliability flags.
 #'
-#' Heritability: the z-score of the observed-scale estimate (H2_Z) and a flag when it is below 4, the threshold
+#' Heritability: the z-score of the estimate (H2_Z; observed scale, or liability scale when LDSC reports only that) and a flag when it is below 4, the threshold
 #' below which genetic correlations are unreliable (Zheng et al. 2017, LD Hub).  Genetic correlation: a flag
 #' when |rg| > 1 or when either trait's H2_Z is below 4; RG_RELIABLE is FALSE in either case, and such
 #' estimates should not be interpreted.  For binary traits with prevalences, H2_LIAB is the liability-scale
@@ -313,7 +313,9 @@ ldsc_results_tables <- function(h2_logs, rg_logs, sumstats, labels = basename(su
   population_prevalences <- suppressWarnings(as.numeric(population_prevalences))
   h2 <- do.call(rbind, lapply(h2_logs, parse_ldsc_h2_log))
   h2 <- cbind(data.frame(ANCESTRY = ancestry, TRAIT = labels, POP_PREV = population_prevalences), h2)
-  h2$H2_Z <- h2$H2_OBS / h2$H2_OBS_SE
+  # LDSC prints only the liability-scale estimate when prevalences are given; the z-score is the same on both
+  # scales (the conversion multiplies the estimate and its SE by the same constant)
+  h2$H2_Z <- ifelse(is.na(h2$H2_OBS), h2$H2_LIAB / h2$H2_LIAB_SE, h2$H2_OBS / h2$H2_OBS_SE)
   h2$FLAG_LOW_H2_Z <- is.na(h2$H2_Z) | h2$H2_Z < 4
   h2$FLAG_RATIO <- !is.na(h2$RATIO_NOTE)
 

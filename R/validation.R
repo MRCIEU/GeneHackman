@@ -61,5 +61,7 @@ compare_harmonisation <- function(genehackman, other, other_ea = "A2", other_oa 
 as_chrpos_identifiers <- function(gwas) {
   gwas$SNP <- paste0("chr", gwas$CHR, ":", format(as.numeric(gwas$BP), scientific = FALSE, trim = TRUE), ":",
                      gwas$OA, ":", gwas$EA)
-  gwas[, setdiff(names(gwas), c("CHR", "BP", "RSID")), drop = FALSE]
+  keep <- setdiff(names(gwas), c("CHR", "BP", "RSID"))
+  if (data.table::is.data.table(gwas)) return(gwas[, keep, with = FALSE])
+  gwas[, keep, drop = FALSE]
 }
