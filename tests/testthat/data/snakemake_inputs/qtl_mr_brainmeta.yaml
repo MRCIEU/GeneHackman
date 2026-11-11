@@ -8,3 +8,4 @@ qtl:
   exposures: []
 populate_rsid: false
 is_test: true
+ld_reference: 1000genomes

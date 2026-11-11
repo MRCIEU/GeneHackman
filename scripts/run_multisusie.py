@@ -87,7 +87,7 @@ def parse_args():
     parser.add_argument("--window_kb", type=int, default=1000,
                         help="Half-width of fine-mapping window in kb")
     parser.add_argument("--max_n_ratio", type=float, default=10,
-                        help="For --max_causal auto: largest GWAS N / LD reference N that still uses L = 10")
+                        help="Warn when a GWAS N is more than this many times its LD reference N")
     parser.add_argument("--max_region_kb", type=float, default=3000,
                         help="Maximum merged region width, or tile width, in kb")
     parser.add_argument("--region_strategy", choices=REGION_STRATEGIES, default="merge",
@@ -96,8 +96,8 @@ def parse_args():
                         help="Per ancestry: PLINK prefix of in-sample/user genotypes for LD, or 'none'")
     parser.add_argument("--remove_ld_outliers", action="store_true",
                         help="Remove variants flagged by the LD-mismatch check (any ancestry) before fitting")
-    parser.add_argument("--max_causal", default="auto",
-                        help="Maximum number of causal signals (L)")
+    parser.add_argument("--max_causal", default="10",
+                        help="Maximum number of causal signals per locus (L); default 10")
     parser.add_argument("--coverage", type=float, default=0.95,
                         help="Credible set coverage")
     parser.add_argument("--min_abs_corr", type=float, default=0.5,
@@ -725,17 +725,26 @@ def ld_reference_n_samples(ancestry, ld_options, bfile=None):
     return count_fam(os.path.join(ld_options["thousand_genomes_dir"] or "", ancestry))
 
 
-def choose_max_causal(max_causal, sample_sizes, reference_sizes, max_n_ratio=10, default_l=10):
-    """SuSiE L, as choose_max_causal() in R/ld_reference.R: with 'auto', L = 1 when any ancestry's GWAS N is more
-    than max_n_ratio times its LD reference N, else default_l.  Returns (L, rule)."""
-    if str(max_causal).lower() != "auto":
-        return int(max_causal), "set by user"
-    ratios = [n / ref for n, ref in zip(sample_sizes, reference_sizes) if ref and ref == ref and ref > 0]
-    if len(ratios) < len(sample_sizes):
-        return default_l, "auto: LD reference size unknown"
-    if max(ratios) > max_n_ratio:
-        return 1, f"auto: max N / N_REF = {max(ratios):.1f} > {max_n_ratio:g}"
-    return default_l, f"auto: max N / N_REF = {max(ratios):.1f} <= {max_n_ratio:g}"
+def resolve_max_causal(max_causal):
+    """SuSiE L from finemap.max_causal, as resolve_max_causal() in R/ld_reference.R: a positive whole number."""
+    text = str(max_causal).strip()
+    if not text.isdigit() or int(text) < 1:
+        raise ValueError(f"finemap.max_causal must be a positive whole number (SuSiE L, default 10), not {max_causal}")
+    return int(text)
+
+
+def ld_reference_size_warning(ancestry, gwas_n, n_ref, max_n_ratio=10):
+    """As ld_reference_size_warning() in R/ld_reference.R: the warning text, or "" when the LD reference is not
+    more than max_n_ratio times smaller than the GWAS.  Nothing is changed by it."""
+    if not n_ref or n_ref != n_ref or n_ref <= 0 or gwas_n != gwas_n:
+        return ""
+    ratio = gwas_n / n_ref
+    if ratio <= max_n_ratio:
+        return ""
+    return (f"{ancestry}: GWAS sample size ({gwas_n:,.0f}) is {ratio:,.0f} times that of the LD reference "
+            f"({n_ref:,.0f} individuals). Reference LD this much smaller than the GWAS can miscalibrate fine-mapping "
+            "and colocalization, especially with more than one signal per region (L > 1): check the LD-mismatch "
+            "flags, and consider in-sample LD (ld_bfile), a larger LD reference or finemap.max_causal: 1.")
 
 
 def locus_sample_size(locus_gwas, default_n):
@@ -1053,15 +1062,17 @@ def main():
                   "ld_pack_dir": args.ld_pack_dir, "build": args.build, "ld_bfiles": ld_bfiles}
     gwas_sizes = [locus_sample_size(df, n) for df, n in zip(gwas_dfs, args.sample_sizes)]
     reference_sizes = [ld_reference_n_samples(a, ld_options, b) for a, b in zip(args.ancestries, ld_bfiles)]
-    max_causal, l_rule = choose_max_causal(args.max_causal, gwas_sizes, reference_sizes, args.max_n_ratio)
-    print(f"MultiSuSiE L = {max_causal} ({l_rule})")
-    if max_causal == 1 and str(args.max_causal).lower() == "auto":
-        print("WARNING: the GWAS are much larger than their LD references, so only one signal per locus is fitted. "
-              "Use in-sample LD (ld_bfile), or set finemap.max_causal to fit more.", file=sys.stderr)
+    max_causal = resolve_max_causal(args.max_causal)
+    print(f"MultiSuSiE L = {max_causal}")
+    size_warnings = [ld_reference_size_warning(a, n, ref, args.max_n_ratio)
+                     for a, n, ref in zip(args.ancestries, gwas_sizes, reference_sizes)]
+    for w in size_warnings:
+        if w:
+            print(f"WARNING: {w}", file=sys.stderr)
     settings = pd.DataFrame({
         "ANCESTRY": args.ancestries, "N_GWAS": gwas_sizes, "N_REF": reference_sizes,
         "LD_REFERENCE": [f"user:{os.path.basename(b)}" if b else args.ld_reference for b in ld_bfiles],
-        "L": max_causal, "L_RULE": l_rule, "REGION_STRATEGY": args.region_strategy,
+        "L": max_causal, "LD_SIZE_WARNING": size_warnings, "REGION_STRATEGY": args.region_strategy,
         "WINDOW_KB": args.window_kb, "MAX_REGION_KB": args.max_region_kb, "N_LOCI": len(loci)})
     settings.to_csv(os.path.join(args.output_dir, "multisusie_settings.tsv"), sep="\t", index=False)
 

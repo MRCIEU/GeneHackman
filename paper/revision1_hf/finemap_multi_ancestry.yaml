@@ -33,7 +33,7 @@ gwases:
 plink_clump_arguments: "--clump-p1 5e-8 --clump-r2 0.01 --clump-kb 1000"
 finemap:
   window_kb: 1000
-  max_causal: auto
+  max_causal: 1  # as run in the re-analysis (it was max_causal: auto, which chose L = 1 for these data)
   coverage: 0.95
   min_abs_corr: 0.5
   region_strategy: merge

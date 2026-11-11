@@ -43,8 +43,7 @@ EAS or MID for the Pan-UKB LD pack}
 
 \item{window_kb}{half-width of the fine-mapping window around each lead SNP in kb}
 
-\item{max_causal}{SuSiE L: "auto" (default) for L = 1 when the GWAS sample size is more than \code{max_n_ratio}
-times the LD reference's and 10 otherwise (see \code{choose_max_causal()}), or a number}
+\item{max_causal}{SuSiE L, the maximum number of signals per region (default 10)}
 
 \item{coverage}{credible set coverage (default 0.95)}
 
@@ -58,7 +57,8 @@ times the LD reference's and 10 otherwise (see \code{choose_max_causal()}), or a
 
 \item{region_strategy}{"merge" (default), "none" or "tile"; see \code{define_finemap_regions()}}
 
-\item{max_n_ratio}{for \code{max_causal = "auto"}: largest GWAS N / LD reference N that still uses L = 10}
+\item{max_n_ratio}{warn (log, finemap_regions.tsv and HTML report) when the GWAS sample size is more than this
+many times the LD reference's; see \code{ld_reference_size_warning()}}
 
 \item{ld_bfile}{PLINK prefix of in-sample (or other user-supplied) genotypes in \code{build}; when given, LD
 comes from these instead of \code{ld_reference}}

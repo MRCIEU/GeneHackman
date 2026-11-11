@@ -107,13 +107,18 @@ if (!is.null(coloc_tbl) && nrow(coloc_tbl) > 0L) {
 
 ### Fine-mapping diagnostics
 
-Colocalization uses the credible sets from fine-mapping, so a credible set that fine-mapping flagged is also suspect in colocalization. Fine-mapping uses reference-panel LD unless in-sample genotypes were given; each region is checked for inconsistency between the z-scores and the LD (`LD_MISMATCH_S`, 0 = consistent; flagged above `r ld_mismatch_s_threshold`) and for variants whose z-score is unlikely given their neighbours' (`N_LD_OUTLIERS`; a flipped allele is the typical cause). `LD_FLAG`: `OUTLIER_IN_CS` (an outlier is in the credible set), `LD_MISMATCH` (credible sets beyond the lead one may be spurious), `OUTLIERS_IN_REGION`, `MHC`. These checks matter most when more than one signal per region was fitted (L > 1); with L = 1 the PIPs don't depend on the LD.
+Colocalization uses the credible sets from fine-mapping, so a credible set that fine-mapping flagged is also suspect in colocalization. Fine-mapping uses reference-panel LD unless in-sample genotypes were given; each region is checked for inconsistency between the z-scores and the LD (`LD_MISMATCH_S`, 0 = consistent; flagged above `r ld_mismatch_s_threshold`) and for variants whose z-score is unlikely given their neighbours' (`N_LD_OUTLIERS`; a flipped allele is the typical cause). `LD_FLAG`: `OUTLIER_IN_CS` (an outlier is in the credible set), `LD_MISMATCH` (credible sets beyond the lead one may be spurious), `OUTLIERS_IN_REGION`, `MHC`. These checks matter most when more than one signal per region was fitted (L > 1), and when the GWAS is much larger than the LD reference, which is warned about below.
 
 ```{r echo = FALSE, results = "asis"}
 fm_dirs <- if (is.null(params$finemap_dirs) || !nzchar(as.character(params$finemap_dirs))) character() else
   unlist(strsplit(as.character(params$finemap_dirs), "|", fixed = TRUE))
 fm_labels <- if (length(traits_v) == length(fm_dirs)) traits_v else basename(fm_dirs)
 if (length(fm_dirs) > 0) {
+  size_warnings <- unlist(lapply(fm_dirs, function(dir) {
+    regions <- finemap_diagnostics(dir)$regions
+    if ("LD_SIZE_WARNING" %in% names(regions)) as.character(regions$LD_SIZE_WARNING) else character()
+  }))
+  cat(ld_size_warning_markdown(size_warnings))
   summaries <- lapply(seq_along(fm_dirs), function(k) cbind(TRAIT = fm_labels[k], finemap_diagnostics(fm_dirs[k])$summary))
   print(knitr::kable(data.table::rbindlist(summaries, fill = TRUE), caption = "Fine-mapping per trait"))
   flagged <- data.table::rbindlist(lapply(seq_along(fm_dirs), function(k) {

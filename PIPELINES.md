@@ -51,12 +51,14 @@ Default logical names: `SNP`, `CHR`, `BP`, `EA`, `OA`, `EAF`, `BETA`, `SE`, `OR`
 
 **Clumping:** pipelines that clump require `plink_clump_arguments`. If `--clump-r2` or `--clump-kb` are not given, GeneHackman adds `--clump-r2 0.01 --clump-kb 1000` (PLINK's own defaults, 0.5 and 250 kb, leave several correlated lead SNPs per locus).
 
-**LD reference:** `ld_reference` chooses where clumping, fine-mapping (SuSiE and MultiSuSiE), LocusZoom and EAF filling get LD:
+**LD reference:** `ld_reference` is **required** (there is no default) in every pipeline that clumps, fine-maps or checks alleles against a reference panel. It chooses where clumping, fine-mapping (SuSiE and MultiSuSiE), LocusZoom, strand checks and EAF filling get LD:
 
 | Value | Source | Variants are matched on | Ancestries |
 |---|---|---|---|
-| `1000genomes` (default) | 1000 Genomes genotypes via PLINK, in the output build: the 30x high-coverage release for GRCh38, phase 3 for GRCh37 | RSID | EUR, EAS, AFR, AMR, SAS |
+| `1000genomes` | 1000 Genomes genotypes via PLINK, in the output build: the 30x high-coverage release for GRCh38, phase 3 for GRCh37 | RSID | EUR, EAS, AFR, AMR, SAS |
 | `pan_ukb` | Precomputed Pan-UKB LD: 6,000–420,000 people per ancestry, MAF ≥ 1%, ±1 Mb, GRCh37 and GRCh38 | SNP key (`CHR:BP_EA_OA`) | EUR, AFR, AMR, CSA, EAS, MID (`SAS` maps to `CSA`) |
+
+The sample YAMLs use `pan_ukb`, the larger reference. Reference LD can miscalibrate fine-mapping when the GWAS is much larger than the panel, so when a GWAS is more than `finemap.max_n_ratio` (default 10) times larger than its LD reference, the fine-mapping, colocalisation and QTL pipelines warn in the log and in their HTML reports; they don't change any setting.
 
 The Pan-UKB pack must be at `PIPELINE_DATA_DIR/genomic_data/pan_ukb_ld/`; see [`reference_data/pan_ukb_ld/README.md`](reference_data/pan_ukb_ld/README.md) for how it is built.
 

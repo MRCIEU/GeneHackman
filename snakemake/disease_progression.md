@@ -37,6 +37,7 @@ gwases:
   - file: /path/to/subsequent_gwas.tsv.gz
     columns: {}
     ancestry: EAS
+ld_reference: pan_ukb
 plink_clump_arguments: "--clump-p2 0.001 --clump-r2 0.3 --clump-kb 500"
 populate_rsid: false
 output:
@@ -61,6 +62,7 @@ output:
 | Field | Required | Notes |
 | ----- | -------- | ----- |
 | `plink_clump_arguments` | **Yes** | PLINK clump settings. Clumping uses the **incident** GWAS leads for expected-vs-observed comparisons. If `--clump-r2` or `--clump-kb` are not given, GeneHackman adds `--clump-r2 0.01 --clump-kb 1000` (PLINK's own defaults, 0.5 and 250 kb, leave several correlated lead SNPs per locus). |
+| `ld_reference` | **Yes** | LD reference panel, with no default: `pan_ukb` (Pan-UK Biobank LD, about 420,000 Europeans and 6,000–8,000 or fewer for other ancestries) or `1000genomes` (about 500 people per super-population). See [PIPELINES.md](../PIPELINES.md#common-conventions). |
 
 ### `output.adjusted_gwas`
 

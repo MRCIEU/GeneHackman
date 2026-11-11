@@ -67,6 +67,7 @@ populate_rsid: false
 | ----- | -------- | ----- |
 | `populate_rsid` | No | Default `false`. |
 | `populate_eaf` | No | Default `false`. |
+| `ld_reference` | If a GWAS has an `ancestry` (strand check) or `populate_eaf: true` | `pan_ukb` or `1000genomes`; no default. |
 | `flip_alleles` | No | Default `true`. |
 | `is_test` | No | Used by tests / logging. |
 | `liftover.complement_minus_strand` | No | Default `false`: variants that map to the minus strand are dropped. `true` keeps non-palindromic ones with complemented alleles. |

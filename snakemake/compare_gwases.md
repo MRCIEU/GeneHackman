@@ -41,6 +41,7 @@ gwases:
     columns: {}
     N: 10000
     ancestry: EAS
+ld_reference: pan_ukb
 plink_clump_arguments: "--clump-p1 0.00000005"
 populate_rsid: false
 ```
@@ -66,6 +67,7 @@ populate_rsid: false
 | Field | Required | Notes |
 | ----- | -------- | ----- |
 | `plink_clump_arguments` | **Yes** | Passed to `plink1.9 --clump` (e.g. `--clump-p1 5e-8 --clump-r2 0.01 --clump-kb 1000`). If `--clump-r2` or `--clump-kb` are not given, GeneHackman adds `--clump-r2 0.01 --clump-kb 1000` (PLINK's own defaults, 0.5 and 250 kb, leave several correlated lead SNPs per locus). |
+| `ld_reference` | **Yes** | LD reference panel, with no default: `pan_ukb` (Pan-UK Biobank LD, about 420,000 Europeans and 6,000–8,000 or fewer for other ancestries) or `1000genomes` (about 500 people per super-population). See [PIPELINES.md](../PIPELINES.md#common-conventions). |
 
 ### Root fields
 

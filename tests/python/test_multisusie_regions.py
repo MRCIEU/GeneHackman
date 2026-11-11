@@ -69,11 +69,18 @@ class TestRegions(unittest.TestCase):
         regions = run_multisusie.define_regions(both, 5e5)
         self.assertEqual([r["chr"] for r in regions], ["2", "10"])
 
-    def test_l_rule(self):
-        self.assertEqual(run_multisusie.choose_max_causal("auto", [1e6, 2e5], [503, 504])[0], 1)
-        self.assertEqual(run_multisusie.choose_max_causal("auto", [4000, 4000], [503, 504])[0], 10)
-        self.assertEqual(run_multisusie.choose_max_causal("auto", [4000], [float("nan")])[0], 10)
-        self.assertEqual(run_multisusie.choose_max_causal("3", [1e6], [500]), (3, "set by user"))
+    def test_max_causal_is_used_as_given(self):
+        self.assertEqual(run_multisusie.resolve_max_causal("10"), 10)
+        self.assertEqual(run_multisusie.resolve_max_causal(3), 3)
+        for bad in ("auto", "0", "2.5"):
+            with self.assertRaises(ValueError):
+                run_multisusie.resolve_max_causal(bad)
+
+    def test_small_ld_reference_gives_a_warning(self):
+        warning = run_multisusie.ld_reference_size_warning("EUR", 443172, 503)
+        self.assertIn("EUR: GWAS sample size (443,172) is 881 times that of the LD reference (503 individuals)", warning)
+        self.assertEqual(run_multisusie.ld_reference_size_warning("EUR", 4000, 503), "")
+        self.assertEqual(run_multisusie.ld_reference_size_warning("EAS", 4000, float("nan")), "")
 
     def test_locus_sample_size_prefers_n_eff(self):
         df = pd.DataFrame({"N": [10, 20, 30], "N_EFF": [4, 5, None]})

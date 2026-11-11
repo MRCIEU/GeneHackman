@@ -33,6 +33,7 @@ gwases:
     columns: {}
     N: 100000
     ancestry: EUR
+ld_reference: pan_ukb
 plink_clump_arguments: "--clump-p1 5e-8 --clump-r2 0.01 --clump-kb 1000"
 finemap:
   window_kb: 1000
@@ -71,8 +72,8 @@ Add more entries under `gwases:` for additional traits or ancestries.
 | Field | Required | Notes |
 | ----- | -------- | ----- |
 | `finemap.window_kb` | No | Half-width of fine-mapping window around each lead (kb). Default **1000**. |
-| `finemap.max_causal` | No | SuSiE `L`. Default `auto`: **L = 1** when the GWAS sample size is more than `max_n_ratio` times the LD reference's (always the case for a large GWAS with 1000 Genomes or Pan-UKB LD), otherwise 10. A number is used as given. |
-| `finemap.max_n_ratio` | No | For `max_causal: auto`. Default `10`. |
+| `finemap.max_causal` | No | SuSiE `L`, the maximum number of signals per region. Default `10`. It is never changed by the pipeline; see the LD-reference warning below. |
+| `finemap.max_n_ratio` | No | Warn when the GWAS sample size is more than this many times the LD reference's. Default `10`. |
 | `finemap.region_strategy` | No | `merge` (default), `none` or `tile`; see [Fine-mapping regions](#fine-mapping-regions). The same rules are used for SuSiE and MultiSuSiE. |
 | `finemap.remove_ld_outliers` | No | Remove variants flagged by the LD-mismatch check and refit. Default `false` (flagged variants are only reported). |
 | `finemap.coverage` | No | Credible set coverage. Default `0.95`. |
@@ -86,7 +87,7 @@ Add more entries under `gwases:` for additional traits or ancestries.
 | `populate_rsid` | No | Default `false`. With clumping and `false`, RSID population is **partial** unless overridden per GWAS. |
 | `populate_eaf` | No | Default `false`. |
 | `output.build` | No | Target build after standardisation. Default `GRCh38` (`GRCh37` needs `download_reference_data.sh --grch37`). |
-| `ld_reference` | No | `1000genomes` (default; PLINK on the 1000 Genomes panel) or `pan_ukb` (precomputed Pan-UKB LD pack, see [PIPELINES.md](../PIPELINES.md#common-conventions)). |
+| `ld_reference` | **Yes** | LD reference panel, with no default: `pan_ukb` (Pan-UK Biobank LD, about 420,000 Europeans and 6,000–8,000 or fewer for other ancestries) or `1000genomes` (about 500 people per super-population). See [PIPELINES.md](../PIPELINES.md#common-conventions). |
 
 `flip_alleles: false` is **not** allowed.
 
@@ -100,9 +101,9 @@ Add more entries under `gwases:` for additional traits or ancestries.
 
 ### LD reference and its limits
 
-By default, LD for fine-mapping comes from a **reference panel**: the 1000 Genomes panel of the GWAS's ancestry (about 500 people per super-population) or, with `ld_reference: pan_ukb`, the Pan-UK Biobank LD (Karczewski et al. 2025). Reference-panel LD can miscalibrate fine-mapping, increasingly so as the GWAS gets larger than the panel: credible sets lose coverage and spurious secondary signals appear (Benner et al. 2017; Zou et al. 2022; Kanai et al. 2022). The pipeline therefore:
+Unless in-sample genotypes are given (`ld_bfile`), LD for fine-mapping comes from the **reference panel** chosen with `ld_reference` (required, no default): the Pan-UK Biobank LD (`pan_ukb`; Karczewski et al. 2025) or the 1000 Genomes panel of the GWAS's ancestry (`1000genomes`, about 500 people per super-population). Reference-panel LD can miscalibrate fine-mapping, increasingly so as the GWAS gets larger than the panel: credible sets lose coverage and spurious secondary signals appear (Benner et al. 2017; Zou et al. 2022; Kanai et al. 2022). The pipeline therefore:
 
-- uses **L = 1** by default when the GWAS is more than 10 times larger than the LD panel (`max_causal: auto`). With one effect per region the PIPs don't depend on the LD matrix (Weissbrod et al. 2020). Multi-signal fine-mapping is still available with `max_causal: 10`, ideally with in-sample LD;
+- warns, in the log, in `finemap_regions.tsv` (`LD_SIZE_WARNING`) and in the HTML report, when the GWAS sample size is more than `finemap.max_n_ratio` (default 10) times that of the LD reference. Nothing is changed automatically: the number of signals is `finemap.max_causal` (default 10). With a much larger GWAS than reference, consider in-sample LD (`ld_bfile`), a larger reference, or `max_causal: 1`, for which the PIPs don't depend on the LD matrix (Weissbrod et al. 2020);
 - aligns LD to the GWAS effect alleles: variants are matched to the panel on position and alleles (Pan-UKB, user LD) or rsID plus alleles (1000 Genomes), r is flipped where the panel counts the other allele, and variants whose alleles don't match are removed (`N_ALLELE_MISMATCH`);
 - checks each region for inconsistency between z-scores and LD with SuSiE-RSS's diagnostics (`susieR::estimate_s_rss` and `kriging_rss`; Zou et al. 2022). `LD_MISMATCH_S` is the estimated inconsistency (0 = consistent; above about 0.1–0.2 suggests mismatch) and `N_LD_OUTLIERS` the variants whose z-score is unlikely given the others (`logLR > 2` and `|z| > 2`), flagged per variant in `LD_OUTLIER`. A flipped allele is the typical outlier.
 
@@ -144,7 +145,7 @@ what should be kept.
 | ---- | ----------- |
 | `finemap/<prefix>/finemap_complete_<prefix>.txt` | **Snakemake target.** One line = number of fine-mapping regions processed. |
 | `finemap/<prefix>/<CHR>_<BP>_finemap.tsv.gz` | Per-region fine-mapping table: every GWAS variant in the region, with SuSiE `Z`, posterior inclusion probability `PIP`, credible-set membership `CS` and per-credible-set log Bayes factors `LBF_1`, `LBF_2`, … (empty for variants not in the LD panel). |
-| `finemap/<prefix>/finemap_regions.tsv` | One row per region: bounds, lead SNP(s), `STATUS` (fine-mapped, or why it was skipped), number of variants with LD, number of credible sets, SuSiE convergence, `LD_REFERENCE`, `N_REF` (people the LD comes from), `N_GWAS` (sample size used), `L` and `L_RULE`, `LD_MISMATCH_S`, `N_LD_OUTLIERS`, `N_ALLELE_MISMATCH`, `MHC`, `REGION_STRATEGY`, `FRAC_BEYOND_LD_RADIUS` (share of variant pairs further apart than the pack's 1 Mb radius, set to r = 0) and `LD_MIN_EIGENVALUE` (smallest eigenvalue of the pack LD matrix; below 0 means its negative eigenvalues were set to 0 to make it positive semi-definite). |
+| `finemap/<prefix>/finemap_regions.tsv` | One row per region: bounds, lead SNP(s), `STATUS` (fine-mapped, or why it was skipped), number of variants with LD, number of credible sets, SuSiE convergence, `LD_REFERENCE`, `N_REF` (people the LD comes from), `N_GWAS` (sample size used), `L`, `LD_SIZE_WARNING` (set when the GWAS is more than `max_n_ratio` times larger than the LD reference), `LD_MISMATCH_S`, `N_LD_OUTLIERS`, `N_ALLELE_MISMATCH`, `MHC`, `REGION_STRATEGY`, `FRAC_BEYOND_LD_RADIUS` (share of variant pairs further apart than the pack's 1 Mb radius, set to r = 0) and `LD_MIN_EIGENVALUE` (smallest eigenvalue of the pack LD matrix; below 0 means its negative eigenvalues were set to 0 to make it positive semi-definite). |
 | `finemap/<prefix>/finemap_credible_sets.tsv` | One row per credible set: size, coverage, purity (min/mean/median \|r\|), lead variant and its PIP, log Bayes factor, `LD_MISMATCH_S`, `N_LD_OUTLIERS_IN_CS` and `LD_FLAG`. |
 | `finemap/result_finemap_<gwas_prefixes>.html` | **HTML report**: settings, a summary per GWAS (L used, credible sets, flagged credible sets, regions with LD mismatch or outliers, MHC regions), credible sets with flagged ones first, and the region table. |
 

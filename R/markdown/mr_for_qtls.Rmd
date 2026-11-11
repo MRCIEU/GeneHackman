@@ -44,10 +44,11 @@ knitr::kable(coloc_results)
 
 ### Fine-mapping diagnostics of the GWAS
 
-The QTL colocalization uses the GWAS's fine-mapped credible sets. Fine-mapping uses reference-panel LD unless in-sample genotypes were given, and each region is checked for inconsistency between the z-scores and the LD (`LD_MISMATCH_S`, flagged above `r ld_mismatch_s_threshold`) and for outlying variants (`N_LD_OUTLIERS`; a flipped allele is the typical cause). Credible sets with an `LD_FLAG` other than `OK` should be treated with caution; the checks matter most when more than one signal per region was fitted (L > 1).
+The QTL colocalization uses the GWAS's fine-mapped credible sets. Fine-mapping uses reference-panel LD unless in-sample genotypes were given, and each region is checked for inconsistency between the z-scores and the LD (`LD_MISMATCH_S`, flagged above `r ld_mismatch_s_threshold`) and for outlying variants (`N_LD_OUTLIERS`; a flipped allele is the typical cause). Credible sets with an `LD_FLAG` other than `OK` should be treated with caution; the checks matter most when more than one signal per region was fitted (L > 1) and when the GWAS is much larger than the LD reference, which is warned about below.
 
 ```{r echo = FALSE, results = "asis"}
 fm <- finemap_diagnostics(dirname(params$finemap_complete))
+if ("LD_SIZE_WARNING" %in% names(fm$regions)) cat(ld_size_warning_markdown(fm$regions$LD_SIZE_WARNING))
 print(knitr::kable(fm$summary, caption = "Fine-mapping of the GWAS"))
 cs <- fm$credible_sets
 if (nrow(cs) > 0 && "LD_FLAG" %in% names(cs) && any(cs$LD_FLAG != "OK")) {

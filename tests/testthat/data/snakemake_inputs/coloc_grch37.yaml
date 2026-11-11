@@ -12,3 +12,4 @@ is_test: true
 
 output:
   build: GRCh37
+ld_reference: 1000genomes

@@ -71,13 +71,18 @@ test_that("Z-only input is converted to standardised BETA and SE (known answer)"
   expect_error(convert_z_score_to_beta(data.frame(Z = 1, EAF = 0.2)), "sample size")
 })
 
-test_that("max_causal auto uses L = 1 when the GWAS is more than 10x the LD reference", {
-  expect_equal(suppressWarnings(choose_max_causal("auto", 1.7e6, 503))$L, 1L)
-  expect_warning(choose_max_causal("auto", 1e5, 503), "L = 1")
-  expect_equal(choose_max_causal("auto", 4000, 503)$L, 10L)
-  expect_equal(choose_max_causal("auto", 4000, NA)$L, 10L)
-  expect_equal(choose_max_causal(5, 1e6, 503), list(L = 5L, rule = "set by user"))
-  expect_error(choose_max_causal("lots", 1, 1), "max_causal")
+test_that("max_causal is used as given, and a small LD reference gives a warning, not a different L", {
+  expect_equal(resolve_max_causal(10), 10L)
+  expect_equal(resolve_max_causal("5"), 5L)
+  expect_error(resolve_max_causal("auto"), "positive whole number")
+  expect_error(resolve_max_causal(0), "positive whole number")
+  expect_error(resolve_max_causal(2.5), "positive whole number")
+  expect_match(ld_reference_size_warning(1.7e6, 503), "3,380 times that of the LD reference \\(503 individuals\\)")
+  expect_true(is.na(ld_reference_size_warning(4000, 503)))
+  expect_true(is.na(ld_reference_size_warning(4000, NA)))
+  expect_match(ld_reference_size_warning(1e5, 503, label = "EUR"), "^EUR: ")
+  expect_equal(ld_size_warning_markdown(c(NA, "")), "")
+  expect_match(ld_size_warning_markdown(c("A.", NA, "A.")), "Warning: LD reference much smaller than the GWAS.\\*\\* A\\.\n")
 })
 
 test_that("region strategy none keeps one window per lead", {
@@ -199,7 +204,7 @@ test_that("ld_reference_n_samples counts the user-supplied .fam", {
   expect_equal(ld_reference_id_column("1000genomes"), "RSID")
 })
 
-test_that("finemap_gwas runs with user-supplied LD, chooses L automatically and reports LD diagnostics", {
+test_that("finemap_gwas runs with user-supplied LD, warns about the small reference and reports LD diagnostics", {
   skip_if(!nzchar(Sys.which("plink1.9")), "plink1.9 not installed")
   genotypes <- simulate_genotypes(n = 400, p = 30, seed = 3)
   dir <- withr::local_tempdir()
@@ -218,11 +223,11 @@ test_that("finemap_gwas runs with user-supplied LD, chooses L automatically and 
   data.table::fwrite(data.frame(CHR = 1, SNP = "rs10", BP = gwas$BP[10], P = gwas$P[10]), clumped, sep = "\t")
   out <- file.path(dir, "finemap")
   suppressWarnings(suppressMessages(finemap_gwas(gwas, clumped, "EUR", default_n = NA, output_finemap_dir = out,
-                                                 window_kb = 100, max_causal = "auto", ld_bfile = prefix)))
+                                                 window_kb = 100, max_causal = 1, ld_bfile = prefix)))
   regions <- data.table::fread(file.path(out, "finemap_regions.tsv"))
   expect_equal(regions$STATUS, "fine-mapped")
   expect_equal(regions$L, 1L)
-  expect_match(regions$L_RULE, "N / N_REF = 100")
+  expect_match(regions$LD_SIZE_WARNING, "100 times that of the LD reference \\(400 individuals\\)")
   expect_equal(regions$N_GWAS, 40000)
   expect_equal(regions$LD_REFERENCE, "user:in_sample")
   expect_equal(regions$N_LD_OUTLIERS, 0L)
@@ -248,7 +253,7 @@ test_that("ld_mismatch_flag combines outliers, mismatch and MHC", {
 
 test_that("finemap_diagnostics summarises regions and flagged credible sets, and coloc rows get the flags", {
   dir <- withr::local_tempdir()
-  data.table::fwrite(data.frame(LOCUS = c("1_100", "2_200"), STATUS = "fine-mapped", L = 1L, L_RULE = "auto",
+  data.table::fwrite(data.frame(LOCUS = c("1_100", "2_200"), STATUS = "fine-mapped", L = 1L, LD_SIZE_WARNING = c(NA, "big GWAS"),
                                 LD_REFERENCE = "1000genomes", LD_MISMATCH_S = c(0.02, 0.4), N_LD_OUTLIERS = c(0L, 3L),
                                 MHC = FALSE, LD_FLAG = c("OK", "LD_MISMATCH;OUTLIERS_IN_REGION")),
                      file.path(dir, "finemap_regions.tsv"), sep = "\t")
@@ -259,6 +264,7 @@ test_that("finemap_diagnostics summarises regions and flagged credible sets, and
   expect_equal(diagnostics$summary$CREDIBLE_SETS_FLAGGED, 1L)
   expect_equal(diagnostics$summary$REGIONS_LD_MISMATCH, 1L)
   expect_equal(diagnostics$summary$REGIONS_WITH_LD_OUTLIERS, 1L)
+  expect_true(diagnostics$summary$LD_SIZE_WARNING)
   expect_equal(finemap_diagnostics(withr::local_tempdir())$summary$REGIONS, 0L)
 
   coloc <- data.frame(trait1 = "A", trait2 = "B", locus1 = c("1_100", "2_200"), locus2 = c("1_100", "9_9"),

@@ -123,7 +123,6 @@ ld_reference_options = ["1000genomes", "pan_ukb"]
 # QTL datasets for qtl_mr (cis QTLs only); must match qtl_datasets in R/constants.R
 qtl_dataset_options = ["eqtlgen", "brainmeta", "ukb_pqtl"]
 qtl_subcategory = "cis"
-default_ld_reference = "1000genomes"
 # fine-mapping regions: merge overlapping lead windows (capped at max_region_kb), one window per lead, or
 # fixed tiles across each cluster of leads (see define_finemap_regions in R/finemap.R)
 finemap_region_strategies = ["merge", "none", "tile"]

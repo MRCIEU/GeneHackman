@@ -41,12 +41,12 @@ parser <- add_argument(parser, "--window_kb",
                        default = 1000
 )
 parser <- add_argument(parser, "--max_causal",
-                       help = "SuSiE L: auto (L = 1 when GWAS N > max_n_ratio x LD reference N, else 10) or a number",
+                       help = "SuSiE L: the maximum number of signals per region",
                        type = "character",
-                       default = "auto"
+                       default = "10"
 )
 parser <- add_argument(parser, "--max_n_ratio",
-                       help = "For --max_causal auto: largest GWAS N / LD reference N that still uses L = 10",
+                       help = "Warn when the GWAS N is more than this many times the LD reference N",
                        type = "numeric",
                        default = 10
 )

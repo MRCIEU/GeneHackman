@@ -437,29 +437,54 @@ ld_mismatch_qc <- function(z, R, n) {
   })
 }
 
-#' Number of single effects (SuSiE L) for a GWAS fine-mapped with a given LD reference.
+#' Number of single effects (SuSiE L) from \code{finemap.max_causal}.
 #'
-#' With \code{max_causal = "auto"}, L = 1 when the GWAS sample size is more than \code{max_n_ratio} times the
-#' LD reference's: a reference that much smaller than the GWAS gives miscalibrated multi-signal fine-mapping
-#' (Benner et al. 2017; Zou et al. 2022), while with L = 1 the posterior inclusion probabilities don't depend on
-#' the LD matrix (Weissbrod et al. 2020).  Otherwise L = 10.  A number is used as given.
-#' @return list with \code{L} and \code{rule} (a short explanation recorded in finemap_regions.tsv)
+#' L is always the user's choice (default 10, the susieR default); it is never changed according to the size of
+#' the LD reference.  See \code{ld_reference_size_warning()} for the warning given when the reference is small.
+#' @return L as an integer
 #' @keywords internal
-choose_max_causal <- function(max_causal, gwas_n, n_ref, max_n_ratio = 10, default_l = 10) {
-  if (!identical(tolower(as.character(max_causal)), "auto")) {
-    l <- suppressWarnings(as.integer(max_causal))
-    if (is.na(l) || l < 1) stop("max_causal must be auto or a positive whole number, not ", max_causal)
-    return(list(L = l, rule = "set by user"))
+resolve_max_causal <- function(max_causal) {
+  l <- suppressWarnings(as.integer(as.character(max_causal)))
+  if (length(l) != 1L || is.na(l) || l < 1 || as.character(l) != trimws(as.character(max_causal))) {
+    stop("finemap.max_causal must be a positive whole number (SuSiE L, default 10), not ", max_causal)
   }
-  if (is.na(gwas_n) || is.na(n_ref) || n_ref <= 0) {
-    return(list(L = default_l, rule = "auto: LD reference size unknown"))
+  l
+}
+
+#' Warning when the LD reference is much smaller than the GWAS.
+#'
+#' LD from a reference panel much smaller than the GWAS can miscalibrate fine-mapping, increasingly so as the GWAS
+#' grows relative to the panel and when more than one signal per region is fitted (Benner et al. 2017; Zou et al.
+#' 2022; Kanai et al. 2022).  Nothing is changed: the warning is printed, recorded in finemap_regions.tsv
+#' (\code{LD_SIZE_WARNING}) and shown in the HTML reports.
+#' @param gwas_n GWAS (effective) sample size
+#' @param n_ref number of individuals in the LD reference
+#' @param max_n_ratio warn when \code{gwas_n / n_ref} is above this
+#' @param label optional name of the GWAS or ancestry, for the message
+#' @return the warning text, or \code{NA_character_} when there is nothing to warn about
+#' @keywords internal
+ld_reference_size_warning <- function(gwas_n, n_ref, max_n_ratio = 10, label = NULL) {
+  if (length(gwas_n) != 1L || length(n_ref) != 1L || is.na(gwas_n) || is.na(n_ref) || n_ref <= 0) {
+    return(NA_character_)
   }
   ratio <- gwas_n / n_ref
-  if (ratio > max_n_ratio) {
-    warning(sprintf(paste("GWAS N (%.0f) is %.0f times the LD reference's (%.0f): fine-mapping with L = 1.",
-                          "Use in-sample LD (ld_bfile), or set finemap.max_causal to fit more signals."),
-                    gwas_n, ratio, n_ref), call. = FALSE, immediate. = TRUE)
-    return(list(L = 1L, rule = sprintf("auto: N / N_REF = %.1f > %s", ratio, max_n_ratio)))
-  }
-  list(L = as.integer(default_l), rule = sprintf("auto: N / N_REF = %.1f <= %s", ratio, max_n_ratio))
+  if (ratio <= max_n_ratio) return(NA_character_)
+  sprintf(paste0("%sGWAS sample size (%s) is %s times that of the LD reference (%s individuals). Reference LD this ",
+                 "much smaller than the GWAS can miscalibrate fine-mapping and colocalization, especially with more ",
+                 "than one signal per region (L > 1): check the LD-mismatch flags, and consider in-sample LD (ld_bfile), ",
+                 "a larger LD reference or finemap.max_causal: 1."),
+          if (is.null(label) || !nzchar(label)) "" else paste0(label, ": "),
+          format(round(gwas_n), big.mark = ",", scientific = FALSE), format(round(ratio), big.mark = ",", scientific = FALSE),
+          format(round(n_ref), big.mark = ",", scientific = FALSE))
+}
+
+#' Markdown warning block for the HTML reports, from the LD_SIZE_WARNING column(s) of fine-mapping region tables.
+#' @param warnings character vector (NA and empty values are ignored)
+#' @return markdown text, or "" when there is no warning
+#' @export
+ld_size_warning_markdown <- function(warnings) {
+  warnings <- unique(stats::na.omit(as.character(warnings)))
+  warnings <- warnings[nzchar(warnings)]
+  if (length(warnings) == 0) return("")
+  paste0("\n\n> **Warning: LD reference much smaller than the GWAS.** ", paste(warnings, collapse = " "), "\n\n")
 }

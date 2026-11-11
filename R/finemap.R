@@ -36,9 +36,9 @@
 #'   (one line: number of fine-mapping regions). If NULL, defaults to
 #'   \verb{<output_finemap_dir>/finemap_complete_<dir_basename>.txt}.
 #' @param window_kb half-width of the fine-mapping window around each lead SNP in kb
-#' @param max_causal SuSiE L: "auto" (default) for L = 1 when the GWAS sample size is more than \code{max_n_ratio}
-#'   times the LD reference's and 10 otherwise (see \code{choose_max_causal()}), or a number
-#' @param max_n_ratio for \code{max_causal = "auto"}: largest GWAS N / LD reference N that still uses L = 10
+#' @param max_causal SuSiE L, the maximum number of signals per region (default 10)
+#' @param max_n_ratio warn (log, finemap_regions.tsv and HTML report) when the GWAS sample size is more than this
+#'   many times the LD reference's; see \code{ld_reference_size_warning()}
 #' @param coverage credible set coverage (default 0.95)
 #' @param min_abs_corr minimum absolute correlation for credible sets (default 0.5)
 #' @param max_region_kb maximum width of a merged fine-mapping region, or the tile width, in kb (default 3000)
@@ -89,9 +89,10 @@ finemap_gwas <- function(gwas,
   if (length(gwas_n) != 1L || is.na(gwas_n)) {
     stop("Fine-mapping requires GWAS sample size")
   }
-  l_choice <- choose_max_causal(max_causal, gwas_n, n_ref, max_n_ratio)
-  max_causal <- l_choice$L
-  message("SuSiE L = ", max_causal, " (", l_choice$rule, "; GWAS N = ", round(gwas_n), ", LD reference N = ", n_ref, ")")
+  max_causal <- resolve_max_causal(max_causal)
+  ld_size_warning <- ld_reference_size_warning(gwas_n, n_ref, max_n_ratio)
+  message("SuSiE L = ", max_causal, " (GWAS N = ", round(gwas_n), ", LD reference N = ", n_ref, ")")
+  if (!is.na(ld_size_warning)) warning(ld_size_warning, call. = FALSE, immediate. = TRUE)
 
   if (!dir.exists(output_finemap_dir)) {
     dir.create(output_finemap_dir, recursive = TRUE)
@@ -305,7 +306,7 @@ finemap_gwas <- function(gwas,
   regions$N_REF <- n_ref
   regions$N_GWAS <- vapply(locus_results, function(x) as.numeric(x$n %||% NA)[1], FUN.VALUE = numeric(1))
   regions$L <- max_causal
-  regions$L_RULE <- l_choice$rule
+  regions$LD_SIZE_WARNING <- ld_size_warning
   regions$LD_MISMATCH_S <- vapply(locus_results, function(x) as.numeric(x$ld_s %||% NA)[1], FUN.VALUE = numeric(1))
   regions$N_LD_OUTLIERS <- vapply(locus_results, function(x) as.integer(x$n_outliers %||% NA)[1], FUN.VALUE = integer(1))
   regions$N_ALLELE_MISMATCH <- vapply(locus_results, function(x) as.integer(x$n_allele_mismatch %||% NA)[1],
@@ -528,7 +529,7 @@ add_region_status_columns <- function(regions) {
   regions$LD_MIN_EIGENVALUE <- rep(NA_real_, nrow(regions))
   regions$N_GWAS <- rep(NA_real_, nrow(regions))
   regions$L <- rep(NA_integer_, nrow(regions))
-  regions$L_RULE <- rep(NA_character_, nrow(regions))
+  regions$LD_SIZE_WARNING <- rep(NA_character_, nrow(regions))
   regions$LD_MISMATCH_S <- rep(NA_real_, nrow(regions))
   regions$N_LD_OUTLIERS <- rep(NA_integer_, nrow(regions))
   regions$N_ALLELE_MISMATCH <- rep(NA_integer_, nrow(regions))
@@ -602,7 +603,8 @@ finemap_diagnostics <- function(finemap_dir) {
     REGIONS = nrow(regions),
     FINE_MAPPED = count(column(regions, "STATUS") == "fine-mapped"),
     L = paste(unique(stats::na.omit(column(regions, "L"))), collapse = ", "),
-    L_RULE = paste(unique(stats::na.omit(column(regions, "L_RULE"))), collapse = "; "),
+    LD_SIZE_WARNING = any(!is.na(column(regions, "LD_SIZE_WARNING", NA_character_)) &
+                            nzchar(column(regions, "LD_SIZE_WARNING", ""))),
     LD_REFERENCE = paste(unique(stats::na.omit(column(regions, "LD_REFERENCE"))), collapse = ", "),
     CREDIBLE_SETS = nrow(credible_sets),
     CREDIBLE_SETS_FLAGGED = count(!is.na(cs_flags) & cs_flags != "OK"),

@@ -12,6 +12,7 @@ gwases:
     build: GRCh38
     ancestry: EUR
     populate_eaf: false
+ld_reference: pan_ukb   # required when a GWAS has an ancestry (strand check) or populate_eaf: pan_ukb or 1000genomes
 output:
   build: GRCh38
 populate_rsid: false

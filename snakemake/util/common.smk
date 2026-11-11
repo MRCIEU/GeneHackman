@@ -78,9 +78,10 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
     if output_builds and pipeline.output.build not in output_builds:
         stop_with_message(f"This pipeline needs output.build: {' or '.join(output_builds)}, not "
                           f"{pipeline.output.build}.\n{output_builds_reason}")
-    pipeline.ld_reference = str(getattr(pipeline, "ld_reference", default_ld_reference)).strip()
-    if pipeline.ld_reference not in ld_reference_options:
-        raise ValueError(f"Error: ld_reference must be one of {ld_reference_options}, not {pipeline.ld_reference}")
+    # ld_reference has no default: the LD source is the user's choice (checked once the GWAS are read, below)
+    pipeline.ld_reference = str(getattr(pipeline, "ld_reference", "") or "").strip()
+    if pipeline.ld_reference and pipeline.ld_reference not in ld_reference_options:
+        stop_with_message(f"ld_reference must be one of {', '.join(ld_reference_options)}, not {pipeline.ld_reference}.")
     if pipeline_includes_clumping:
         clump_arguments = getattr(pipeline, "plink_clump_arguments", None)
         if not clump_arguments:
@@ -97,10 +98,11 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
         pipeline.finemap = SimpleNamespace()
     fm = pipeline.finemap
     if not hasattr(fm, "window_kb"): fm.window_kb = 1000
-    # "auto": L = 1 when the GWAS sample size exceeds max_n_ratio x the LD reference sample size, else 10
-    if not hasattr(fm, "max_causal"): fm.max_causal = "auto"
-    if str(fm.max_causal) != "auto" and not str(fm.max_causal).isdigit():
-        stop_with_message(f"finemap.max_causal must be auto or a whole number, not {fm.max_causal}.")
+    # SuSiE L (default 10). It is never changed according to the LD reference: when the GWAS is more than
+    # max_n_ratio times larger than the LD reference, the log, finemap_regions.tsv and the reports warn instead
+    if not hasattr(fm, "max_causal"): fm.max_causal = 10
+    if not str(fm.max_causal).strip().isdigit() or int(str(fm.max_causal).strip()) < 1:
+        stop_with_message(f"finemap.max_causal must be a positive whole number (SuSiE L, default 10), not {fm.max_causal}.")
     if not hasattr(fm, "max_n_ratio"): fm.max_n_ratio = 10
     if not hasattr(fm, "coverage"): fm.coverage = 0.95
     if not hasattr(fm, "min_abs_corr"): fm.min_abs_corr = 0.5
@@ -181,6 +183,17 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
         g.standardised_gwas = standardised_gwas_name(g.file)
         setattr(pipeline,g.prefix,g)
     eaf_ancestries = [g.ancestry for g in pipeline.gwases if g.populate_eaf]
+    strand_checked = pipeline.harmonise.strand_check and any(g.ancestry for g in pipeline.gwases)
+    if not pipeline.ld_reference:
+        if pipeline_includes_clumping or eaf_ancestries or strand_checked:
+            stop_with_message(
+                "ld_reference is required: choose the LD reference panel for this pipeline.\n"
+                "  ld_reference: pan_ukb       precomputed LD from the Pan-UK Biobank (~420,000 EUR; smaller for other "
+                "ancestries)\n"
+                "  ld_reference: 1000genomes   1000 Genomes high-coverage panels (~500 people per super-population)\n"
+                "In-sample genotypes can be given per GWAS with ld_bfile. When a GWAS is much larger than the LD "
+                "reference, the pipeline warns that reference LD may miscalibrate fine-mapping.")
+        pipeline.ld_reference = "1000genomes"  # not used by this pipeline (no clumping, EAF or strand check)
     if eaf_ancestries:
         validate_ancestries(eaf_ancestries, pipeline.ld_reference)
     if pipeline.ld_reference == "pan_ukb" and (pipeline_includes_clumping or eaf_ancestries):
@@ -373,7 +386,7 @@ def stop_with_message(message):
     os._exit(1)
 
 
-def validate_ancestries(ancestries, ld_reference=default_ld_reference):
+def validate_ancestries(ancestries, ld_reference):
     if ld_reference == "pan_ukb":
         allowed_ancestries = pan_ukb_ancestries + list(pan_ukb_ancestry_aliases)
     else:
