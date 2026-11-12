@@ -158,6 +158,16 @@ Snakemake profiles live under **`snakemake/profiles/`** — see [PLATFORM_SETUP.
 - `run_pipeline.sh` is a convenience wrapper around **`snakemake`**; see the [Snakemake documentation](https://snakemake.readthedocs.io/) for advanced options.
 - Long jobs: consider a terminal multiplexer (e.g. `tmux`) so SSH disconnects do not kill the run.
 
+### Trusted research environments
+
+Biobank trusted research environments (TREs) keep individual-level data inside a controlled computing environment, and many let users bring their own software containers. GeneHackman runs from one container image and a YAML file, and the pipelines don't download anything while they run, so it can be set up once and then used without internet access:
+
+1. **Container.** Outside the TRE, build the image (`apptainer build genehackman_1.2.0.sif docker://mrcieu/genehackman:1.2.0`) and copy it into the TRE as `PIPELINE_DATA_DIR/genomic_data/pipeline/genehackman_1.2.0.sif`. `run_pipeline.sh` uses the image if it is there, and only tries to download it if it is missing.
+2. **Reference data.** Download what you need with `./download_reference_data.sh` outside the TRE (for example `--ancestries EUR`), and copy the directory in as `PIPELINE_DATA_DIR`.
+3. **Snakemake.** Snakemake runs on the host from the `genehackman` conda environment (`environment.yml`): install it from the TRE's package mirror, or move it in with `conda-pack`. Use the `local` profile, or add a profile for the TRE's job scheduler under `snakemake/profiles/`.
+4. **In-sample LD.** Give each GWAS an `ld_bfile:`, the PLINK prefix of the genotypes the GWAS was computed from, so that fine-mapping and colocalisation use in-sample LD rather than a reference panel (see [snakemake/finemap.md](snakemake/finemap.md)).
+5. **What leaves the TRE.** The outputs are summary-level (harmonised summary statistics, credible sets, colocalisation, MR and LDSC results, and the HTML reports); exporting them follows the TRE's own rules. Usage logging is off unless you turn it on (below).
+
 ### Usage logging (opt-in)
 
 GeneHackman doesn't send anything anywhere by default. If you set `GENEHACKMAN_USAGE_LOGGING=true` in `.env` and the developers' credentials file is installed, each run appends one row to the developers' usage sheet: user name, host name, pipeline, start time, run time and outcome, and for failed runs the input YAML and the error log, so the developers can help. Leave it unset to log nothing.
