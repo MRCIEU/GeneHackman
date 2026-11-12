@@ -16,5 +16,5 @@ __pycache__/
 /.quarto/
 **/*.quarto_ipynb
 
-# Revision 1 HF re-analysis input (folder or symlink holding the GWAS files used by paper/revision1_hf)
+# Input GWAS folder for the manuscript's example configurations (supplementary materials)
 /hf_data
