@@ -18,3 +18,4 @@ venv
 ^\.gitignore$
 ^\.cursorrules$
 ^tests/python$
+hf_data/

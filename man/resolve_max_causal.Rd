@@ -6,9 +6,6 @@
 \usage{
 resolve_max_causal(max_causal)
 }
-\arguments{
-\item{max_causal}{SuSiE L, a positive whole number}
-}
 \value{
 L as an integer
 }

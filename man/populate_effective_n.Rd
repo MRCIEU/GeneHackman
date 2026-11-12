@@ -26,7 +26,9 @@ In order of preference:
 \enumerate{
 \item an N_EFF column already in the file is kept (for a meta-analysis, the sum of the cohorts'
 effective sample sizes; Grotzinger et al. 2023);
-\item per-variant N_CASES and N_CONTROLS columns: N_EFF = 4 / (1/N_CASES + 1/N_CONTROLS);
+\item per-variant N_CASES and N_CONTROLS columns: N_EFF = 4 / (1/N_CASES + 1/N_CONTROLS).  A file with
+N_CASES and a total N but no N_CONTROLS gets N_CONTROLS = N - N_CASES (\code{derive_n_controls()}).
+Variants without per-variant counts get the study's N_EFF, if the study counts are given;
 \item a per-variant N column and the study's case and control counts: N_EFF = N x 4 phi (1 - phi), with
 phi = n_case / (n_case + n_control), which assumes the same case fraction at every variant;
 \item the study's case and control counts alone: one N_EFF for every variant.

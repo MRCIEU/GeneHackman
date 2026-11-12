@@ -63,10 +63,14 @@ import(tibble)
 import(tidyr, except = c(extract))
 import(utils, except = c(timestamp))
 import(vroom)
-importFrom(data.table,setkey)
-importFrom(data.table,setkeyv)
-importFrom(fst,fst)
-importFrom(fst,read_fst)
+importFrom(data.table,
+  setkey,
+  setkeyv
+)
+importFrom(fst,
+  fst,
+  read_fst
+)
 importFrom(furrr,future_map)
 importFrom(progressr,progressor)
 importFrom(tibble,as_tibble)

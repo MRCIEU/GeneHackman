@@ -30,7 +30,7 @@ ldsc_results_tables(
 list with \code{h2} and \code{rg} data.frames
 }
 \description{
-Heritability: the z-score of the observed-scale estimate (H2_Z) and a flag when it is below 4, the threshold
+Heritability: the z-score of the estimate (H2_Z; observed scale, or liability scale when LDSC reports only that) and a flag when it is below 4, the threshold
 below which genetic correlations are unreliable (Zheng et al. 2017, LD Hub).  Genetic correlation: a flag
 when |rg| > 1 or when either trait's H2_Z is below 4; RG_RELIABLE is FALSE in either case, and such
 estimates should not be interpreted.  For binary traits with prevalences, H2_LIAB is the liability-scale
