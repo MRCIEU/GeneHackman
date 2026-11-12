@@ -1,5 +1,6 @@
 """
-Writer for GeneHackman LD packs (format version 1); the reader is scripts/ld_reference.py.
+Writer for GeneHackman LD packs (format version 1), used by the tests to build small packs; the reader is
+scripts/ld_reference.py.
 
 The writer is source-agnostic: callers hand it, chunk by chunk, a dense float rectangle of r
 (rows r0..r1-1, columns r0..c_end-1, oriented to the ALT allele as stored by Pan-UKB/gnomAD/PLINK

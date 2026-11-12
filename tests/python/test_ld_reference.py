@@ -12,7 +12,7 @@ import pandas as pd
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, os.path.join(REPO, "scripts"))
-sys.path.insert(0, os.path.join(REPO, "reference_data", "pan_ukb_ld"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # ldpack_writer: writes test packs
 
 from ld_reference import (LDPack, beyond_band_fraction, compute_seg_len,  # noqa: E402
                           make_positive_semidefinite, resolve_ancestry)

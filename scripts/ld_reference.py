@@ -2,7 +2,7 @@
 Reader for GeneHackman LD packs (format version 1).
 
 An LD pack holds precomputed LD (Pearson r) for one or more ancestries, without any
-individual-level data.  Layout (see reference_data/pan_ukb_ld/README.md):
+individual-level data.  Layout:
 
     <pack>/MANIFEST.json
     <pack>/<POP>/info.tsv                     KEY<TAB>VALUE (format_version, scale, radius_bp, n_samples, ...)
@@ -58,7 +58,7 @@ def read_info(pack_dir, ancestry):
     if not os.path.exists(path):
         raise FileNotFoundError(
             f"LD pack info not found for ancestry {ancestry} ({pop}): {path}. "
-            "See reference_data/pan_ukb_ld/README.md for how to build or download the pack."
+            "Download it with ./download_reference_data.sh --ancestries <ancestry> (see README.md)."
         )
     info = {}
     with open(path, encoding="utf-8") as handle:

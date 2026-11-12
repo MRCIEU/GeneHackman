@@ -103,7 +103,7 @@ populate_rsid: false
 
 ### QTL datasets
 
-All three are cis QTLs in European-ancestry samples. They are GRCh38 only (`QTL_DATA_DIR/<dataset>/GRCh38/`), so the pipeline runs with `output.build: GRCh38`. They were built from the standardised (pre-imputation) study data of the genotype-phenotype map 1.0.0 by [`reference_data/grch38/31_qtl_from_gpm.R`](../reference_data/grch38/31_qtl_from_gpm.R).
+All three are cis QTLs in European-ancestry samples. They are GRCh38 only (`QTL_DATA_DIR/<dataset>/GRCh38/`), so the pipeline runs with `output.build: GRCh38`. They were built from the standardised (pre-imputation) study data of the genotype-phenotype map 1.0.0.
 
 | `dataset` | Exposures | Tissue | N used | Source |
 | --------- | --------- | ------ | - | ------ |

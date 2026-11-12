@@ -117,7 +117,7 @@ def thousand_genomes_dir(build):
     if build not in THOUSAND_GENOMES_BUILDS:
         raise ValueError(f"Error: no 1000 Genomes panel for build {build}; available: {list(THOUSAND_GENOMES_BUILDS)}")
     return format_dir_string(GENOMIC_DATA_DIR + "1000genomes/" + THOUSAND_GENOMES_BUILDS[build])
-# Precomputed Pan-UKB LD (built by reference_data/pan_ukb_ld); used when a pipeline sets ld_reference: pan_ukb
+# Precomputed Pan-UKB LD (downloaded with download_reference_data.sh); used when a pipeline sets ld_reference: pan_ukb
 LD_PACK_DIR = format_dir_string(GENOMIC_DATA_DIR + "pan_ukb_ld")
 ld_reference_options = ["1000genomes", "pan_ukb"]
 # QTL datasets for qtl_mr (cis QTLs only); must match qtl_datasets in R/constants.R

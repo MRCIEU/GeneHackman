@@ -51,7 +51,7 @@ mkdir -p "$LDSC_DATA"
 mkdir -p "$(dirname "$OUTPUT_PREFIX")"
 
 # LD scores either per chromosome (<ancestry>/1.l2.ldscore.gz ...) or genome-wide in one file
-# (<ancestry>/ld.l2.ldscore.gz, as reference_data/ldscores_pan_ukb writes the Pan-UKB scores)
+# (<ancestry>/ld.l2.ldscore.gz, the layout of the Pan-UKB LD scores in the reference data)
 if [[ -f "$LDSC_DIR/$ANCESTRY/ld.l2.ldscore.gz" ]]; then
   LD_SCORE_ARGS=(--ref-ld "$LDSC_DIR/$ANCESTRY/ld" --w-ld "$LDSC_DIR/$ANCESTRY/ld")
 else

@@ -117,5 +117,5 @@ test_that("ld_reference.get_ld_matrix dispatches to PLINK for 1000genomes", {
 })
 
 test_that("ld_reference.read_ld_pack_info gives a clear error when the pack is missing", {
-  expect_error(read_ld_pack_info("EUR", tempfile("no_pack_")), "reference_data/pan_ukb_ld/README.md")
+  expect_error(read_ld_pack_info("EUR", tempfile("no_pack_")), "download_reference_data.sh")
 })

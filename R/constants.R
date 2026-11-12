@@ -78,7 +78,7 @@ genomic_data_dir <- file.path(pipeline_data_dir, "genomic_data")
 # thousand_genomes_dir() in snakemake/util/constants.smk.  GRCh38 is the 1000G 30x release (main reference
 # data download); GRCh37 is phase 3 (download_reference_data.sh --grch37, served from release 1.1.0).
 thousand_genomes_builds <- list(GRCh38 = "b38_dbsnp156", GRCh37 = "b37_dbsnp156")
-# Must match snakemake/util/constants.smk LD_PACK_DIR (precomputed Pan-UKB LD, see reference_data/pan_ukb_ld).
+# Must match snakemake/util/constants.smk LD_PACK_DIR (precomputed Pan-UKB LD, downloaded with download_reference_data.sh).
 ld_pack_dir <- file.path(genomic_data_dir, "pan_ukb_ld")
 
 liftover_chain_dir <- file.path(genomic_data_dir, "liftover")
@@ -87,7 +87,7 @@ if (!nzchar(liftover_binary)) {
   liftover_binary <- "/usr/local/bin/liftOver"
 }
 # QTL datasets, cis QTLs only, at QTL_DATA_DIR/<dataset>/<build>/{top_hits,gwas}/cis... (published in GRCh38 only)
-# (built from the genotype-phenotype-map 1.0.0 study data by reference_data/grch38/31_qtl_from_gpm.R).
+# (from the genotype-phenotype map 1.0.0 study data).
 # Must match qtl_dataset_options in snakemake/util/constants.smk.
 qtl_datasets <- list(eqtlgen="eqtlgen", brainmeta="brainmeta", ukb_pqtl="ukb_pqtl")
 # Only cis QTLs are used as instruments: trans QTLs are too often pleiotropic for MR.

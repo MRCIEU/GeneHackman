@@ -60,7 +60,7 @@ Default logical names: `SNP`, `CHR`, `BP`, `EA`, `OA`, `EAF`, `BETA`, `SE`, `OR`
 
 The sample YAMLs use `pan_ukb`, the larger reference. Reference LD can miscalibrate fine-mapping when the GWAS is much larger than the panel, so when a GWAS is more than `finemap.max_n_ratio` (default 10) times larger than its LD reference, the fine-mapping, colocalisation and QTL pipelines warn in the log and in their HTML reports; they don't change any setting.
 
-The Pan-UKB pack must be at `PIPELINE_DATA_DIR/genomic_data/pan_ukb_ld/`; see [`reference_data/pan_ukb_ld/README.md`](reference_data/pan_ukb_ld/README.md) for how it is built.
+The Pan-UKB pack must be at `PIPELINE_DATA_DIR/genomic_data/pan_ukb_ld/`; `download_reference_data.sh` puts it there for the ancestries you choose. It is derived from the Pan-UK Biobank LD matrices (Karczewski et al. 2025) and redistributed with attribution to the Pan-UK Biobank project and UK Biobank, whose terms apply. Its file format is described in [`scripts/ld_reference.py`](scripts/ld_reference.py), which reads it.
 
 With `pan_ukb`:
 

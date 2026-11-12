@@ -71,7 +71,7 @@ read_ld_pack_info <- function(ancestry, pack_dir = default_ld_pack_dir()) {
   info_file <- file.path(pack_dir, pop, "info.tsv")
   if (!file.exists(info_file)) {
     stop("LD pack not found for ancestry ", ancestry, " (", pop, "): ", info_file,
-         "\nSee reference_data/pan_ukb_ld/README.md to build or download the Pan-UKB LD pack.")
+         "\nDownload it with ./download_reference_data.sh --ancestries <ancestry> (see README.md).")
   }
   lines <- readLines(info_file, warn = FALSE)
   lines <- lines[nzchar(lines) & !startsWith(lines, "#")]

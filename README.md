@@ -80,7 +80,7 @@ The script prints the `.env` lines to set at the end (`PIPELINE_DATA_DIR`, and `
 | Option | Default | What it downloads | Size |
 |---|---|---|---|
 | (always) | | liftover chains, gene name map, 1000 Genomes RSID marker map, HapMap3 SNP list | 0.2 GB |
-| `--ancestries` | `EUR` | per ancestry: the 1000 Genomes 30x panel (GRCh38), the [Pan-UKB LD pack](reference_data/pan_ukb_ld/README.md) and the Pan-UKB LD scores. Choose from `EUR EAS AFR AMR SAS MID`, or `all` | EUR 7.8 GB, EAS 7.3, SAS 8.7, AMR 16.9, MID 17.5, AFR 27.1 |
+| `--ancestries` | `EUR` | per ancestry: the 1000 Genomes 30x panel (GRCh38), the Pan-UKB LD pack (see [PIPELINES.md](PIPELINES.md)) and the Pan-UKB LD scores. Choose from `EUR EAS AFR AMR SAS MID`, or `all` | EUR 7.8 GB, EAS 7.3, SAS 8.7, AMR 16.9, MID 17.5, AFR 27.1 |
 | `--no-dbsnp` | dbSNP included | leaves out dbSNP 156 (GRCh38), which only `populate_rsid: true` uses. The default RSID fill uses the 1000 Genomes marker map | saves 11.7 GB |
 | `--qtl` | `none` | QTL datasets for `qtl_mr` (GRCh38): `eqtlgen`, `brainmeta`, `ukb_pqtl`, or `all`. They go in `--qtl-dir` (default: `QTL_DATA_DIR` from `.env`, else `<dir>/qtl_data`) | eqtlgen 1.8 GB, brainmeta 2.3, ukb_pqtl 0.4 |
 | `--grch37` | not included | the GRCh37 files for `output.build: GRCh37`: the 1000 Genomes phase 3 panel and the earlier LD scores for your ancestries, plus dbSNP GRCh37 unless `--no-dbsnp` | about 1.9 GB per ancestry, plus 11.4 GB dbSNP |
