@@ -8,10 +8,11 @@ set -e
 ./run_pipeline.sh snakemake/finemap.smk tests/testthat/data/snakemake_inputs/finemap_multi_ancestry.yaml -F
 ./run_pipeline.sh snakemake/coloc.smk tests/testthat/data/snakemake_inputs/coloc.yaml -F
 
-# One run with the Pan-UKB LD pack (ld_reference: pan_ukb, downloaded with each ancestry): coloc covers
-# standardisation with the strand check against the pack, clumping, SuSiE fine-mapping and colocalization.
-# Reading the pack in MultiSuSiE is covered by tests/python/test_multisusie_ld_pack.py.
+# The Pan-UKB LD pack (ld_reference: pan_ukb, downloaded with each ancestry): coloc covers standardisation with
+# the strand check against the pack, clumping, SuSiE fine-mapping and colocalization (R reader); multi-ancestry
+# fine-mapping covers MultiSuSiE, which reads the pack with the Python reader.
 ./run_pipeline.sh snakemake/coloc.smk tests/testthat/data/snakemake_inputs/coloc_pan_ukb.yaml -F
+./run_pipeline.sh snakemake/finemap.smk tests/testthat/data/snakemake_inputs/finemap_multi_ancestry_pan_ukb.yaml -F
 
 # One run with GRCh37 output (opt-in; needs download_reference_data.sh --grch37): conversion to GRCh37, the
 # GRCh37 1000 Genomes panel, fine-mapping, colocalization and GRCh37 gene annotation in the regional plots.
