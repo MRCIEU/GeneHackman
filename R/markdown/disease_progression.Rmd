@@ -74,16 +74,17 @@ knitr::kable(all_clumped)
 ```
 ### Alternative collider bias corrections
 
-If you want to correct the original subsequent gwas (`r params$subsequent_gwas`) using different BETA and SE as calculated in collider bias results section above, please run this command inside a `sbatch` script
-```
-module add apps/singularity/3.8.3
-singularity run -B /user/work/$(whoami) -B /user/home/$(whoami) --pwd /home/scripts/ \
-    docker://mrcieu/genehackman:latest \
-    adjust_gwas_for_collider_bias.R --gwas <SUBSEQUENT_GWAS> \
-        --harmonised_effects_gwas <HARMONISED_GWAS> \
-        --beta <BETA> \
-        --se <SE> \
-        --output_gwas <OUTPUT_FILE_NAME>
+If you want to correct the original subsequent gwas (`r params$subsequent_gwas`) using different BETA and SE as calculated in collider bias results section above, run this command with the same container image (bind the directories that hold the files with `-B`):
+
+```{r echo = FALSE, results = "asis"}
+cat("```\n",
+    "apptainer run --pwd /home/scripts/ docker://mrcieu/genehackman:", get_docker_image_tag(), " \\\n",
+    "    adjust_gwas_for_collider_bias.R --gwas <SUBSEQUENT_GWAS> \\\n",
+    "        --harmonised_effects_gwas <HARMONISED_GWAS> \\\n",
+    "        --beta <BETA> \\\n",
+    "        --se <SE> \\\n",
+    "        --output_gwas <OUTPUT_FILE_NAME>\n",
+    "```\n", sep = "")
 ```
 
 ### Additional info

@@ -292,6 +292,7 @@ missing=$(awk -F'\t' '{ print $2 "\t" $3 }' "$WORK/files.tsv" | while IFS=$'\t' 
 [[ "$missing" == 0 ]] || die "$missing files are missing or the wrong size after downloading; run the command again"
 
 abs() { (cd "$1" && pwd); }
+echo "$DATA_VERSION" > "$DIR/VERSION"  # recorded in each HTML report (report_provenance() in R/util.R)
 echo "All files are in place."
 echo
 echo "Set these in .env:"

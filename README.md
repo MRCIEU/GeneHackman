@@ -113,7 +113,7 @@ Variables match [.env_example](.env_example):
 
 | Variable | Purpose |
 |----------|---------|
-| **`DOCKER_VERSION`** | Docker/Apptainer image tag (e.g. `1.1.0` or `develop`). Defaults to **`Version:`** in [`DESCRIPTION`](DESCRIPTION) when unset. |
+| **`DOCKER_VERSION`** | Docker/Apptainer image tag (e.g. `1.2.0` or `develop`). Defaults to **`Version:`** in [`DESCRIPTION`](DESCRIPTION) when unset. |
 | **`QTL_DATA_DIR`** | QTL data for **`qtl_mr`**, from `download_reference_data.sh --qtl` (step 3). Leave empty for other pipelines. |
 | **`SNAKEMAKE_PROFILE`** | Snakemake profile directory. Default: **`snakemake/profiles/local/`** (local Apptainer). On a cluster, use e.g. **`snakemake/profiles/slurm/`**. |
 | **`APPTAINER_MODULE`** | Environment module to load Apptainer/Singularity on HPC (when not using the `local` profile). |
@@ -125,7 +125,7 @@ Example `.env`:
 ```bash
 PROJECT_DIR=/path/to/my_project
 PIPELINE_DATA_DIR=/path/to/my_pipeline_data/
-# DOCKER_VERSION=1.1.0  # optional; defaults to Version: in DESCRIPTION
+# DOCKER_VERSION=1.2.0  # optional; defaults to Version: in DESCRIPTION
 QTL_DATA_DIR=/path/to/my_qtl_data/
 SNAKEMAKE_PROFILE=snakemake/profiles/local/
 ```
