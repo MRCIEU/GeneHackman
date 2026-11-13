@@ -11,8 +11,12 @@ gwases:
       SE: SE
     build: GRCh38
     ancestry: EUR
+    # ld_reference: /path/to/genotypes   # optional: this GWAS's own genotypes (PLINK prefix, output build), for every step
     populate_eaf: false
-ld_reference: pan_ukb   # required when a GWAS has an ancestry (strand check) or populate_eaf: pan_ukb or 1000genomes
+ld_reference: pan_ukb   # required when a GWAS has an ancestry (strand check) or populate_eaf: pan_ukb, 1000genomes or the PLINK prefix of your own genotypes
+# a different source for one step (optional): harmonise:
+# harmonise:
+#   ld_reference: 1000genomes
 output:
   build: GRCh38
 populate_rsid: false

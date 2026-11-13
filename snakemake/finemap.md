@@ -51,10 +51,10 @@ Add more entries under `gwases:` for additional traits or ancestries.
 | ----- | -------- | ----- |
 | `file` | **Yes** | Input summary-statistics file. |
 | `ancestry` | **Yes** | LD reference population for clumping and fine-mapping: `AFR`, `AMR`, `EAS`, `EUR`, `SAS` with `ld_reference: 1000genomes`; also `CSA` and `MID` with `ld_reference: pan_ukb` (`SAS` maps to `CSA`). |
+| `ld_reference` | No | This GWAS's LD source for every step, overriding the step and top-level settings: `pan_ukb`, `1000genomes`, or the PLINK prefix (`.bed/.bim/.fam`, output build) of its own genotypes, e.g. those it was computed from. |
 | `N` | Recommended | Sample size, used where the file has no per-variant `N` (a per-variant `N` column takes precedence). Fine-mapping uses the median per-variant `N_EFF` (binary traits) or `N` of each region. |
 | `study_type` | No | `continuous` (default) or `binary` (case-control). |
 | `N_case`, `N_control` | No | Binary traits: numbers of cases and controls, for the effective sample size N_eff = 4 / (1/N_case + 1/N_control) when the file has no `N_EFF` or `N_CASES`/`N_CONTROLS` columns (a file with `N_CASES` and a per-variant total `N` gets controls = `N` − `N_CASES`). For a meta-analysis, give a per-variant `N_EFF` column (the sum of the cohorts' effective sample sizes) if you have one. |
-| `ld_bfile` | No | PLINK prefix (`.bed/.bim/.fam`) of **in-sample** or other user-supplied genotypes, in the output build, used for LD instead of `ld_reference`. Variants are matched on position and both alleles (IDs need only be unique). See [In-sample LD](#in-sample-and-user-supplied-ld). |
 | `label` | No | Name of the GWAS in plots and reports (default: the file name). |
 | `columns` | No | Column map or preset. |
 | `build` | No | Input build. Default `GRCh37`; lifted to `output.build`. |
@@ -87,7 +87,7 @@ Add more entries under `gwases:` for additional traits or ancestries.
 | `populate_rsid` | No | Default `false`. With clumping and `false`, RSID population is **partial** unless overridden per GWAS. |
 | `populate_eaf` | No | Default `false`. |
 | `output.build` | No | Target build after standardisation. Default `GRCh38` (`GRCh37` needs `download_reference_data.sh --grch37`). |
-| `ld_reference` | **Yes** | LD reference panel, with no default: `pan_ukb` (Pan-UK Biobank LD, about 420,000 Europeans and 6,000–8,000 or fewer for other ancestries) or `1000genomes` (about 500 people per super-population). See [PIPELINES.md](../PIPELINES.md#common-conventions). |
+| `ld_reference` | **Yes** | Where LD comes from, with no default: `pan_ukb` (Pan-UK Biobank LD, about 420,000 Europeans and 6,000–8,000 or fewer for other ancestries), `1000genomes` (about 500 people per super-population) or the PLINK prefix of your own genotypes. Used by every LD step here (strand check and EAF filling, clumping and fine-mapping); `harmonise: {ld_reference: ...}`, `clumping:`, `finemap:` or a GWAS's own `ld_reference` sets a different source for one step or one GWAS. See [PIPELINES.md](../PIPELINES.md#common-conventions). |
 
 `flip_alleles: false` is **not** allowed.
 
@@ -101,9 +101,9 @@ Add more entries under `gwases:` for additional traits or ancestries.
 
 ### LD reference and its limits
 
-Unless in-sample genotypes are given (`ld_bfile`), LD for fine-mapping comes from the **reference panel** chosen with `ld_reference` (required, no default): the Pan-UK Biobank LD (`pan_ukb`; Karczewski et al. 2025) or the 1000 Genomes panel of the GWAS's ancestry (`1000genomes`, about 500 people per super-population). Reference-panel LD can miscalibrate fine-mapping, increasingly so as the GWAS gets larger than the panel: credible sets lose coverage and spurious secondary signals appear (Benner et al. 2017; Zou et al. 2022; Kanai et al. 2022). The pipeline therefore:
+LD for fine-mapping comes from the source chosen with `ld_reference` (required, no default; `finemap: {ld_reference: ...}` or a GWAS's own `ld_reference` overrides it): the Pan-UK Biobank LD (`pan_ukb`; Karczewski et al. 2025), the 1000 Genomes panel of the GWAS's ancestry (`1000genomes`, about 500 people per super-population), or your own genotypes. Reference-panel LD can miscalibrate fine-mapping, increasingly so as the GWAS gets larger than the panel: credible sets lose coverage and spurious secondary signals appear (Benner et al. 2017; Zou et al. 2022; Kanai et al. 2022). The pipeline therefore:
 
-- warns, in the log, in `finemap_regions.tsv` (`LD_SIZE_WARNING`) and in the HTML report, when the GWAS sample size is more than `finemap.max_n_ratio` (default 10) times that of the LD reference. Nothing is changed automatically: the number of signals is `finemap.max_causal` (default 10). With a much larger GWAS than reference, consider in-sample LD (`ld_bfile`), a larger reference, or `max_causal: 1`, for which the PIPs don't depend on the LD matrix (Weissbrod et al. 2020);
+- warns, in the log, in `finemap_regions.tsv` (`LD_SIZE_WARNING`) and in the HTML report, when the GWAS sample size is more than `finemap.max_n_ratio` (default 10) times that of the LD reference. Nothing is changed automatically: the number of signals is `finemap.max_causal` (default 10). With a much larger GWAS than reference, consider in-sample LD (`ld_reference` on the GWAS), a larger reference, or `max_causal: 1`, for which the PIPs don't depend on the LD matrix (Weissbrod et al. 2020);
 - aligns LD to the GWAS effect alleles: variants are matched to the panel on position and alleles (Pan-UKB, user LD) or rsID plus alleles (1000 Genomes), r is flipped where the panel counts the other allele, and variants whose alleles don't match are removed (`N_ALLELE_MISMATCH`);
 - checks each region for inconsistency between z-scores and LD with SuSiE-RSS's diagnostics (`susieR::estimate_s_rss` and `kriging_rss`; Zou et al. 2022). `LD_MISMATCH_S` is the estimated inconsistency (0 = consistent; above about 0.1–0.2 suggests mismatch) and `N_LD_OUTLIERS` the variants whose z-score is unlikely given the others (`logLR > 2` and `|z| > 2`), flagged per variant in `LD_OUTLIER`. A flipped allele is the typical outlier.
 
@@ -113,7 +113,7 @@ Treat multi-signal results from reference LD as exploratory.
 
 ### In-sample and user-supplied LD
 
-Give each GWAS an `ld_bfile:` with the PLINK prefix of the genotypes it was computed from (or a larger ancestry-matched panel), in the output build. This replaces `ld_reference` for that GWAS in fine-mapping (SuSiE and MultiSuSiE); clumping, LocusZoom r² and EAF filling still use `ld_reference`. Inside a biobank's trusted research environment (where individual-level data can't leave), run the pipeline there from the container with the genotypes mounted; only summary-level outputs are written. To convert a `pgen` or VCF: `plink2 --pfile <prefix> --make-bed --out <prefix>`. Variant IDs in the `.bim` must be unique, e.g. `plink2 --bfile <prefix> --set-all-var-ids @:#:\$r:\$a --make-bed --out <new prefix>`.
+Give a GWAS its own `ld_reference:`, the PLINK prefix of the genotypes it was computed from, in the output build. Every LD step then uses them for that GWAS: the strand check and EAF filling, clumping and fine-mapping (SuSiE and MultiSuSiE), as well as the regional plots in the colocalization pipeline. To use them for fine-mapping only, set them as `finemap: {ld_reference: ...}` instead (with `{ancestry}` in the path when GWAS of several ancestries each have their own genotypes). In multi-ancestry fine-mapping each ancestry can have a different source; when any of them is the Pan-UKB LD or your own genotypes, variants are matched on position and alleles, including in the 1000 Genomes panel. Inside a biobank's trusted research environment (where individual-level data can't leave), run the pipeline there from the container with the genotypes mounted; only summary-level outputs are written. To convert a `pgen` or VCF: `plink2 --pfile <prefix> --make-bed --out <prefix>`. Variants whose `.bim` ID is duplicated (or `.`) are left out; to keep them, set unique IDs, e.g. `plink2 --bfile <prefix> --set-all-var-ids @:#:\$r:\$a --make-bed --out <new prefix>`. The genotypes must be in a folder the container can see (your home folder, `PIPELINE_DATA_DIR`, or the project's `data` or `results` folders).
 
 ### Fine-mapping regions
 
@@ -167,4 +167,4 @@ Locus names use the clump window centre (`<CHR>_<center>`).
 
 - For pairwise colocalisation between traits, use [`coloc.smk`](coloc.smk) instead.
 - Multi-ancestry mode does **not** produce per-trait LBF columns suitable for `coloc::coloc.bf_bf` on individual GWAS directories.
-- LD matrices use the ancestry-matched 1000 Genomes panel of the output build (`PIPELINE_DATA_DIR/genomic_data/1000genomes/b38_dbsnp156/` for GRCh38), or the Pan-UKB LD pack with `ld_reference: pan_ukb`.
+- LD matrices come from each GWAS's fine-mapping LD source: the ancestry-matched 1000 Genomes panel of the output build (`PIPELINE_DATA_DIR/genomic_data/1000genomes/b38_dbsnp156/` for GRCh38), the Pan-UKB LD pack, or your own genotypes.

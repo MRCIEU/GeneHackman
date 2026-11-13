@@ -52,6 +52,7 @@ output:
 | ----- | -------- | ----- |
 | `file` | **Yes** | Input summary-statistics file. |
 | `ancestry` | **Yes** | LD reference for clumping. May differ between incident and subsequent. |
+| `ld_reference` | No | This GWAS's LD source for every step, overriding the step and top-level settings: `pan_ukb`, `1000genomes`, or the PLINK prefix (`.bed/.bim/.fam`, output build) of its own genotypes, e.g. those it was computed from. |
 | `columns` | No | Column map or preset. |
 | `build` | No | Input build. Default `GRCh37`; lifted to `output.build`. |
 | `populate_rsid` | No | Per-GWAS override; default inherits root `false`. |
@@ -62,7 +63,7 @@ output:
 | Field | Required | Notes |
 | ----- | -------- | ----- |
 | `plink_clump_arguments` | **Yes** | PLINK clump settings. Clumping uses the **incident** GWAS leads for expected-vs-observed comparisons. If `--clump-r2` or `--clump-kb` are not given, GeneHackman adds `--clump-r2 0.01 --clump-kb 1000` (PLINK's own defaults, 0.5 and 250 kb, leave several correlated lead SNPs per locus). |
-| `ld_reference` | **Yes** | LD reference panel, with no default: `pan_ukb` (Pan-UK Biobank LD, about 420,000 Europeans and 6,000–8,000 or fewer for other ancestries) or `1000genomes` (about 500 people per super-population). See [PIPELINES.md](../PIPELINES.md#common-conventions). |
+| `ld_reference` | **Yes** | Where LD comes from, with no default: `pan_ukb` (Pan-UK Biobank LD, about 420,000 Europeans and 6,000–8,000 or fewer for other ancestries), `1000genomes` (about 500 people per super-population) or the PLINK prefix of your own genotypes. Used by every LD step here (strand check and EAF filling, and clumping); `harmonise: {ld_reference: ...}`, `clumping:` or a GWAS's own `ld_reference` sets a different source for one step or one GWAS. See [PIPELINES.md](../PIPELINES.md#common-conventions). |
 
 ### `output.adjusted_gwas`
 

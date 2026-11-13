@@ -200,7 +200,7 @@ Most new methods (another fine-mapping method, an LD-mismatch check, a colocalis
 | Standardisation (`standardise_gwas()`) | raw summary statistics and a column map | `data/gwas/<prefix>_std.tsv.gz`: `SNP` (`CHR:BP_EA_OA`, alleles in alphabetical order), `CHR`, `BP`, `EA`, `OA`, `BETA`, `SE`, `P`, `EAF`, `N` (and `N_EFF`, `RSID` when available), in the output build |
 | Clumping | standardised GWAS | `data/clumped_snps/<prefix>.clumped`: lead `SNP` (RSID or key), `CHR`, `BP` (GWAS positions), `P` |
 | Fine-mapping regions (`define_finemap_regions()`) | lead SNPs | one row per region: `LOCUS`, `CHR`, `START`, `END`, lead SNP(s) |
-| LD (`get_ld_matrix()`) | variant identifiers, chromosome, ancestry, build, `ld_reference` or `ld_bfile` | `list(matrix, snps)`: r for the GWAS effect allele (or the panel's alleles `a1`/`a2`, aligned by `align_ld_to_gwas()`) |
+| LD (`get_ld_matrix()`) | variant identifiers, chromosome, ancestry, build, `ld_reference` (`pan_ukb`, `1000genomes`, or a PLINK prefix of the user's genotypes) | `list(matrix, snps)`: r for the GWAS effect allele (or the panel's alleles `a1`/`a2`, aligned by `align_ld_to_gwas()`) |
 | Fine-mapping (per region) | z-scores (or BETA/SE), LD matrix, sample size, `L` | per-variant table: `PIP`, `CS`, `LBF_1..LBF_L`; credible-set summary: size, coverage, purity, lead variant, `LOG_BF` |
 | Colocalisation (`coloc_bf.R`) | per-region fine-mapping files of two traits | one row per pair of credible sets with PP.H0–H4 |
 

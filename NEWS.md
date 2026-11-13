@@ -6,8 +6,14 @@ need changes: see **Changes that need action**.
 
 ## Changes that need action
 
-- **`ld_reference` is required** (`pan_ukb` or `1000genomes`) in every pipeline that clumps, fine-maps, checks
-  strand or fills allele frequencies. It has no default, so the choice of LD reference is always explicit.
+- **`ld_reference` is required** (`pan_ukb`, `1000genomes` or the PLINK prefix of your own genotypes) in every
+  pipeline that clumps, fine-maps, checks strand or fills allele frequencies. It has no default, and every one of
+  those steps uses it, so the choice of LD is always explicit. A step (`harmonise:`, `clumping:`, `finemap:`,
+  `locus_zoom:`) or a GWAS can set a different `ld_reference`; the GWAS's wins, then the step's. The log and the HTML
+  reports list the source each step used. LDSC is the one exception: it uses the Pan-UKB LD scores
+  (`ldsc.ld_scores`), whatever `ld_reference` is.
+- **`ld_bfile` is replaced by `ld_reference` on the GWAS**, which is then used by every LD step for that GWAS: the
+  strand check and EAF filling, clumping, fine-mapping and regional plots, not only fine-mapping.
 - **`finemap.max_causal: auto` is removed.** The number of signals per region (SuSiE L) defaults to 10 and is never
   changed by the pipeline. When the GWAS is more than `finemap.max_n_ratio` (default 10) times larger than the LD
   reference, a warning is written to the log, to `finemap_regions.tsv` (`LD_SIZE_WARNING`) and to the HTML reports.
@@ -20,8 +26,9 @@ need changes: see **Changes that need action**.
 
 ## New
 
-- **LD for fine-mapping:** in-sample or other user-supplied genotypes per GWAS (`ld_bfile`), used by SuSiE and
-  MultiSuSiE; precomputed Pan-UK Biobank LD (`ld_reference: pan_ukb`).
+- **LD sources:** in-sample or other user-supplied genotypes (a PLINK prefix as `ld_reference`), used for the strand
+  check, EAF filling, clumping, SuSiE, MultiSuSiE and regional plots; precomputed Pan-UK Biobank LD
+  (`ld_reference: pan_ukb`). In multi-ancestry fine-mapping each ancestry can use a different source.
 - **LD diagnostics:** each region is checked for inconsistency between z-scores and LD (susieR `estimate_s_rss`
   and `kriging_rss`; a Python port for MultiSuSiE). Credible sets carry an `LD_FLAG`, which the colocalization and
   QTL reports also show. LD is oriented to the GWAS effect allele, and variants with mismatched alleles are removed.

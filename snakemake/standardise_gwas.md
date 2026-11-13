@@ -48,6 +48,7 @@ populate_rsid: false
 | `N_case`, `N_control` | No | Binary traits: numbers of cases and controls. |
 | `build` | No | Input reference build: `GRCh36`, `GRCh37`, `GRCh38`. Default `GRCh37`, because most published GWAS still are; standardisation stops if the positions match the other build much better (checked against the Pan-UKB LD pack). An already standardised `*_std.tsv.gz` input must declare `build` equal to `output.build`. |
 | `ancestry` | If `populate_eaf: true` | One of `AFR`, `AMR`, `EAS`, `EUR`, `SAS`; with `ld_reference: pan_ukb` EAF comes from the Pan-UKB LD pack (matched on SNP keys) and `CSA`, `MID` are also allowed. |
+| `ld_reference` | No | This GWAS's LD source for every step, overriding the step and top-level settings: `pan_ukb`, `1000genomes`, or the PLINK prefix (`.bed/.bim/.fam`, output build) of its own genotypes, e.g. those it was computed from. |
 | `populate_rsid` | No | Per-GWAS override of root `populate_rsid`. |
 | `populate_eaf` | No | Fill missing `EAF` from 1000 Genomes `.frq` for `ancestry`. |
 | `flip_alleles` | No | Inherits root default `true`. **`false` is allowed only in this pipeline.** |
@@ -67,7 +68,7 @@ populate_rsid: false
 | ----- | -------- | ----- |
 | `populate_rsid` | No | Default `false`. |
 | `populate_eaf` | No | Default `false`. |
-| `ld_reference` | If a GWAS has an `ancestry` (strand check) or `populate_eaf: true` | `pan_ukb` or `1000genomes`; no default. |
+| `ld_reference` | If a GWAS has an `ancestry` (strand check) or `populate_eaf: true` | Reference for the strand check and EAF filling: `pan_ukb`, `1000genomes`, or the PLINK prefix of your own genotypes; no default. `harmonise: {ld_reference: ...}` or a GWAS's own `ld_reference` overrides it. See [PIPELINES.md](../PIPELINES.md#common-conventions). |
 | `flip_alleles` | No | Default `true`. |
 | `is_test` | No | Used by tests / logging. |
 | `liftover.complement_minus_strand` | No | Default `false`: variants that map to the minus strand are dropped. `true` keeps non-palindromic ones with complemented alleles. |
