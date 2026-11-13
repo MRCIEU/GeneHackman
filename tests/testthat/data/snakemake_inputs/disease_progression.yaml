@@ -13,3 +13,4 @@ output:
     type: slopehunter
     p_val: 0.001
 is_test: true
+ld_reference: 1000genomes

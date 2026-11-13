@@ -7,6 +7,8 @@
 find_finemap_locus_for_region(finemap_dir, chr, bp, range_bp = 1e+06)
 }
 \description{
-Find the finemapped locus file that covers a genomic region
+Uses the region bounds in \code{finemap_regions.tsv} (written by \code{finemap_gwas()}) to pick the
+fine-mapping region that contains \code{bp}; otherwise falls back to the locus whose lead SNP is
+nearest to \code{bp} within \code{range_bp}.
 }
 \keyword{internal}
