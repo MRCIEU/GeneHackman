@@ -37,6 +37,11 @@ parser <- add_argument(parser,
                        type = "character"
 )
 
+parser <- add_argument(parser, "--labels",
+                       help = "Labels of the GWAS for plots and tables (default: from the file names)",
+                       type = "character",
+                       nargs = Inf
+)
 args <- parse_args(parser)
 
 gwas_filenames <- split_string_into_vector(args$gwas_filenames)
@@ -48,14 +53,14 @@ if (length(gwas_filenames) != length(clumped_filenames) && length(gwas_filenames
 }
 
 create_dir_for_files(args$heterogeneity_scores_output,
-                                        args$heterogeneity_plot_output,
-                                        args$heterogeneity_plot_per_snp_output
-)
+                     args$heterogeneity_plot_output,
+                     args$heterogeneity_plot_per_snp_output)
 
 compare_heterogeneity_across_ancestries(gwas_filenames,
                                         clumped_filenames,
                                         ancestry_list,
                                         args$heterogeneity_scores_output,
                                         args$heterogeneity_plot_output,
-                                        args$heterogeneity_plot_per_snp_output
+                                        args$heterogeneity_plot_per_snp_output,
+                                        labels = if (all(is.na(args$labels))) NULL else split_string_into_vector(args$labels)
 )

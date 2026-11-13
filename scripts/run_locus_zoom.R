@@ -22,6 +22,16 @@ parser <- add_argument(parser, "--ancestry",
                        type = "character",
                        default = "EUR"
 )
+parser <- add_argument(parser, "--ld_references",
+                       help = paste("LD reference of each trait, in the order of --gwas_files: 1000genomes, pan_ukb",
+                                    "or the PLINK prefix of your own genotypes"),
+                       type = "character"
+)
+parser <- add_argument(parser, "--build",
+                       help = "Reference build of the standardised GWAS (GRCh38 or GRCh37); selects the gene annotation",
+                       type = "character",
+                       default = "GRCh38"
+)
 parser <- add_argument(parser, "--pp_h4_threshold",
                        help = "Minimum PP.H4.abf to plot (default 0.8)",
                        type = "numeric",
@@ -50,14 +60,19 @@ if (length(trait_names) != length(gwas_files)) {
   stop("Number of trait names must match number of GWAS files")
 }
 names(gwas_files) <- trait_names
+ld_references <- split_string_into_vector(args$ld_references)
+if (length(ld_references) != length(gwas_files)) {
+  stop("Give one LD reference per GWAS file (--ld_references)")
+}
+names(ld_references) <- trait_names
 
-if (!requireNamespace("EnsDb.Hsapiens.v75", quietly = TRUE)) {
-  stop("EnsDb.Hsapiens.v75 is required for gene annotations. ",
-       "Install with: BiocManager::install('EnsDb.Hsapiens.v75')")
+ens_db <- ensembl_db_for_build(args$build)
+if (!requireNamespace(ens_db, quietly = TRUE)) {
+  stop(ens_db, " is required for ", args$build, " gene annotations. ",
+       "Install with: BiocManager::install('", ens_db, "')")
 }
 # locuszoomr requires the EnsDb package to be loaded (not just installed); see ?locuszoomr::locus
-suppressPackageStartupMessages(library(EnsDb.Hsapiens.v75))
-ens_db <- "EnsDb.Hsapiens.v75"
+suppressPackageStartupMessages(library(ens_db, character.only = TRUE))
 
 locus_zoom_coloc(
   coloc_results_file = args$coloc_results,
@@ -67,5 +82,7 @@ locus_zoom_coloc(
   output_dir = args$output_dir,
   pp_h4_threshold = args$pp_h4_threshold,
   window_kb = args$window_kb,
-  completion_file = args$completion_file
+  completion_file = args$completion_file,
+  ld_references = ld_references,
+  build = args$build
 )

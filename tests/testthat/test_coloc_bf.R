@@ -210,3 +210,46 @@ test_that("coloc_bf.run_bf_bf_coloc finds no pair when loci on different chromos
   res <- run_bf_bf_coloc(c(x = dir1, y = dir2), overlap_kb = 1000)
   expect_equal(nrow(res), 0L)
 })
+
+test_that("coloc_bf.build_lbf_matrix drops SNPs without log Bayes factors instead of zero-filling them", {
+  d <- min_locus_tbl(
+    snps = c("1:10_A_G", "1:20_T_C", "1:30_G_T"),
+    lbf1 = c(0.5, NA, 0.25),
+    lbf2 = c(0.1, NA, 0.2)
+  )
+  m <- GeneHackman:::build_lbf_matrix(d, c("LBF_1", "LBF_2"))
+  expect_equal(colnames(m), c("1:10_A_G", "1:30_G_T"))
+  expect_false(any(is.na(m)))
+})
+
+test_that("coloc_bf.coloc_bf_bf_for_locus_pair only uses SNPs with log Bayes factors in both loci", {
+  snps <- c("1:1_A_G", "1:2_T_C", "1:3_G_T", "1:4_A_C")
+  d1 <- min_locus_tbl(snps, lbf1 = c(3, 0.3, 0.2, NA), lbf2 = c(0.1, 0.4, 0.1, NA))
+  d2 <- min_locus_tbl(snps, lbf1 = c(3, 0.3, 0.2, 0.1), lbf2 = c(0.1, 0.4, 0.1, 0.2))
+  l1 <- list(data = d1, lbf_cols = c("LBF_1", "LBF_2"), chr = 1L, lead_bp = 1L, locus_name = "1_1")
+  l2 <- list(data = d2, lbf_cols = c("LBF_1", "LBF_2"), chr = 1L, lead_bp = 1L, locus_name = "1_1")
+
+  res <- GeneHackman:::coloc_bf_bf_for_locus_pair(l1, l2, "A", "B", 1e-4, 1e-4, 5e-6)
+
+  expect_true(all(res$n_snps == 3L))
+})
+
+test_that("coloc_bf.run_bf_bf_coloc pairs loci whose fine-mapping regions overlap even when leads are far apart", {
+  snps <- c("1:900000_A_G", "1:1000000_T_C", "1:1100000_G_T")
+  d <- min_locus_tbl(snps, c(0.4, 0.35, 0.25), c(0.2, 0.2, 0.2))
+  d$BP <- c(900000, 1000000, 1100000)
+  dir1 <- tempfile("coc_region_a_")
+  dir2 <- tempfile("coc_region_b_")
+  dir.create(dir1)
+  dir.create(dir2)
+  # region a spans 0.1-1.1 Mb (lead at 0.1 Mb), region b spans 0.9-2.5 Mb (lead at 2.5 Mb)
+  da <- rbind(transform(d[1, ], SNP = "1:100000_A_C", BP = 100000), d)
+  db <- rbind(d, transform(d[1, ], SNP = "1:2500000_A_C", BP = 2500000))
+  vroom::vroom_write(da, file.path(dir1, "1_100000_finemap.tsv.gz"))
+  vroom::vroom_write(db, file.path(dir2, "1_2500000_finemap.tsv.gz"))
+
+  res <- run_bf_bf_coloc(c(a = dir1, b = dir2), overlap_kb = 1000)
+
+  expect_true(nrow(res) >= 1L)
+  expect_true(all(res$n_snps == 3L))
+})

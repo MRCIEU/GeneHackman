@@ -3,19 +3,33 @@ mr_list_files <- function(dir, pattern, full.names = FALSE) {
   list.files(dir, pattern = pattern, full.names = full.names)
 }
 
-#'
-perform_mr_on_metabrain_datasets <- function(gwas_filename, ancestry="EUR", subcategory=NULL, exposures=c(), results_output) {
-  file_pattern <- paste0(tolower(subcategory), "_", tolower(ancestry))
-  metabrain_top_hits <- mr_list_files(metabrain_top_hits_dir, pattern = file_pattern, full.names = T)
-
-  run_mr_on_qtl_data(gwas_filename, qtl_files = metabrain_top_hits, results_output = results_output, exposures = exposures)
+#' Check that a QTL dataset is one GeneHackman provides
+#' @keywords internal
+check_qtl_dataset <- function(dataset) {
+  if (length(dataset) != 1 || !dataset %in% qtl_datasets) {
+    stop("Unknown QTL dataset '", paste(dataset, collapse = ","), "'; options: ", paste(qtl_datasets, collapse = ", "))
+  }
+  invisible(dataset)
 }
 
-perform_mr_on_eqtlgen_datasets <- function(gwas_filename, subcategory=NULL, exposures=c(), results_output) {
-  file_pattern <- tolower(subcategory)
-  eqtlgen_top_hits <- mr_list_files(eqtlgen_top_hits_dir, pattern = file_pattern, full.names = T)
-
-  run_mr_on_qtl_data(gwas_filename, results_output = results_output, qtl_files = eqtlgen_top_hits, exposures = exposures)
+#' MR of an outcome GWAS against the cis QTLs of a QTL dataset
+#'
+#' The exposures are the dataset's genes or proteins, instrumented by their cis QTL top hits
+#' (\verb{QTL_DATA_DIR/<dataset>/<build>/top_hits/cis.tsv.gz}).
+#' @param gwas_filename standardised outcome GWAS
+#' @param dataset one of \code{qtl_datasets}
+#' @param exposures optional exposure names to keep
+#' @param results_output output file of MR results
+#' @param build reference build of the GWAS; the QTL files of the same build are used
+perform_mr_on_qtl_dataset <- function(gwas_filename, dataset, exposures=c(), results_output,
+                                      build = reference_builds$GRCh38) {
+  check_qtl_dataset(dataset)
+  top_hits_dir <- qtl_dataset_dir(dataset, "top_hits", build)
+  qtl_files <- mr_list_files(top_hits_dir, pattern = paste0("^", qtl_subcategory, "\\.tsv(\\.gz)?$"), full.names = T)
+  if (length(qtl_files) == 0) {
+    stop("No ", qtl_subcategory, " QTL top hits for ", dataset, " in ", top_hits_dir)
+  }
+  run_mr_on_qtl_data(gwas_filename, qtl_files = qtl_files, results_output = results_output, exposures = exposures)
 }
 
 
@@ -58,11 +72,18 @@ run_mr_on_qtl_data <- function(gwas_filename, qtl_files, results_output, exposur
     }
     harmonised_data$SNP <- toupper(harmonised_data$SNP)
 
+    # One row per exposure: an exposure can have several instruments (one cis lead per LD block), and
+    # mr() then gives one IVW row for it.  SNP is the strongest instrument used, F_STAT the weakest one's.
+    instruments_used <- harmonised_data |>
+      dplyr::filter(mr_keep) |>
+      dplyr::distinct(SNP, EXPOSURE = exposure)
     qtl_dataset <- vroom::vroom(qtl_file, show_col_types=F) |>
       calculate_f_statistic()
     relevant_qtl_results <- qtl_dataset |>
-      dplyr::filter(SNP %in% toupper(harmonised_data$SNP)) |>
-      dplyr::select(SNP, F_STAT, EXPOSURE)
+      dplyr::mutate(SNP = toupper(SNP)) |>
+      dplyr::inner_join(instruments_used, by = c("SNP", "EXPOSURE")) |>
+      dplyr::arrange(P) |>
+      dplyr::summarise(SNP = dplyr::first(SNP), F_STAT = min(F_STAT), .by = EXPOSURE)
 
     mr_results <- merge(mr_results, relevant_qtl_results, by.x="exposure", by.y="EXPOSURE")
     return(mr_results)

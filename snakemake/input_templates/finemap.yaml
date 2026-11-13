@@ -3,10 +3,19 @@ gwases:
     columns: {}
     N: 0
     ancestry: EUR
+    # ld_reference: /path/to/genotypes   # optional: this GWAS's own genotypes (PLINK prefix, output build), for every step
+    label: ""            # name in plots and reports (default: file name)
+    study_type: continuous   # or binary, with N_case and N_control (effective sample size)
+ld_reference: pan_ukb   # required, used by every LD step: pan_ukb (Pan-UK Biobank LD), 1000genomes (~500 per super-population) or the PLINK prefix of your own genotypes; see PIPELINES.md
+# a different source for one step (optional): harmonise:, clumping:, finemap:
+# clumping:
+#   ld_reference: 1000genomes
 plink_clump_arguments: "--clump-p1 5e-8 --clump-r2 0.01 --clump-kb 1000"
 finemap:
   window_kb: 1000
-  max_causal: 10
+  max_causal: 10   # SuSiE L; a warning is given when the GWAS is >10x the LD reference (finemap.max_n_ratio)
   coverage: 0.95
   min_abs_corr: 0.5
+  region_strategy: merge   # merge (capped at max_region_kb), none, or tile
+  max_region_kb: 3000
 populate_rsid: false

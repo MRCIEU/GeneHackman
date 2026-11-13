@@ -72,3 +72,75 @@ test_that("gwas_comparison.compare_heterogeneity_across_ancestries works well", 
   expect_true(file.exists(first_plot))
   expect_true(file.exists(second_plot))
 })
+
+test_that("gwas_comparison.expected_vs_observed_replication counts observed replications with a two-sided p-value", {
+  # replication z-scores of 1.8 (two-sided p = 0.072) and 2.5 (two-sided p = 0.012)
+  result <- expected_vs_observed_replication(
+    b_disc = rep(1, 4), se_disc = rep(0.1, 4),
+    b_rep = c(0.18, 0.18, 0.25, 0.25), se_rep = rep(0.1, 4),
+    alpha = 0.05
+  )
+
+  observed <- result$res$VALUE[result$res$METRIC == "P-value" & result$res$DATUM == "Observed"]
+  expect_equal(observed, 2)
+  expect_equal(result$variants$OBSERVED, c(FALSE, FALSE, TRUE, TRUE))
+})
+
+test_that("gwas_comparison.compare_replication_across_all_gwas_permutations keeps every pair with four GWAS", {
+  input_gwases <- vapply(c("gwas_a", "gwas_b", "gwas_c", "gwas_d"), function(name) {
+    path <- file.path(tempdir(), paste0(name, ".tsv.gz"))
+    file.copy("data/test_data_small.tsv.gz", path, overwrite = TRUE)
+    path
+  }, character(1))
+  input_clumps <- rep("data/clumped_snps.tsv.gz", 4)
+
+  output_file <- tempfile(fileext = ".tsv")
+  variants_output_file <- tempfile(fileext = ".tsv")
+  compare_replication_across_all_gwas_permutations(input_gwases, input_clumps, output_file, variants_output_file)
+
+  results <- vroom::vroom(output_file, show_col_types = FALSE)
+  expect_equal(nrow(results), 4 * 6)
+  expect_setequal(unique(results$COMPARISON), c(
+    "gwas_a_vs_gwas_b", "gwas_a_vs_gwas_c", "gwas_a_vs_gwas_d",
+    "gwas_b_vs_gwas_c", "gwas_b_vs_gwas_d", "gwas_c_vs_gwas_d"
+  ))
+})
+
+test_that("LDSC h2 z-score uses the liability scale when LDSC 1.0.1 reports only that (prevalences given)", {
+  log <- tempfile(fileext = ".log")
+  writeLines(c("Total Liability scale h2: 0.0261 (0.0013)", "Lambda GC: 1.3101", "Mean Chi^2: 1.4047",
+               "Intercept: 1.0378 (0.0093)", "Ratio: 0.0935 (0.0229)"), log)
+  h2 <- parse_ldsc_h2_log(log)
+  expect_true(is.na(h2$H2_OBS))
+  tables <- ldsc_results_tables(h2_logs = log, rg_logs = character(0), sumstats = "/data/ldsc/hf_all.sumstats.gz",
+                                labels = "HFall", ancestry = "EUR", population_prevalences = "0.08")
+  expect_equal(tables$h2$H2_Z, 0.0261 / 0.0013)
+  expect_false(tables$h2$FLAG_LOW_H2_Z)
+})
+
+test_that("LDSC logs are parsed into heritability and genetic correlation tables with reliability flags", {
+  dir <- test_path("data/ldsc")
+  h2 <- parse_ldsc_h2_log(file.path(dir, "results_EUR_h2_1.log"))
+  expect_equal(c(h2$H2_OBS, h2$H2_OBS_SE, h2$H2_LIAB, h2$H2_LIAB_SE), c(0.0123, 0.0009, 0.0541, 0.004))
+  expect_equal(c(h2$INTERCEPT, h2$INTERCEPT_SE, h2$RATIO, h2$MEAN_CHISQ), c(1.0101, 0.0081, 0.0688, 1.1468))
+  low <- parse_ldsc_h2_log(file.path(dir, "results_EUR_h2_2.log"))
+  expect_true(is.na(low$H2_LIAB))
+  expect_match(low$RATIO_NOTE, "Ratio < 0")
+
+  tables <- ldsc_results_tables(
+    h2_logs = file.path(dir, c("results_EUR_h2_1.log", "results_EUR_h2_2.log")),
+    rg_logs = file.path(dir, "results_EUR_rg_1.log"),
+    sumstats = c("/data/ldsc/hf_all.sumstats.gz", "/data/ldsc/hf_pef.sumstats.gz"),
+    labels = c("HFall", "ni-HFpEF"), ancestry = "EUR", population_prevalences = c("0.02", "nan"))
+  expect_equal(tables$h2$TRAIT, c("HFall", "ni-HFpEF"))
+  expect_equal(tables$h2$H2_Z, c(0.0123 / 0.0009, 0.0018 / 0.0011))
+  expect_equal(tables$h2$FLAG_LOW_H2_Z, c(FALSE, TRUE))
+  expect_equal(tables$h2$POP_PREV, c(0.02, NA))
+  expect_equal(nrow(tables$rg), 1)
+  expect_equal(c(tables$rg$TRAIT_1, tables$rg$TRAIT_2), c("HFall", "ni-HFpEF"))
+  expect_equal(tables$rg$RG, 1.0117)
+  expect_equal(tables$rg$GCOV_INTERCEPT, 0.1903)
+  expect_true(tables$rg$FLAG_RG_OUT_OF_BOUNDS)
+  expect_true(tables$rg$FLAG_LOW_H2_Z)
+  expect_false(tables$rg$RG_RELIABLE)
+})

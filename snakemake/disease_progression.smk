@@ -6,14 +6,20 @@ pipeline = parse_pipeline_input(pipeline_includes_clumping=True)
 incident = pipeline.gwases[0]
 subsequent = pipeline.gwases[1]
 
-adjusted_gwas = SimpleNamespace(**{"type": "slopehunter", "p_val": 0.001})
-if not hasattr(pipeline, "output"): pipeline.output= SimpleNamespace(**{'adjusted_gwas': adjusted_gwas})
+# collider-bias correction applied to the subsequent-event GWAS: SlopeHunter by default.  parse_pipeline_input always
+# sets pipeline.output (build and columns), so the default has to be filled in field by field.
+default_adjusted_gwas = {"type": "slopehunter", "p_val": 0.001}
+if not hasattr(pipeline.output, "adjusted_gwas"):
+    pipeline.output.adjusted_gwas = SimpleNamespace(**default_adjusted_gwas)
+for key, value in default_adjusted_gwas.items():
+    if not hasattr(pipeline.output.adjusted_gwas, key):
+        setattr(pipeline.output.adjusted_gwas, key, value)
 
 onstart:
     print("##### Pipeline to Calculate Slope and Apply Correction on Collider Bias #####")
 
 ancestries = [incident.ancestry, subsequent.ancestry]
-validate_ancestries(ancestries)
+check_reference_data(pipeline, pipeline_includes_clumping=True)
 
 collider_bias_results = RESULTS_DIR + "collider_bias/" + subsequent.prefix + "_collider_bias_results.tsv"
 harmonised_effects = RESULTS_DIR + "collider_bias/" + subsequent.prefix + "_harmonised_effects.tsv.gz"
