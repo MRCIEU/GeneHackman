@@ -10,7 +10,15 @@ rule standardise_gwases:
         populate_rsid = lambda wildcards: getattr(pipeline, wildcards.prefix).populate_rsid.value,
         ancestry = lambda wildcards: getattr(pipeline, wildcards.prefix).ancestry,
         populate_eaf_flag = lambda wildcards: "TRUE" if getattr(pipeline, wildcards.prefix).populate_eaf else "FALSE",
-        flip_alleles_flag = lambda wildcards: "TRUE" if getattr(pipeline, wildcards.prefix).flip_alleles else "FALSE"
+        flip_alleles_flag = lambda wildcards: "TRUE" if getattr(pipeline, wildcards.prefix).flip_alleles else "FALSE",
+        complement_minus_strand_flag = "TRUE" if pipeline.liftover.complement_minus_strand else "FALSE",
+        check_build_flag = "TRUE" if pipeline.liftover.check_build else "FALSE",
+        ld_reference = lambda wildcards: getattr(pipeline, wildcards.prefix).ld.get("harmonise", "none"),
+        study_type = lambda wildcards: getattr(pipeline, wildcards.prefix).study_type,
+        n_case = lambda wildcards: getattr(pipeline, wildcards.prefix).N_case or "NA",
+        n_control = lambda wildcards: getattr(pipeline, wildcards.prefix).N_control or "NA",
+        strand_check_flag = "TRUE" if pipeline.harmonise.strand_check else "FALSE",
+        drop_palindromic_flag = "TRUE" if pipeline.harmonise.drop_ambiguous_palindromic else "FALSE"
     threads: 8
     resources:
         mem = lambda wildcards: f"{getattr(pipeline, wildcards.prefix).standardised_memory}G",
@@ -36,6 +44,15 @@ rule standardise_gwases:
             --populate_rsid {params.populate_rsid} \
             --populate_eaf {params.populate_eaf_flag} \
             --ancestry '{params.ancestry}' \
-            --flip_alleles {params.flip_alleles_flag}
+            --ld_reference '{params.ld_reference}' \
+            --flip_alleles {params.flip_alleles_flag} \
+            --complement_minus_strand {params.complement_minus_strand_flag} \
+            --max_liftover_drop_fraction {pipeline.liftover.max_drop_fraction} \
+            --check_build {params.check_build_flag} \
+            --study_type {params.study_type} \
+            --N_case {params.n_case} \
+            --N_control {params.n_control} \
+            --strand_check {params.strand_check_flag} \
+            --drop_ambiguous_palindromic {params.drop_palindromic_flag}
         """
 

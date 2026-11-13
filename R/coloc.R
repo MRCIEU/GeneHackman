@@ -34,7 +34,7 @@ run_coloc_on_list_of_datasets <- function(first_gwas_list=list(),
   )
 
   coloc_results <- apply(data_for_coloc,1, function(row) {
-    coloc_columns <- c("SNP", "CHR", "BP", "P", "SE", "N", "EAF")
+    coloc_columns <- c("SNP", "CHR", "BP", "BETA", "P", "SE", "N", "EAF")
     first_gwas <- get_file_or_dataframe(row[['first_gwas']], columns = coloc_columns)
     second_gwas <- get_file_or_dataframe(row[['second_gwas']], columns = coloc_columns)
 
@@ -55,11 +55,16 @@ run_coloc_on_list_of_datasets <- function(first_gwas_list=list(),
 #'
 #' @param mr_results_file MR results file
 #' @param finemap_dir directory containing finemapped GWAS locus files
-#' @param qtl_dataset QTL dataset name (metabrain or eqtlgen)
-#' @param study_type study type for LBF conversion ("continuous" or "categorical")
+#' @param qtl_dataset QTL dataset name, one of \code{qtl_datasets}
+#' @param study_type study type of the QTL trait, used to convert the QTL summary statistics to
+#'   log Bayes factors ("continuous" or "categorical"); molecular QTL traits are normally continuous
 #' @param exposures optional character vector of exposures to filter
-#' @param default_n default sample size for QTL data
+#' @param default_n sample size of the QTL dataset, used only when the QTL files have no N column
 #' @param output_file output file path
+#' @param p1 prior probability a SNP is associated with the GWAS trait
+#' @param p2 prior probability a SNP is associated with the QTL trait
+#' @param p12 prior probability a SNP is associated with both traits
+#' @param build reference build of the GWAS; the QTL files of the same build are used
 
 
 
@@ -71,13 +76,17 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
                                         study_type = "continuous",
                                         exposures = c(),
                                         default_n = NA,
-                                        output_file) {
+                                        output_file,
+                                        p1 = 1e-4,
+                                        p2 = 1e-4,
+                                        p12 = 5e-6,
+                                        build = reference_builds$GRCh38) {
 
   mr_results <- get_file_or_dataframe(mr_results_file) |>
     dplyr::filter(p.adjusted < 0.05)
 
   if (length(exposures) > 0) {
-    mr_results <- subset(mr_results, exposure %in% exposures)
+    mr_results <- dplyr::filter(mr_results, EXPOSURE %in% exposures)
   }
 
   empty_result <- tibble::tibble(
@@ -99,7 +108,7 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
   }
 
   coloc_results <- apply(mr_results, 1, function(mr_result) {
-    qtl_gwas <- load_qtl_gwas_for_mr_result(mr_result, qtl_dataset)
+    qtl_gwas <- load_qtl_gwas_for_mr_result(mr_result, qtl_dataset, build)
     if (is.null(qtl_gwas)) return(NULL)
 
     chr <- as.numeric(mr_result[["CHR"]])
@@ -113,7 +122,10 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
       chr = chr,
       bp = bp,
       study_type = study_type,
-      default_n = default_n
+      default_n = default_n,
+      p1 = p1,
+      p2 = p2,
+      p12 = p12
     )
   }) |> dplyr::bind_rows()
 
@@ -126,19 +138,11 @@ run_coloc_on_qtl_mr_results <- function(mr_results_file,
 
 #' Load the QTL GWAS file for an MR result row
 #' @keywords internal
-load_qtl_gwas_for_mr_result <- function(mr_result, qtl_dataset) {
-  if (qtl_dataset == qtl_datasets$metabrain) {
-    outcome <- unlist(strsplit(mr_result[["outcome"]], "_"))
-    brain_region <- outcome[1]
-    ancestry <- toupper(outcome[2])
-    qtl_gwas_file <- paste0(metabrain_gwas_dir, "/", brain_region, "/",
-                            mr_result[["EXPOSURE"]], "_", ancestry, ".tsv.gz")
-  } else if (qtl_dataset == qtl_datasets$eqtlgen) {
-    qtl_gwas_file <- paste0(eqtlgen_gwas_dir, "/", mr_result[["outcome"]], "/",
-                            mr_result[["EXPOSURE"]], ".tsv.gz")
-  } else {
-    stop("Error: qtl dataset not supported for coloc right now")
-  }
+load_qtl_gwas_for_mr_result <- function(mr_result, qtl_dataset, build = reference_builds$GRCh38) {
+  check_qtl_dataset(qtl_dataset)
+  # gwas/<top hits file prefix, i.e. cis>/<EXPOSURE>.tsv.gz: the exposure's cis region
+  qtl_gwas_file <- file.path(qtl_dataset_dir(qtl_dataset, "gwas", build), mr_result[["outcome"]],
+                             paste0(mr_result[["EXPOSURE"]], ".tsv.gz"))
 
   if (!file.exists(qtl_gwas_file)) {
     message(paste("QTL GWAS file not found:", qtl_gwas_file))
@@ -159,9 +163,12 @@ load_qtl_gwas_for_mr_result <- function(mr_result, qtl_dataset) {
 #' @param exposure_name exposure label
 #' @param chr chromosome of the MR hit
 #' @param bp base position of the MR hit
-#' @param study_type study type for LBF conversion
-#' @param default_n default sample size
+#' @param study_type study type of the QTL trait for LBF conversion
+#' @param default_n sample size of the QTL dataset, used only when \code{qtl_gwas} has no N column
 #' @param range_bp overlap window in bp (default 1e6 = ±1Mb)
+#' @param p1 prior probability a SNP is associated with the GWAS trait
+#' @param p2 prior probability a SNP is associated with the QTL trait
+#' @param p12 prior probability a SNP is associated with both traits
 #' @return tibble with coloc results or NULL
 
 
@@ -174,7 +181,10 @@ coloc_bf_bf_qtl_analysis <- function(finemap_dir,
                                      bp,
                                      study_type = "continuous",
                                      default_n = NA,
-                                     range_bp = 1e6) {
+                                     range_bp = 1e6,
+                                     p1 = 1e-4,
+                                     p2 = 1e-4,
+                                     p12 = 5e-6) {
 
   finemap_locus <- find_finemap_locus_for_region(finemap_dir, chr, bp, range_bp)
   if (is.null(finemap_locus)) {
@@ -204,6 +214,9 @@ coloc_bf_bf_qtl_analysis <- function(finemap_dir,
     return(NULL)
   }
 
+  # only GWAS SNPs that were fine-mapped (have LBFs); SNPs missing from the LD panel have none
+  finemap_locus <- keep_snps_with_lbfs(finemap_locus, lbf_cols)
+
   shared_snps <- intersect(finemap_locus$SNP, qtl_region$SNP)
   if (length(shared_snps) < 2) {
     message(paste("Too few shared SNPs for", exposure_name, "at", chr, ":", bp))
@@ -226,8 +239,9 @@ coloc_bf_bf_qtl_analysis <- function(finemap_dir,
 
   qtl_n <- `if`("N" %in% colnames(qtl_sub) && !is.na(as.numeric(qtl_sub$N[1])),
                 as.numeric(qtl_sub$N[1]), default_n)
-  if (is.na(qtl_n)) {
-    message(paste("Cannot determine N for QTL data for", exposure_name))
+  if (is.na(qtl_n) || qtl_n <= 0) {
+    message(paste("Cannot determine N for QTL data for", exposure_name,
+                  "- add an N column to the QTL data or set qtl.N in the input YAML"))
     return(NULL)
   }
 
@@ -242,7 +256,7 @@ coloc_bf_bf_qtl_analysis <- function(finemap_dir,
   names(qtl_lbf) <- qtl_sub$SNP
 
   result <- tryCatch(
-    coloc::coloc.bf_bf(bf1 = gwas_bf, bf2 = qtl_lbf),
+    coloc::coloc.bf_bf(bf1 = gwas_bf, bf2 = qtl_lbf, p1 = p1, p2 = p2, p12 = p12),
     error = function(e) {
       message(paste("coloc.bf_bf failed for", exposure_name, "at", chr, ":", bp,
                     ":", conditionMessage(e)))
@@ -272,8 +286,10 @@ build_bf_matrix <- function(locus_df, lbf_cols) {
   }
   if (!has_signal) return(NULL)
 
+  locus_df <- keep_snps_with_lbfs(locus_df, lbf_cols)
+  if (nrow(locus_df) < 2) return(NULL)
+
   bf_mat <- t(as.matrix(locus_df[, lbf_cols, drop = FALSE]))
-  bf_mat[is.na(bf_mat)] <- 0
   colnames(bf_mat) <- locus_df$SNP
   rownames(bf_mat) <- lbf_cols
   return(bf_mat)
@@ -281,12 +297,27 @@ build_bf_matrix <- function(locus_df, lbf_cols) {
 
 
 #' Find the finemapped locus file that covers a genomic region
+#'
+#' Uses the region bounds in \code{finemap_regions.tsv} (written by \code{finemap_gwas()}) to pick the
+#' fine-mapping region that contains \code{bp}; otherwise falls back to the locus whose lead SNP is
+#' nearest to \code{bp} within \code{range_bp}.
 #' @keywords internal
 find_finemap_locus_for_region <- function(finemap_dir, chr, bp, range_bp = 1e6) {
   if (!dir.exists(finemap_dir)) return(NULL)
 
   files <- list.files(finemap_dir, pattern = "_finemap\\.tsv\\.gz$", full.names = TRUE)
   if (length(files) == 0) return(NULL)
+
+  regions_file <- file.path(finemap_dir, "finemap_regions.tsv")
+  if (file.exists(regions_file)) {
+    regions <- data.table::fread(regions_file)
+    containing <- regions[regions$CHR == chr & regions$START <= bp & regions$END >= bp, ]
+    containing_files <- file.path(finemap_dir, paste0(containing$LOCUS, "_finemap.tsv.gz"))
+    containing_files <- containing_files[file.exists(containing_files)]
+    if (length(containing_files) > 0) {
+      return(vroom::vroom(containing_files[1], show_col_types = FALSE))
+    }
+  }
 
   best_file <- NULL
   best_dist <- Inf
@@ -350,6 +381,20 @@ parse_bf_bf_result <- function(result, exposure_name, locus_name, n_snps) {
   )
 }
 
+#' coloc.abf dataset for one GWAS: a continuous trait from P, SE, N and MAF; a case-control trait from BETA and
+#' its variance with the case fraction s (coloc's type = "cc").
+#' @keywords internal
+coloc_dataset <- function(gwas, n, type = "quant", s = NA) {
+  type <- if (normalise_study_type(type) == study_types$binary || identical(type, "cc")) "cc" else "quant"
+  if (type == "cc") {
+    if (is.na(s) || s <= 0 || s >= 1) stop("A case-control dataset needs the fraction of cases (s) for coloc")
+    if (!"BETA" %in% colnames(gwas)) stop("A case-control dataset needs BETA for coloc")
+    return(list(beta = as.numeric(gwas$BETA), varbeta = as.numeric(gwas$SE)^2, N = n, type = "cc", s = s,
+                snp = gwas$SNP, MAF = gwas$EAF))
+  }
+  list(pvalues = gwas$P, N = n, varbeta = gwas$SE^2, type = "quant", snp = gwas$SNP, MAF = gwas$EAF)
+}
+
 #' run_coloc_analysis takes two already harmonised gwases, and runs coloc on the results
 #' @param first_gwas first gwas to be run through coloc.  This is the gwas that results will be based off
 #' @param second_gwas second gwas to be run through coloc
@@ -358,11 +403,15 @@ parse_bf_bf_result <- function(result, exposure_name, locus_name, n_snps) {
 #' @param bp base pair position to perform coloc on
 #' @param range range to filter in base pairs
 #' @param default_n default sample size
+#' @param first_type,second_type "quant" (continuous trait) or "cc" (case-control); for "cc" coloc uses BETA and
+#'   its variance with the case fraction \code{s}, instead of treating the trait as continuous
+#' @param first_s,second_s fraction of cases, for "cc" datasets
 #' @return tibble of coloc results (h0 - h4)
 
 
 #' @export
-coloc_analysis <- function(first_gwas, second_gwas, exposure_name, chr=NA, bp=NA, range=NA, default_n=NA) {
+coloc_analysis <- function(first_gwas, second_gwas, exposure_name, chr=NA, bp=NA, range=NA, default_n=NA,
+                           first_type="quant", second_type="quant", first_s=NA, second_s=NA) {
   numeric_columns <- c("P", "SE", "EAF")
   first_gwas[,numeric_columns] <- lapply(first_gwas[,numeric_columns,drop=FALSE], as.numeric)
   second_gwas[,numeric_columns] <- lapply(second_gwas[,numeric_columns,drop=FALSE], as.numeric)
@@ -386,23 +435,8 @@ coloc_analysis <- function(first_gwas, second_gwas, exposure_name, chr=NA, bp=NA
     stop("Error: N (sample size) must be present to complete coloc analysis.  Please include N in gwas or populate default_n param")
   }
 
-  first_coloc_dataset <- list(
-    pvalues = first_gwas$P,
-    N = first_n,
-    varbeta = first_gwas$SE^2,
-    type = "quant",
-    snp = first_gwas$SNP,
-    MAF = first_gwas$EAF
-  )
-
-  second_coloc_dataset <- list(
-    pvalues = second_gwas$P,
-    N = second_n,
-    varbeta = second_gwas$SE^2,
-    type = "quant",
-    snp = second_gwas$SNP,
-    MAF = second_gwas$EAF
-  )
+  first_coloc_dataset <- coloc_dataset(first_gwas, first_n, first_type, first_s)
+  second_coloc_dataset <- coloc_dataset(second_gwas, second_n, second_type, second_s)
 
   result <- coloc::coloc.abf(dataset1 = first_coloc_dataset, dataset2 = second_coloc_dataset)
   coloc_results <- tibble::tribble(

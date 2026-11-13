@@ -5,6 +5,7 @@ import gzip
 import yaml
 import os
 import re
+import sys
 import subprocess
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -13,6 +14,9 @@ from types import SimpleNamespace
 
 include: "constants.smk"
 include: "log_results.smk"
+
+sys.path.insert(0, str(workflow.current_basedir))
+import ld_sources
 
 
 def dict_to_namespace(obj):
@@ -38,7 +42,10 @@ def get_docker_container():
     return sif_path
 
 
-def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=False):
+def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=False, output_builds=None, output_builds_reason="",
+                         ld_steps=()):
+    """Read the input YAML.  ld_steps: LD steps the pipeline runs besides harmonise and clumping (finemap,
+    locus_zoom); see resolve_ld_sources()."""
     global input_file
     env_in = os.environ.get("GENEHACKMAN_INPUT") or os.environ.get("GENEHACKMAN_INPUT_FILE")
     try:
@@ -74,6 +81,20 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
             raise ValueError(f"Error: {pipeline.output.build} is not one of the valid options: {build_options}")
 
         if not hasattr(pipeline.output, "columns"): pipeline.output.columns = default_output_options.columns
+    if output_builds and pipeline.output.build not in output_builds:
+        stop_with_message(f"This pipeline needs output.build: {' or '.join(output_builds)}, not "
+                          f"{pipeline.output.build}.\n{output_builds_reason}")
+    # ld_reference has no default: the LD source is the user's choice (resolved per step and GWAS once the GWAS are
+    # read, below)
+    pipeline.ld_reference = ld_sources.clean(getattr(pipeline, "ld_reference", ""))
+    if pipeline_includes_clumping:
+        clump_arguments = getattr(pipeline, "plink_clump_arguments", None)
+        if not clump_arguments:
+            raise ValueError(
+                'Error: plink_clump_arguments is required for this pipeline, '
+                'e.g. plink_clump_arguments: "--clump-p1 5e-8 --clump-r2 0.01 --clump-kb 1000"'
+            )
+        pipeline.plink_clump_arguments = apply_default_clump_arguments(str(clump_arguments))
     if not hasattr(pipeline, "populate_rsid"): pipeline.populate_rsid = False
     if not hasattr(pipeline, "populate_eaf"): pipeline.populate_eaf = False
     if not hasattr(pipeline, "flip_alleles"): pipeline.flip_alleles = True
@@ -81,10 +102,34 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
     if not hasattr(pipeline, "finemap"):
         pipeline.finemap = SimpleNamespace()
     fm = pipeline.finemap
-    if not hasattr(fm, "window_kb"): fm.window_kb = 500
+    if not hasattr(fm, "window_kb"): fm.window_kb = 1000
+    # SuSiE L (default 10). It is never changed according to the LD reference: when the GWAS is more than
+    # max_n_ratio times larger than the LD reference, the log, finemap_regions.tsv and the reports warn instead
     if not hasattr(fm, "max_causal"): fm.max_causal = 10
+    if not str(fm.max_causal).strip().isdigit() or int(str(fm.max_causal).strip()) < 1:
+        stop_with_message(f"finemap.max_causal must be a positive whole number (SuSiE L, default 10), not {fm.max_causal}.")
+    if not hasattr(fm, "max_n_ratio"): fm.max_n_ratio = 10
     if not hasattr(fm, "coverage"): fm.coverage = 0.95
     if not hasattr(fm, "min_abs_corr"): fm.min_abs_corr = 0.5
+    if not hasattr(fm, "max_region_kb"): fm.max_region_kb = 3000
+    if not hasattr(fm, "region_strategy"): fm.region_strategy = "merge"
+    if fm.region_strategy not in finemap_region_strategies:
+        stop_with_message(f"finemap.region_strategy must be one of {', '.join(finemap_region_strategies)}, "
+                          f"not {fm.region_strategy}.")
+    if not hasattr(fm, "remove_ld_outliers"): fm.remove_ld_outliers = False
+
+    if not hasattr(pipeline, "liftover"):
+        pipeline.liftover = SimpleNamespace()
+    lo = pipeline.liftover
+    if not hasattr(lo, "complement_minus_strand"): lo.complement_minus_strand = False
+    if not hasattr(lo, "max_drop_fraction"): lo.max_drop_fraction = 0.05
+    if not hasattr(lo, "check_build"): lo.check_build = True
+
+    if not hasattr(pipeline, "harmonise"):
+        pipeline.harmonise = SimpleNamespace()
+    hm = pipeline.harmonise
+    if not hasattr(hm, "strand_check"): hm.strand_check = True
+    if not hasattr(hm, "drop_ambiguous_palindromic"): hm.drop_ambiguous_palindromic = False
 
     if not hasattr(pipeline, "coloc"):
         pipeline.coloc = SimpleNamespace()
@@ -99,8 +144,23 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
         if not hasattr(g, "columns"): g.columns = SimpleNamespace()
         if not hasattr(g, "remove_extra_columns"): g.remove_extra_columns = False
         if not hasattr(g, "flip_alleles"): g.flip_alleles = getattr(pipeline, "flip_alleles", True)
+        if g.file.endswith("_std.tsv.gz"):
+            # already standardised: used as is, so it must already be in the output build
+            declared = getattr(g, "build", None)
+            if declared != pipeline.output.build:
+                raise ValueError(
+                    f"Error: {g.file} is already standardised, so it is used without liftover. Declare its build "
+                    f"(build: {pipeline.output.build}) to confirm it is in the output build {pipeline.output.build}"
+                    + (f"; it is declared as {declared}. Re-standardise the original GWAS instead." if declared else ".")
+                )
         if not hasattr(g, "build"): g.build = "GRCh37"
-        if not hasattr(g, "study_type"): g.study_type = "continuous"
+        if g.build not in build_options:
+            raise ValueError(f"Error: build {g.build} of {g.file} is not one of the valid options: {build_options}")
+        resolve_sample_size(g)
+        g.label = str(getattr(g, "label", "") or "").strip()
+        if ld_sources.clean(getattr(g, "ld_bfile", "")):
+            stop_with_message(ld_sources.ld_bfile_message(g.file))
+        g.ld_reference = ld_sources.clean(getattr(g, "ld_reference", ""))
         if not hasattr(g, "populate_rsid"): g.populate_rsid = False
         if not hasattr(g, "populate_eaf"): g.populate_eaf = False
         g.file = os.path.abspath(g.file)
@@ -117,19 +177,75 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
             )
         g.standardised_memory = estimate_memory_needed_for_standardisation(g.file, g.populate_rsid)
         g.prefix = file_prefix(g.file)
+        if not g.label: g.label = g.prefix
         g.vcf_columns = get_columns_for_vcf_parsing(g.columns)
         g.input_columns = resolve_gwas_columns(g.file, g.columns)
         g.output_columns = resolve_gwas_columns(g.file, pipeline.output.columns, check_input_columns=False)
         g.standardised_gwas = standardised_gwas_name(g.file)
         setattr(pipeline,g.prefix,g)
-    eaf_ancestries = [g.ancestry for g in pipeline.gwases if g.populate_eaf]
-    if eaf_ancestries:
-        validate_ancestries(eaf_ancestries)
+    steps = (["clumping"] if pipeline_includes_clumping else []) + list(ld_steps)
+    resolve_ld_sources(pipeline, steps)
     if not allow_flip_false:
         for g in pipeline.gwases:
             if getattr(g, "flip_alleles", True) is False:
                 raise ValueError("flip_alleles = FALSE is only available for standardise_gwas.smk")
     return pipeline
+
+def resolve_sample_size(g):
+    """Sample size settings of one GWAS.
+
+    study_type: continuous (default) or binary (case-control).  For binary traits N_case and N_control give the
+    effective sample size N_eff = 4 / (1/N_case + 1/N_control), and prevalence (the population prevalence) gives
+    liability-scale heritability in LDSC.  g.analysis_N is the sample size downstream steps fall back on when the
+    standardised GWAS has no per-variant N_EFF or N: N_eff for binary traits, else N."""
+    study_type = str(getattr(g, "study_type", "continuous") or "continuous").strip().lower()
+    if study_type in ("continuous", "quantitative", "quant"):
+        g.study_type = "continuous"
+    elif study_type in ("binary", "case_control", "case-control", "categorical", "cc"):
+        g.study_type = "binary"
+    else:
+        stop_with_message(f"study_type of {g.file} must be continuous or binary, not {study_type}.")
+    g.N_case = _positive_number(getattr(g, "N_case", getattr(g, "N_cases", None)), "N_case", g.file)
+    g.N_control = _positive_number(getattr(g, "N_control", getattr(g, "N_controls", None)), "N_control", g.file)
+    g.prevalence = _positive_number(getattr(g, "prevalence", None), "prevalence", g.file)
+    if g.prevalence is not None and g.prevalence >= 1:
+        stop_with_message(f"prevalence of {g.file} is the population prevalence, a fraction between 0 and 1.")
+    g.N_eff = None
+    g.sample_prevalence = None
+    if g.study_type == "binary":
+        if (g.N_case is None) != (g.N_control is None):
+            stop_with_message(f"{g.file}: give both N_case and N_control, or neither.")
+        if g.N_case is not None:
+            g.N_eff = 4 / (1 / g.N_case + 1 / g.N_control)
+            g.sample_prevalence = g.N_case / (g.N_case + g.N_control)
+            if not getattr(g, "N", 0): g.N = g.N_case + g.N_control
+    elif g.N_case is not None or g.N_control is not None or g.prevalence is not None:
+        stop_with_message(f"{g.file}: N_case, N_control and prevalence are for binary traits; set study_type: binary.")
+    g.analysis_N = g.N_eff if g.N_eff else g.N
+
+
+def _positive_number(value, name, gwas_file):
+    if value is None or str(value).strip() == "":
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        stop_with_message(f"{name} of {gwas_file} must be a number, not {value}.")
+    if number <= 0:
+        stop_with_message(f"{name} of {gwas_file} must be positive, not {value}.")
+    return number
+
+
+def apply_default_clump_arguments(clump_arguments):
+    """Append GeneHackman's default --clump-r2 / --clump-kb when plink_clump_arguments does not set them."""
+    provided = clump_arguments.split()
+    added = [f"{flag} {value}" for flag, value in default_clump_arguments.items() if flag not in provided]
+    if not added:
+        return clump_arguments
+    print(f"plink_clump_arguments: adding default(s) {' '.join(added)} "
+          "(PLINK's own defaults are --clump-r2 0.5 --clump-kb 250)")
+    return " ".join([clump_arguments.strip()] + added)
+
 
 def resolve_rsid_population(pipeline_includes_clumping, populate_rsid):
     if not populate_rsid and pipeline_includes_clumping:
@@ -244,10 +360,172 @@ def ensure_mandatory_columns_are_present(gwas_file, mandatory_column_names_in_gw
                 The options available are: (BETA, SE), or (OR, OR_LB, OR_UB)""")
 
 
-def validate_ancestries(ancestries):
-    allowed_ancestries = ["EUR", "EAS", "AFR", "AMR", "SAS"]
-    if not all(ancestry in allowed_ancestries for ancestry in ancestries):
-        raise ValueError(f"Please ensure all ancestries are one of these values:\n {allowed_ancestries}")
+def stop_with_message(message):
+    """Stop with a plain message for the user, without a Python traceback.
+
+    For problems with the input or the downloaded data found while the Snakefile is read, before any job runs
+    or any lock is taken (os._exit skips Snakemake's own error report, which would add a traceback)."""
+    bar = "=" * 100
+    sys.stdout.flush()  # anything printed before goes first
+    print(f"\n{bar}\n{message.strip()}\n{bar}\n", file=sys.stderr)
+    sys.stderr.flush()
+    os._exit(1)
+
+
+def ld_step_settings(pipeline, step):
+    """<step>.ld_reference from the YAML ('' when not set)."""
+    return ld_sources.clean(getattr(getattr(pipeline, step, None), "ld_reference", ""))
+
+
+def resolve_ld_sources(pipeline, steps):
+    """Where each GWAS gets LD in each step the pipeline runs: g.ld[step] is pan_ukb, 1000genomes or the absolute
+    PLINK prefix of the user's genotypes (see snakemake/util/ld_sources.py).  The harmonise step (strand check and EAF
+    filling) runs for a GWAS that fills EAF, or has an ancestry while the strand check is on.
+
+    Stops when a step that runs has no source, when a PLINK prefix is incomplete, or when an ancestry isn't in a
+    panel; pipeline.ld_summary is the summary printed here and shown in the reports."""
+    strand_check = pipeline.harmonise.strand_check
+    used = {}
+    for g in pipeline.gwases:
+        g.ld = {}
+        where = f" (GWAS {g.label})"
+        for step in ld_sources.LD_STEPS:
+            try:
+                source = ld_sources.resolve(step, pipeline.ld_reference, ld_step_settings(pipeline, step),
+                                            g.ld_reference, g.ancestry, where)
+            except ld_sources.LDSourceError as e:
+                stop_with_message(str(e))
+            runs = (g.populate_eaf or (strand_check and g.ancestry)) if step == "harmonise" else step in steps
+            if not runs:
+                continue
+            if not source:
+                stop_with_message(ld_sources.not_set_message(step, where))
+            try:
+                ld_sources.check_genotypes(source, step, where)
+            except ld_sources.LDSourceError as e:
+                stop_with_message(str(e))
+            if not ld_sources.is_genotypes(source):
+                validate_ancestries([g.ancestry], source, step)
+            g.ld[step] = source
+            used.setdefault(step, {})[g.label] = source
+    pipeline.ld_used = used
+    pipeline.ld_summary = ld_sources.describe(used)
+    if pipeline.ld_summary:
+        print("LD sources (ld_reference):\n  " + "\n  ".join(pipeline.ld_summary))
+    write_ld_summary(pipeline)
+
+
+def write_ld_summary(pipeline):
+    """RESULTS_DIR/ld_sources_<pipeline>.txt: the LD sources, one per line, listed in the HTML report
+    (report_provenance() in R/util.R)."""
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    with open(RESULTS_DIR + f"ld_sources_{globals().get('pipeline_name', 'pipeline')}.txt", "w") as f:
+        f.write("".join(line + "\n" for line in pipeline.ld_summary))
+
+
+def ld_source(g, step):
+    """The LD source of a GWAS in a step, as passed to the scripts."""
+    return g.ld[step]
+
+
+def validate_ancestries(ancestries, ld_reference, step=None):
+    if ld_reference == "pan_ukb":
+        allowed_ancestries = pan_ukb_ancestries + list(pan_ukb_ancestry_aliases)
+    else:
+        allowed_ancestries = thousand_genomes_ancestries
+    unknown = sorted({str(a) for a in ancestries if a not in allowed_ancestries})
+    if unknown:
+        hint = ""
+        if ld_reference != "pan_ukb" and set(unknown) <= set(pan_ukb_ancestries):
+            hint = f"\n{', '.join(unknown)} is only available in Pan-UKB: set ld_reference: pan_ukb to use it."
+        what = f" for {ld_sources.LD_STEPS[step]}" if step else ""
+        stop_with_message(f"Ancestry {', '.join(unknown)} can't be used with ld_reference: {ld_reference}{what}.\n"
+                          f"Each GWAS's ancestry must be one of: {', '.join(allowed_ancestries)}.{hint}")
+
+
+def check_reference_data(pipeline, pipeline_includes_clumping, ld_scores=None, ld_score_ancestries=(),
+                         qtl_dataset=None):
+    """Stop before any job runs if reference data this pipeline needs hasn't been downloaded.
+
+    download_reference_data.sh fetches only the chosen ancestries, dbSNP can be left out, the GRCh37 files
+    (output.build: GRCh37) come only with --grch37, and QTL datasets only with --qtl, so a data directory may hold
+    only part of the reference data.  Everything missing is listed in one message, with one command that
+    downloads it all.
+
+    ld_scores / ld_score_ancestries: the LDSC score set and ancestries (compare_gwases); qtl_dataset: qtl_mr."""
+    build = pipeline.output.build
+    data_dir = os.path.normpath(PIPELINE_DATA_DIR) if PIPELINE_DATA_DIR else "<PIPELINE_DATA_DIR>"
+    used_ancestries = {g.ancestry for g in pipeline.gwases if g.ancestry} | set(ld_score_ancestries)
+    missing, missing_qtl, needs_dbsnp, needs_grch37 = [], [], False, False
+
+    if build in THOUSAND_GENOMES_BUILDS:
+        grch37 = build == "GRCh37"
+        panel_dir = thousand_genomes_dir(build)
+        # the reference panels some step uses (the user's own genotypes were checked in resolve_ld_sources)
+        panels = {(source, g.ancestry) for g in pipeline.gwases for source in g.ld.values()
+                  if source in ld_reference_options and g.ancestry}
+        for a in sorted(a for source, a in panels if source == "1000genomes"):
+            if not os.path.isfile(panel_dir + a + ".bed"):
+                missing.append(f"the 1000 Genomes {build} LD panel for {a}")
+                needs_grch37 |= grch37
+        for a in sorted(a for source, a in panels if source == "pan_ukb"):
+            population = pan_ukb_ancestry_aliases.get(a, a)
+            if not os.path.isfile(os.path.join(LD_PACK_DIR, population, "info.tsv")):
+                missing.append(f"the Pan-UKB LD pack for {a}" + (f" ({population} in Pan-UKB)" if population != a else ""))
+        rsid_options = {g.populate_rsid for g in pipeline.gwases}
+        if populate_rsid_options.partial in rsid_options and not os.path.isfile(panel_dir + "marker_to_rsid.tsv.gz"):
+            missing.append(f"the 1000 Genomes {build} RSID marker map (to fill in RSIDs)")
+            needs_grch37 |= grch37
+        dbsnp_dir = GENOMIC_DATA_DIR + "dbsnp/" + THOUSAND_GENOMES_BUILDS[build] + "/"
+        if populate_rsid_options.full in rsid_options and not os.path.isfile(dbsnp_dir + "chr1.fst"):
+            missing.append(f"dbSNP {build}, used by populate_rsid: true (or leave populate_rsid unset to fill RSIDs "
+                           "from the 1000 Genomes marker map instead)")
+            needs_dbsnp = True
+            needs_grch37 |= grch37
+    if ld_scores:
+        for a in sorted(set(ld_score_ancestries)):
+            population = pan_ukb_ancestry_aliases.get(a, a) if ld_scores == "pan_ukb" else a
+            if not os.path.isdir(LDSC_DIRS[ld_scores] + population):
+                missing.append(f"the {ld_scores} LD scores for {a} (for LDSC)")
+                needs_grch37 |= ld_scores == "1000genomes_b37"
+    if qtl_dataset:
+        top_hits = (QTL_DIRECTORY or "") + qtl_dataset + "/GRCh38/top_hits/" + qtl_subcategory + ".tsv.gz"
+        if not QTL_DIRECTORY or not os.path.isfile(top_hits):
+            missing_qtl.append(f"the {qtl_dataset} QTL data")
+
+    if not missing and not missing_qtl:
+        return
+    nothing_downloaded = not os.path.isdir(GENOMIC_DATA_DIR + "liftover")
+    if nothing_downloaded:
+        lines = [f"No GeneHackman reference data was found in PIPELINE_DATA_DIR ({data_dir}).",
+                 "Download it (only what this pipeline needs) with:"]
+    else:
+        lines = ["This pipeline needs reference data that hasn't been downloaded yet.", ""]
+        if missing:
+            lines += [f"Missing from PIPELINE_DATA_DIR ({data_dir}):"] + [f"  - {m}" for m in missing]
+        if missing_qtl:
+            where = os.path.normpath(QTL_DIRECTORY) if QTL_DIRECTORY else "QTL_DATA_DIR, which isn't set in .env"
+            lines += [f"Missing from {('QTL_DATA_DIR (' + where + ')') if QTL_DIRECTORY else where}:"]
+            lines += [f"  - {m}" for m in missing_qtl]
+        lines += ["", "Download what's missing with:"]
+
+    # one command for everything; the ancestries the pipeline uses (or, if none, those already downloaded)
+    ancestries = used_ancestries or {d for d in pan_ukb_ancestries if os.path.isdir(os.path.join(LD_PACK_DIR, d))} or {"EUR"}
+    command = f"./download_reference_data.sh --dir {data_dir} --ancestries {','.join(sorted(ancestries))}"
+    dbsnp_dir = GENOMIC_DATA_DIR + "dbsnp/" + THOUSAND_GENOMES_BUILDS.get(build, "b38_dbsnp156") + "/"
+    if not needs_dbsnp and not os.path.isfile(dbsnp_dir + "chr1.fst"):
+        command += " --no-dbsnp"  # don't add dbSNP (11.7 GB) to a directory set up without it
+    if needs_grch37:
+        command += " --grch37"
+    if missing_qtl:
+        command += f" --qtl {qtl_dataset}" + (f" --qtl-dir {os.path.normpath(QTL_DIRECTORY)}" if QTL_DIRECTORY else "")
+    lines += [f"  {command}", ""]
+    lines += ["Then run the pipeline again." if nothing_downloaded else
+              "Files you already have are kept, so only the missing ones are downloaded. Then run the pipeline again."]
+    if missing_qtl and not QTL_DIRECTORY:
+        lines += ["Set QTL_DATA_DIR in .env to the QTL directory the download script prints."]
+    lines += ["See ./download_reference_data.sh --help, and 'Download reference data' in README.md."]
+    stop_with_message("\n".join(lines))
 
 
 def standardised_gwas_name(gwas_name):

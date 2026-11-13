@@ -15,3 +15,6 @@ __pycache__/
 
 /.quarto/
 **/*.quarto_ipynb
+
+# Input GWAS folder for the manuscript's example configurations (supplementary materials)
+/hf_data

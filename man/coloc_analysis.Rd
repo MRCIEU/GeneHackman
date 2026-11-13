@@ -11,7 +11,11 @@ coloc_analysis(
   chr = NA,
   bp = NA,
   range = NA,
-  default_n = NA
+  default_n = NA,
+  first_type = "quant",
+  second_type = "quant",
+  first_s = NA,
+  second_s = NA
 )
 }
 \arguments{
@@ -28,6 +32,11 @@ coloc_analysis(
 \item{range}{range to filter in base pairs}
 
 \item{default_n}{default sample size}
+
+\item{first_type, second_type}{"quant" (continuous trait) or "cc" (case-control); for "cc" coloc uses BETA and
+its variance with the case fraction \code{s}, instead of treating the trait as continuous}
+
+\item{first_s, second_s}{fraction of cases, for "cc" datasets}
 }
 \value{
 tibble of coloc results (h0 - h4)

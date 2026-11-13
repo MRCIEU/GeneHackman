@@ -46,10 +46,13 @@ else:
 
 slurm_log_directory = pipeline_log_directory
 
-default_clump_headers = "CHR F SNP BP P TOTAL NSIG S05 S01 S001 S0001 SP2"
+# Applied when plink_clump_arguments does not set them. PLINK's own defaults (--clump-r2 0.5, --clump-kb 250)
+# leave several correlated "lead" SNPs per locus, which downstream steps would treat as independent signals.
+default_clump_arguments = {"--clump-r2": "0.01", "--clump-kb": "1000"}
 #TODO: this should be read from predefined_column_map.csv
 default_columns = dict(SNP="SNP", CHR="CHR", BP="BP", EA="EA", OA="OA", EAF="EAF", P="P", BETA="BETA",
-    SE="SE", OR="OR", OR_LB="OR_LB", OR_UB="OR_UB", RSID="RSID", N="N",
+    SE="SE", OR="OR", OR_LB="OR_LB", OR_UB="OR_UB", RSID="RSID", N="N", N_CASES="N_CASES",
+    N_CONTROLS="N_CONTROLS", N_EFF="N_EFF",
     ENSEMBL_ID="ENSEMBL_ID", GENE_NAME="GENE_NAME"
 )
 #populate_rsid_options = dict(none="none", partial="partial", full="full")
@@ -69,7 +72,7 @@ beta_and_or_options = [
     ["OR", "OR_LB", "OR_UB"]
 ]
 default_output_options = SimpleNamespace(**{
-    "build": "GRCh37",
+    "build": "GRCh38",
     "columns": SimpleNamespace(**default_columns)
 })
 
@@ -93,9 +96,38 @@ FINEMAP_COMPLETE_TXT_PATTERN = RESULTS_DIR + "finemap/{prefix}/finemap_complete_
 PIPELINE_DATA_DIR = format_dir_string(os.getenv('PIPELINE_DATA_DIR'))
 QTL_DATA_DIR = os.getenv("QTL_DATA_DIR", "").strip()
 
-LDSC_DIR = format_dir_string(PIPELINE_DATA_DIR + "/LDSCORE/b37_dbsnp156")
 GENOMIC_DATA_DIR = format_dir_string(PIPELINE_DATA_DIR + "/genomic_data")
-THOUSAND_GENOMES_DIR = format_dir_string(GENOMIC_DATA_DIR + "1000genomes/b37_dbsnp156")
+# LD score sets for LDSC (matched on rsID, so usable with either output build): the Pan-UKB LD scores
+# (always downloaded) or the earlier 1000 Genomes GRCh37 scores (download_reference_data.sh --grch37)
+LDSC_DIRS = {
+    "pan_ukb": format_dir_string(PIPELINE_DATA_DIR + "/LDSCORE/pan_ukb"),
+    "1000genomes_b37": format_dir_string(PIPELINE_DATA_DIR + "/LDSCORE/b37_dbsnp156"),
+}
+default_ld_scores = "pan_ukb"
+ld_scores_ancestries = {
+    "pan_ukb": ["EUR", "AFR", "AMR", "CSA", "EAS", "MID", "SAS"],
+    "1000genomes_b37": ["EUR", "EAS", "AFR", "AMR", "SAS"],
+}
+# 1000 Genomes genotype panels per output build; must match thousand_genomes_dir_for() in R/constants.R
+THOUSAND_GENOMES_BUILDS = {"GRCh38": "b38_dbsnp156", "GRCh37": "b37_dbsnp156"}
+
+
+def thousand_genomes_dir(build):
+    if build not in THOUSAND_GENOMES_BUILDS:
+        raise ValueError(f"Error: no 1000 Genomes panel for build {build}; available: {list(THOUSAND_GENOMES_BUILDS)}")
+    return format_dir_string(GENOMIC_DATA_DIR + "1000genomes/" + THOUSAND_GENOMES_BUILDS[build])
+# Precomputed Pan-UKB LD (downloaded with download_reference_data.sh); used when a pipeline sets ld_reference: pan_ukb
+LD_PACK_DIR = format_dir_string(GENOMIC_DATA_DIR + "pan_ukb_ld")
+ld_reference_options = ["1000genomes", "pan_ukb"]
+# QTL datasets for qtl_mr (cis QTLs only); must match qtl_datasets in R/constants.R
+qtl_dataset_options = ["eqtlgen", "brainmeta", "ukb_pqtl"]
+qtl_subcategory = "cis"
+# fine-mapping regions: merge overlapping lead windows (capped at max_region_kb), one window per lead, or
+# fixed tiles across each cluster of leads (see define_finemap_regions in R/finemap.R)
+finemap_region_strategies = ["merge", "none", "tile"]
+thousand_genomes_ancestries = ["EUR", "EAS", "AFR", "AMR", "SAS"]
+pan_ukb_ancestries = ["EUR", "AFR", "AMR", "CSA", "EAS", "MID"]
+pan_ukb_ancestry_aliases = {"SAS": "CSA"}
 QTL_DIRECTORY = format_dir_string(QTL_DATA_DIR)
 
 AVAILABLE_CPUS = _available_cpus()
