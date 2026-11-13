@@ -292,3 +292,94 @@ test_that("the fine-mapping report renders with the diagnostics", {
   expect_match(page, "OUTLIER_IN_CS")
   expect_match(page, "Trait_A")
 })
+
+# The user's own genotypes (a PLINK prefix as ld_reference) in the other LD steps: clumping, strand check and EAF
+# filling, and LocusZoom.
+user_genotype_gwas <- function(genotypes, bim, causal = 10, rsid = TRUE) {
+  ea <- pmin(bim$V5, bim$V6); oa <- pmax(bim$V5, bim$V6)
+  dosage_ea <- sapply(seq_len(ncol(genotypes)),
+                      function(j) if (bim$V5[j] == ea[j]) genotypes[, j] else 2 - genotypes[, j])
+  R <- cor(dosage_ea)
+  b <- rep(0, ncol(genotypes)); b[causal] <- 0.05
+  z <- as.vector(R %*% b) * sqrt(40000) * sd(dosage_ea[, causal])
+  gwas <- data.table::data.table(SNP = paste0("1:", bim$V4, "_", ea, "_", oa), CHR = 1, BP = as.numeric(bim$V4),
+                                 EA = ea, OA = oa, BETA = z / 100, SE = 0.01, P = 2 * pnorm(-abs(z)))
+  if (rsid) gwas$RSID <- paste0("rs", seq_len(nrow(gwas)))
+  gwas
+}
+
+test_that("clump_gwas clumps with the user's genotypes, matched on position, and reports the GWAS's labels", {
+  skip_if(!nzchar(Sys.which("plink1.9")), "plink1.9 not installed")
+  genotypes <- simulate_genotypes(n = 400, p = 30, seed = 3)
+  dir <- withr::local_tempdir()
+  prefix <- file.path(dir, "in_sample")
+  write_test_bfile(genotypes, prefix)
+  bim <- utils::read.table(paste0(prefix, ".bim"), colClasses = "character")
+  for (rsid in c(TRUE, FALSE)) {
+    gwas <- user_genotype_gwas(genotypes, bim, rsid = rsid)
+    gwas_file <- file.path(dir, "gwas.tsv")
+    data.table::fwrite(gwas, gwas_file, sep = "\t")
+    out <- file.path(dir, "gwas.clumped")
+    suppressMessages(clump_gwas(gwas_file, "EUR", prefix, output_file = out,
+                                clump_arguments = "--clump-p1 5e-8 --clump-r2 0.01 --clump-kb 1000"))
+    leads <- read_clumped_leads(out)
+    lead <- gwas[which.min(P)]
+    expect_equal(leads$SNP[1], if (rsid) lead$RSID else lead$SNP)  # never the .bim's own IDs (v1, v2, ...)
+    expect_equal(as.numeric(leads$BP[1]), lead$BP)
+  }
+  # nothing passes the threshold: an empty .clumped file with PLINK's header
+  out <- file.path(dir, "none.clumped")
+  suppressMessages(clump_gwas(gwas_file, "EUR", prefix, clump_arguments = "--clump-p1 1e-300", output_file = out))
+  expect_equal(nrow(read_clumped_leads(out)), 0)
+  expect_error(clump_gwas(gwas_file, "EUR", file.path(dir, "missing"), output_file = out),
+               "ld_reference must be one of.*missing.bed")
+})
+
+test_that("strand check and EAF filling use the frequencies of the user's genotypes", {
+  skip_if(!nzchar(Sys.which("plink1.9")), "plink1.9 not installed")
+  genotypes <- simulate_genotypes(n = 300, p = 4)
+  a1 <- c("A", "T", "C", "G"); a2 <- c("G", "A", "T", "C")
+  prefix <- file.path(withr::local_tempdir(), "in_sample")
+  write_test_bfile(genotypes, prefix, a1 = a1, a2 = a2)
+  bim <- utils::read.table(paste0(prefix, ".bim"), colClasses = "character")
+  first <- pmin(a1, a2)
+  expected <- ifelse(first == a1, colMeans(genotypes) / 2, 1 - colMeans(genotypes) / 2)
+  reference <- genotype_allele_frequencies(prefix, 1)
+  expect_equal(reference$SNP, paste0("1:", bim$V4, "_", first, "_", pmax(a1, a2)))
+  expect_equal(reference$REF_EAF, expected, tolerance = 1e-3)
+  expect_equal(allele_reference(1, "EUR", prefix), reference)
+
+  gwas <- data.frame(SNP = reference$SNP, CHR = 1, EA = first, OA = pmax(a1, a2), EAF = c(NA, 0.5, NA, NA))
+  filled <- suppressMessages(populate_eaf_from_reference_panel(gwas, "EUR", prefix))
+  expect_equal(filled$EAF, c(expected[1], 0.5, expected[3:4]), tolerance = 1e-3)
+})
+
+test_that("LocusZoom takes the index variant and r2 from the user's genotypes", {
+  skip_if(!nzchar(Sys.which("plink1.9")), "plink1.9 not installed")
+  genotypes <- simulate_genotypes(n = 300, p = 12)
+  prefix <- file.path(withr::local_tempdir(), "in_sample")
+  write_test_bfile(genotypes, prefix)
+  bim <- utils::read.table(paste0(prefix, ".bim"), colClasses = "character")
+  keys <- paste0("1:", bim$V4, "_", pmin(bim$V5, bim$V6), "_", pmax(bim$V5, bim$V6))
+  index <- find_index_snp_from_ld_panel(1, 6100, 5000, "EUR", prefix)
+  expect_equal(index, keys[6])
+  r2 <- compute_ld_r2_for_locus(keys, 1, "EUR", index, prefix)
+  expect_equal(unname(r2[index]), 1)
+  expect_equal(unname(r2[keys]), unname(cor(genotypes)[6, ]^2), tolerance = 1e-4)
+  expect_equal(ld_reference_id_column(prefix), "SNP")
+  expect_equal(ld_reference_label(prefix), "user:in_sample")
+  expect_equal(ld_reference_n_samples(prefix, "EUR"), 300)
+})
+
+test_that("variants whose .bim ID is duplicated are left out of the LD, not an error", {
+  skip_if(!nzchar(Sys.which("plink1.9")), "plink1.9 not installed")
+  genotypes <- simulate_genotypes(n = 300, p = 5)
+  prefix <- file.path(withr::local_tempdir(), "dup_ids")
+  write_test_bfile(genotypes, prefix)
+  bim <- utils::read.table(paste0(prefix, ".bim"), colClasses = "character")
+  bim$V2[2:3] <- "rs_same"
+  utils::write.table(bim, paste0(prefix, ".bim"), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = "\t")
+  keys <- paste0("1:", bim$V4, "_", pmin(bim$V5, bim$V6), "_", pmax(bim$V5, bim$V6))
+  expect_message(ld <- compute_ld_matrix_from_bfile(keys, 1, prefix), "2 matched variants left out")
+  expect_equal(ld$snps, keys[c(1, 4, 5)])
+})

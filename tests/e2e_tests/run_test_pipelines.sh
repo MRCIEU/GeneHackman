@@ -6,6 +6,8 @@ set -e
 ./run_pipeline.sh snakemake/compare_gwases.smk tests/testthat/data/snakemake_inputs/compare_gwases.yaml -F
 ./run_pipeline.sh snakemake/finemap.smk tests/testthat/data/snakemake_inputs/finemap.yaml -F
 ./run_pipeline.sh snakemake/finemap.smk tests/testthat/data/snakemake_inputs/finemap_multi_ancestry.yaml -F
+# coloc also covers choosing LD per step and per GWAS: one GWAS uses a PLINK prefix as its own genotypes for the
+# strand check, clumping, fine-mapping and regional plot, and the other takes its regional-plot LD from Pan-UKB
 ./run_pipeline.sh snakemake/coloc.smk tests/testthat/data/snakemake_inputs/coloc.yaml -F
 
 # The Pan-UKB LD pack (ld_reference: pan_ukb, downloaded with each ancestry): coloc covers standardisation with
