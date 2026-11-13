@@ -11,7 +11,7 @@ rule run_multi_ancestry_finemapping:
         clumped_files = " ".join([g.clumped_file for g in pipeline.gwases]),
         ancestries = " ".join([g.ancestry for g in pipeline.gwases]),
         sample_sizes = " ".join([str(g.analysis_N) for g in pipeline.gwases]),
-        ld_bfiles = " ".join([g.ld_bfile or "none" for g in pipeline.gwases]),
+        ld_references = " ".join(["'" + ld_source(g, "finemap") + "'" for g in pipeline.gwases]),
         output_dir = RESULTS_DIR + "finemap/multi_ancestry",
         window_kb = finemap_window_kb,
         max_causal = finemap_max_causal,
@@ -21,7 +21,6 @@ rule run_multi_ancestry_finemapping:
         region_strategy = pipeline.finemap.region_strategy,
         max_n_ratio = pipeline.finemap.max_n_ratio,
         remove_ld_outliers = "--remove_ld_outliers" if pipeline.finemap.remove_ld_outliers else "",
-        ld_reference = pipeline.ld_reference,
         build = pipeline.output.build,
         panel_dir = thousand_genomes_dir(pipeline.output.build)
     output:
@@ -41,9 +40,8 @@ rule run_multi_ancestry_finemapping:
             --max_region_kb {params.max_region_kb} \
             --region_strategy {params.region_strategy} \
             --max_n_ratio {params.max_n_ratio} \
-            --ld_bfiles {params.ld_bfiles} {params.remove_ld_outliers} \
+            --ld_references {params.ld_references} {params.remove_ld_outliers} \
             --thousand_genomes_dir {params.panel_dir} \
-            --ld_reference {params.ld_reference} \
             --ld_pack_dir {LD_PACK_DIR} \
             --build {params.build} \
             --completion_file {output.finemap_complete}

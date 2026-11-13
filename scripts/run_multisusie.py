@@ -92,8 +92,9 @@ def parse_args():
                         help="Maximum merged region width, or tile width, in kb")
     parser.add_argument("--region_strategy", choices=REGION_STRATEGIES, default="merge",
                         help="Fine-mapping regions: merge, none or tile (as define_finemap_regions in R/finemap.R)")
-    parser.add_argument("--ld_bfiles", nargs="+", default=None,
-                        help="Per ancestry: PLINK prefix of in-sample/user genotypes for LD, or 'none'")
+    parser.add_argument("--ld_references", nargs="+", required=True,
+                        help="Per GWAS (ancestry): its LD reference for fine-mapping, pan_ukb, 1000genomes or the "
+                             "PLINK prefix of your own genotypes")
     parser.add_argument("--remove_ld_outliers", action="store_true",
                         help="Remove variants flagged by the LD-mismatch check (any ancestry) before fitting")
     parser.add_argument("--max_causal", default="10",
@@ -104,8 +105,6 @@ def parse_args():
                         help="Minimum absolute correlation for credible sets")
     parser.add_argument("--thousand_genomes_dir", default=None,
                         help="Path to 1000 Genomes reference panel directory (ld_reference 1000genomes)")
-    parser.add_argument("--ld_reference", choices=["1000genomes", "pan_ukb"], default="1000genomes",
-                        help="LD source: 1000 Genomes genotypes via PLINK, or the precomputed Pan-UKB LD pack")
     parser.add_argument("--ld_pack_dir", default=None,
                         help="Pan-UKB LD pack directory (ld_reference pan_ukb)")
     parser.add_argument("--build", choices=["GRCh37", "GRCh38"], default="GRCh38",
@@ -670,10 +669,17 @@ def compute_ld_from_bfile(snp_keys, chrom, bfile):
         keys.append(key)
     if len(keys) < 2:
         return None, None
+    # variants PLINK can't select one by one (duplicated ID, or '.') are left out, as usable_bim_ids() in R
+    id_counts = bim["ID"].value_counts()
+    usable = [i for i, row in enumerate(rows) if bim["ID"].values[row] != "." and id_counts[bim["ID"].values[row]] == 1]
+    if len(usable) < len(rows):
+        print(f"{len(rows) - len(usable)} matched variants left out because their ID in {bfile}.bim is not unique "
+              "(or '.')", file=sys.stderr)
+    rows, signs, keys = [rows[i] for i in usable], [signs[i] for i in usable], [keys[i] for i in usable]
+    if len(keys) < 2:
+        return None, None
     order = np.argsort(bim["ROW"].values[rows])
     ids = bim["ID"].values[rows][order]
-    if len(set(bim["ID"])) != len(bim) or "." in set(ids):
-        raise ValueError(f"Variant IDs in {bfile}.bim must be unique (and not '.') to extract LD")
     keys = [keys[i] for i in order]
     signs = np.array(signs)[order]
     tmpdir = tempfile.mkdtemp(prefix="user_ld_")
@@ -707,7 +713,28 @@ def align_to_gwas_alleles(r_matrix, gwas_sub, a1, a2):
     return r_matrix * np.outer(signs, signs), same | swapped
 
 
-def ld_reference_n_samples(ancestry, ld_options, bfile=None):
+LD_KEYWORDS = ("pan_ukb", "1000genomes")
+
+
+def is_genotypes(source):
+    """True when an LD reference is the PLINK prefix of the user's own genotypes (as is_ld_genotypes() in R)."""
+    return bool(source) and source not in LD_KEYWORDS
+
+
+def ld_reference_list(ld_options, n):
+    """The LD reference of each ancestry: ld_options["ld_references"], or one ld_options["ld_reference"] for all."""
+    sources = ld_options.get("ld_references") or [ld_options.get("ld_reference", "1000genomes")] * n
+    if len(sources) != n:
+        raise ValueError(f"give one LD reference per ancestry ({n}), not {len(sources)}")
+    return list(sources)
+
+
+def ld_reference_label(source):
+    """As recorded in the outputs: the option, or user:<file name> for the user's genotypes."""
+    return f"user:{os.path.basename(source)}" if is_genotypes(source) else source
+
+
+def ld_reference_n_samples(ancestry, ld_options, source):
     """Number of individuals behind the LD: the .fam of a user file or 1000G panel, or the pack's n_samples."""
     def count_fam(prefix):
         try:
@@ -715,9 +742,9 @@ def ld_reference_n_samples(ancestry, ld_options, bfile=None):
                 return float(sum(1 for _ in f))
         except OSError:
             return float("nan")
-    if bfile:
-        return count_fam(bfile)
-    if ld_options["ld_reference"] == "pan_ukb":
+    if is_genotypes(source):
+        return count_fam(source)
+    if source == "pan_ukb":
         try:
             return float(LDPack(ld_options["ld_pack_dir"]).info(ancestry)["n_samples"])
         except Exception:
@@ -744,7 +771,7 @@ def ld_reference_size_warning(ancestry, gwas_n, n_ref, max_n_ratio=10):
     return (f"{ancestry}: GWAS sample size ({gwas_n:,.0f}) is {ratio:,.0f} times that of the LD reference "
             f"({n_ref:,.0f} individuals). Reference LD this much smaller than the GWAS can miscalibrate fine-mapping "
             "and colocalization, especially with more than one signal per region (L > 1): check the LD-mismatch "
-            "flags, and consider in-sample LD (ld_bfile), a larger LD reference or finemap.max_causal: 1.")
+            "flags, and consider in-sample LD (ld_reference on the GWAS), a larger LD reference or finemap.max_causal: 1.")
 
 
 def locus_sample_size(locus_gwas, default_n):
@@ -758,13 +785,17 @@ def locus_sample_size(locus_gwas, default_n):
     return float(default_n)
 
 
-def compute_ld_from_reference(ids, chrom, ancestry, ld_options, bfile=None):
-    """LD matrix and the ids it covers, from the configured LD reference (or a user PLINK file).
+def compute_ld_from_reference(ids, chrom, ancestry, ld_options, source, ids_are_keys=False):
+    """LD matrix and the ids it covers, from an ancestry's LD reference: pan_ukb, 1000genomes or a PLINK prefix.
 
-    For 1000 Genomes the panel's alleles are returned as well: (matrix, ids, a1, a2)."""
-    if bfile:
-        return compute_ld_from_bfile(ids, chrom, bfile)
-    if ld_options["ld_reference"] == "pan_ukb":
+    ids are SNP keys for the pack and the user's genotypes.  For 1000 Genomes they are RSIDs, and the panel's
+    alleles are returned as well: (matrix, ids, a1, a2); when another ancestry uses SNP keys (ids_are_keys), the
+    1000 Genomes panel is read as PLINK genotypes instead, matched on position and alleles."""
+    if is_genotypes(source):
+        return compute_ld_from_bfile(ids, chrom, source)
+    if source == "1000genomes" and ids_are_keys:
+        return compute_ld_from_bfile(ids, chrom, os.path.join(ld_options["thousand_genomes_dir"] or "", ancestry))
+    if source == "pan_ukb":
         pack = ld_options.get("pack")
         if pack is None:
             pack = ld_options["pack"] = LDPack(ld_options["ld_pack_dir"])
@@ -780,14 +811,15 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
                              min_abs_corr, remove_ld_outliers=False):
     """Run MultiSuSiE on a single locus across ancestries.
 
-    Variants are matched across ancestries and to the LD reference on RSID (1000genomes) or on the
-    GeneHackman SNP key (pan_ukb, which needs no RSIDs).
+    Each ancestry has its own LD reference (ld_options["ld_references"]).  Variants are matched across ancestries
+    and to the LD references on RSID when every ancestry uses 1000 Genomes, and otherwise on the GeneHackman SNP
+    key (the pack and the user's genotypes need no RSIDs).
     """
     chrom = locus["chr"]
     start = locus["start"]
     end = locus["end"]
-    bfiles = ld_options.get("ld_bfiles") or [None] * len(ancestries)
-    uses_keys = ld_options["ld_reference"] == "pan_ukb" or any(bfiles)
+    sources = ld_reference_list(ld_options, len(ancestries))
+    uses_keys = any(source != "1000genomes" for source in sources)
     id_col = "SNP" if uses_keys else "RSID"
 
     ancestry_data = []
@@ -804,7 +836,7 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
             "gwas": locus_gwas,
             "ancestry": ancestry,
             "n": locus_sample_size(locus_gwas, n),
-            "bfile": bfiles[i],
+            "source": sources[i],
         })
 
     shared_ids = set(ancestry_data[0]["gwas"][id_col])
@@ -822,7 +854,7 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
         gwas_sub = gwas_sub.drop_duplicates(subset=id_col)
         gwas_sub = gwas_sub.set_index(id_col).loc[shared_ids_list].reset_index()
 
-        ld = compute_ld_from_reference(shared_ids_list, chrom, ad["ancestry"], ld_options, ad["bfile"])
+        ld = compute_ld_from_reference(shared_ids_list, chrom, ad["ancestry"], ld_options, ad["source"], uses_keys)
         R, snp_order = ld[0], ld[1]
         if R is None:
             return None
@@ -839,7 +871,7 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
             "snp_order": snp_order,
             "ancestry": ad["ancestry"],
             "n": ad["n"],
-            "bfile": ad["bfile"],
+            "source": ad["source"],
         })
 
     final_ids = set(shared_ids_list)
@@ -862,7 +894,7 @@ def run_multisusie_for_locus(locus, gwas_dfs, ancestries, sample_sizes,
         snp_to_idx = {variant: idx for idx, variant in enumerate(snp_order)}
         ld_idx = [snp_to_idx[r] for r in final_ids]
         R_sub = np.ascontiguousarray(entry["R"][np.ix_(ld_idx, ld_idx)], dtype=np.float64)
-        if ld_options["ld_reference"] == "pan_ukb" and not entry.get("bfile"):
+        if entry["source"] == "pan_ukb":
             # pairs beyond the pack radius are r = 0 and r is quantised; keep R positive semi-definite
             R_sub, _ = make_positive_semidefinite(R_sub)
 
@@ -1031,20 +1063,19 @@ def main():
         print("ERROR: Number of sample sizes must match number of ancestries.", file=sys.stderr)
         sys.exit(1)
 
-    if args.ld_reference == "pan_ukb" and not args.ld_pack_dir:
-        print("ERROR: --ld_pack_dir is required with --ld_reference pan_ukb", file=sys.stderr)
+    if len(args.ld_references) != n_ancestries:
+        print("ERROR: give one --ld_references entry per ancestry.", file=sys.stderr)
         sys.exit(1)
-    if args.ld_reference == "1000genomes" and not args.thousand_genomes_dir:
-        print("ERROR: --thousand_genomes_dir is required with --ld_reference 1000genomes", file=sys.stderr)
+    if "pan_ukb" in args.ld_references and not args.ld_pack_dir:
+        print("ERROR: --ld_pack_dir is required with the pan_ukb LD reference", file=sys.stderr)
+        sys.exit(1)
+    if "1000genomes" in args.ld_references and not args.thousand_genomes_dir:
+        print("ERROR: --thousand_genomes_dir is required with the 1000genomes LD reference", file=sys.stderr)
         sys.exit(1)
 
     os.makedirs(args.output_dir, exist_ok=True)
 
     window_bp = args.window_kb * 1000
-    ld_bfiles = [None if b in (None, "", "none", "NA") else b for b in (args.ld_bfiles or [None] * n_ancestries)]
-    if len(ld_bfiles) != n_ancestries:
-        print("ERROR: give one --ld_bfiles entry per ancestry ('none' where there is no user LD).", file=sys.stderr)
-        sys.exit(1)
 
     print(f"Loading {n_ancestries} GWAS datasets...")
     gwas_dfs = [read_gwas(f) for f in args.gwas_files]
@@ -1058,10 +1089,10 @@ def main():
         locus["name"] = name if names.count(name) == 1 else f"{name}_{locus['start']}"
         locus["mhc"] = overlaps_mhc(locus["chr"], locus["start"], locus["end"], args.build)
 
-    ld_options = {"ld_reference": args.ld_reference, "thousand_genomes_dir": args.thousand_genomes_dir,
-                  "ld_pack_dir": args.ld_pack_dir, "build": args.build, "ld_bfiles": ld_bfiles}
+    ld_options = {"ld_references": args.ld_references, "thousand_genomes_dir": args.thousand_genomes_dir,
+                  "ld_pack_dir": args.ld_pack_dir, "build": args.build}
     gwas_sizes = [locus_sample_size(df, n) for df, n in zip(gwas_dfs, args.sample_sizes)]
-    reference_sizes = [ld_reference_n_samples(a, ld_options, b) for a, b in zip(args.ancestries, ld_bfiles)]
+    reference_sizes = [ld_reference_n_samples(a, ld_options, s) for a, s in zip(args.ancestries, args.ld_references)]
     max_causal = resolve_max_causal(args.max_causal)
     print(f"MultiSuSiE L = {max_causal}")
     size_warnings = [ld_reference_size_warning(a, n, ref, args.max_n_ratio)
@@ -1071,7 +1102,7 @@ def main():
             print(f"WARNING: {w}", file=sys.stderr)
     settings = pd.DataFrame({
         "ANCESTRY": args.ancestries, "N_GWAS": gwas_sizes, "N_REF": reference_sizes,
-        "LD_REFERENCE": [f"user:{os.path.basename(b)}" if b else args.ld_reference for b in ld_bfiles],
+        "LD_REFERENCE": [ld_reference_label(s) for s in args.ld_references],
         "L": max_causal, "LD_SIZE_WARNING": size_warnings, "REGION_STRATEGY": args.region_strategy,
         "WINDOW_KB": args.window_kb, "MAX_REGION_KB": args.max_region_kb, "N_LOCI": len(loci)})
     settings.to_csv(os.path.join(args.output_dir, "multisusie_settings.tsv"), sep="\t", index=False)

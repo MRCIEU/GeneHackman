@@ -9,60 +9,38 @@ for g in pipeline.gwases:
 
 CLUMPED_FILE_PATTERN = clump_dir + "{prefix}.clumped"
 
-if pipeline.ld_reference == "pan_ukb":
-    # Clumping from the precomputed Pan-UKB LD pack (PLINK 1.9 --clump rules; see R/clumping.R).
-    # The leading space keeps argparser from reading "--clump-..." as one of its own options.
-    rule clump_gwas:
-        threads: 2
-        resources:
-            mem = "16G"
-        input:
-            gwas = lambda wildcards: getattr(pipeline, wildcards.prefix).standardised_gwas
-        params:
-            ancestry = lambda wildcards: getattr(pipeline, wildcards.prefix).ancestry,
-            build = pipeline.output.build,
-            clump_arguments = pipeline.plink_clump_arguments
-        output:
-            clumped = CLUMPED_FILE_PATTERN
-        shell:
-            """
-            Rscript clump_gwas.R \
-                --gwas {input.gwas} \
-                --ancestry {params.ancestry} \
-                --build {params.build} \
-                --clump_arguments " {params.clump_arguments}" \
-                --output {output.clumped}
-            """
-else:
-    rule clump_gwas:
-        threads: 4
-        resources:
-            mem = "8G"
-        input:
-            gwas = lambda wildcards: getattr(pipeline, wildcards.prefix).standardised_gwas
-        params:
-            ancestry = lambda wildcards: getattr(pipeline, wildcards.prefix).ancestry,
-            out_prefix = lambda wildcards: getattr(pipeline, wildcards.prefix).clumped_snp_prefix,
-            panel_dir = thousand_genomes_dir(pipeline.output.build)
-        output:
-            clumped = CLUMPED_FILE_PATTERN
-        shell:
-            """
-            plink1.9 --bfile {params.panel_dir}{params.ancestry} \
-                --threads {AVAILABLE_CPUS} \
-                --clump {input.gwas} \
-                --clump-snp-field RSID \
-                {pipeline.plink_clump_arguments} \
-                --out {params.out_prefix}
-            # PLINK exits without a .clumped file when no variant passes --clump-p1; any other failure stops above
-            if [[ ! -f {output.clumped} ]]; then
-                if grep -q "No significant --clump results" {params.out_prefix}.log; then
-                    echo "{default_clump_headers}" > {output.clumped}
-                else
-                    echo "PLINK clumping produced no output; see {params.out_prefix}.log" >&2
-                    exit 1
-                fi
-            fi
-            # PLINK reports the panel's positions; use the GWAS's own (same build, matched by RSID)
-            Rscript clumped_positions_from_gwas.R --clumped {output.clumped} --gwas {input.gwas}
-            """
+
+def clumping_memory(wildcards):
+    """The LD pack and the 1000 Genomes panel need little memory; the user's own genotypes may be biobank-sized."""
+    source = ld_source(getattr(pipeline, wildcards.prefix), "clumping")
+    return {"pan_ukb": "16G", "1000genomes": "8G"}.get(source, "32G")
+
+
+# Clumping with the LD reference of the clumping step (ld_reference; see snakemake/util/ld_sources.py): the Pan-UKB
+# LD pack (PLINK 1.9 --clump rules, R/clumping.R), the 1000 Genomes panel (PLINK, matched on RSID) or the user's own
+# genotypes (PLINK, matched on position and alleles).  The leading space keeps argparser from reading "--clump-..."
+# as one of its own options.
+rule clump_gwas:
+    threads: 4
+    resources:
+        mem = clumping_memory
+    input:
+        gwas = lambda wildcards: getattr(pipeline, wildcards.prefix).standardised_gwas
+    params:
+        ancestry = lambda wildcards: getattr(pipeline, wildcards.prefix).ancestry,
+        ld_reference = lambda wildcards: ld_source(getattr(pipeline, wildcards.prefix), "clumping"),
+        build = pipeline.output.build,
+        clump_arguments = pipeline.plink_clump_arguments
+    output:
+        clumped = CLUMPED_FILE_PATTERN
+    shell:
+        """
+        Rscript clump_gwas.R \
+            --gwas {input.gwas} \
+            --ancestry '{params.ancestry}' \
+            --ld_reference '{params.ld_reference}' \
+            --build {params.build} \
+            --clump_arguments " {params.clump_arguments}" \
+            --threads {threads} \
+            --output {output.clumped}
+        """

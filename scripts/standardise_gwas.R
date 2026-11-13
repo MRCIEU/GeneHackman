@@ -53,10 +53,11 @@ parser <- add_argument(parser, "--ancestry",
                        default = ""
 )
 parser <- add_argument(parser, "--ld_reference",
-                       help = paste("Reference used to fill EAF: 1000genomes (.frq, matched on RSID)",
-                                    "or pan_ukb (LD pack, matched on SNP key)"),
+                       help = paste("Reference for the strand check and to fill EAF: 1000genomes (.frq),",
+                                    "pan_ukb (LD pack, matched on SNP key), the PLINK prefix of your own genotypes,",
+                                    "or none"),
                        type = "character",
-                       default = "1000genomes"
+                       default = "none"
 )
 parser <- add_argument(parser, "--remove_extra_columns",
 											 help = "Remove additional columns in GWAS that are not specified as an input column",

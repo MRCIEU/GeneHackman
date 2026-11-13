@@ -16,6 +16,7 @@ data.frame with SNP and REF_EAF, or NULL when the reference isn't installed
 }
 \description{
 Pan-UKB: the pack's variant table (SNP37/SNP38 keys and EAF).  1000 Genomes: the panel's .bim positions and
-.frq allele frequencies, as keys in canonical allele order.
+.frq allele frequencies, as keys in canonical allele order.  The user's own genotypes (a PLINK prefix as
+\code{ld_reference}): their .bim and frequencies computed with PLINK (\code{genotype_allele_frequencies()}).
 }
 \keyword{internal}

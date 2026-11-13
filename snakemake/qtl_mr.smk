@@ -5,14 +5,12 @@ pipeline_name = "qtl_mr"
 # The QTL data are GRCh38 only; GWASes in GRCh37 are lifted to GRCh38 during standardisation
 pipeline = parse_pipeline_input(pipeline_includes_clumping=True, output_builds=["GRCh38"],
                                 output_builds_reason="The QTL data are GRCh38 only; GWASes in GRCh37 are lifted "
-                                                     "to GRCh38 during standardisation.")
+                                                     "to GRCh38 during standardisation.",
+                                ld_steps=["finemap"])
 gwas = pipeline.gwases[0]
 
 onstart:
     print("##### QTL MR Pipeline #####")
-
-ancestries = list([g.ancestry for g in pipeline.gwases])
-validate_ancestries(ancestries, pipeline.ld_reference)
 
 finemap_opts = pipeline.finemap  # defaults set in parse_pipeline_input
 finemap_window_kb = finemap_opts.window_kb

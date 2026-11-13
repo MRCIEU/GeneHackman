@@ -1,8 +1,9 @@
 #' Generate locus zoom plots for significant colocalization results
 #'
 #' For each coloc result with PP.H4.abf above the threshold, produces a stacked
-#' locus zoom plot showing both traits at the shared locus, with LD from the
-#' configured LD reference (1000 Genomes via PLINK, or the precomputed Pan-UKB LD pack).
+#' locus zoom plot showing both traits at the shared locus.  Each trait's track takes r² and its index variant
+#' from that trait's LD reference (1000 Genomes via PLINK, the precomputed Pan-UKB LD pack, or the user's own
+#' genotypes).
 #'
 #' @param coloc_results_file path to coloc_results.tsv
 #' @param gwas_files named character vector of standardised GWAS file paths,
@@ -14,7 +15,9 @@
 #' @param window_kb half-width of the region to plot in kb (default 500)
 #' @param completion_file path to a sentinel file written on successful completion.
 #'   If NULL, no sentinel is written.
-#' @param ld_reference LD source, one of \code{ld_reference_options}
+#' @param ld_reference LD source for every trait, one of \code{ld_reference_options} or a PLINK prefix
+#' @param ld_references optional LD source per trait (named by trait, as \code{gwas_files}); overrides
+#'   \code{ld_reference}
 #' @param build reference build of the GWAS positions (used to match SNP keys in the LD pack)
 #' @return Invisibly returns \code{NULL}. On failure, stops with an error summarising
 #'   loci that could not be plotted.
@@ -28,8 +31,10 @@ locus_zoom_coloc <- function(coloc_results_file,
                              window_kb = 500,
                              completion_file = NULL,
                              ld_reference = ld_reference_options$thousand_genomes,
+                             ld_references = NULL,
                              build = reference_builds$GRCh38) {
-  validate_ld_reference(ld_reference)
+  if (is.null(ld_references)) ld_references <- stats::setNames(rep(ld_reference, length(gwas_files)), names(gwas_files))
+  for (source in ld_references) if (!is_ld_genotypes(source)) validate_ld_reference(source)
   coloc_res <- vroom::vroom(coloc_results_file, show_col_types = FALSE)
 
   significant <- coloc_res[coloc_res$PP.H4.abf >= pp_h4_threshold, ]
@@ -76,12 +81,13 @@ locus_zoom_coloc <- function(coloc_results_file,
       window_bp <- window_kb * 1000
       xrange <- c(center_bp - window_bp, center_bp + window_bp)
 
-      index_snp <- find_index_snp_from_ld_panel(chr, center_bp, window_bp, ancestry, ld_reference, build)
       plot_list <- list()
       for (trait in c(row$trait1, row$trait2)) {
         gwas <- load_gwas(trait)
+        source <- ld_references[[trait]]
+        index_snp <- find_index_snp_from_ld_panel(chr, center_bp, window_bp, ancestry, source, build)
         p <- build_single_locus_plot(gwas, chr, xrange, ens_db, ancestry,
-                                     index_snp, trait, ld_reference, build)
+                                     index_snp, trait, source, build)
         if (!is.null(p)) {
           plot_list[[trait]] <- p
         } else {
@@ -160,11 +166,22 @@ write_completion_file <- function(completion_file, content = "done") {
 
 #' Find the LD reference variant nearest a locus centre.
 #'
-#' Returns an RSID for 1000 Genomes, or a GeneHackman SNP key (in \code{build}) for the LD pack.
+#' Returns an RSID for 1000 Genomes, or a GeneHackman SNP key (in \code{build}) for the LD pack and for the user's
+#' own genotypes.
 #' @keywords internal
 find_index_snp_from_ld_panel <- function(chr, center_bp, window_bp, ancestry,
                                          ld_reference = ld_reference_options$thousand_genomes,
                                          build = reference_builds$GRCh38) {
+  if (is_ld_genotypes(ld_reference)) {
+    bim <- read_bim(ld_reference)
+    bim <- bim[sub("^chr", "", bim$V1, ignore.case = TRUE) == as.character(chr) &
+                 abs(bim$V4 - center_bp) <= window_bp]
+    if (nrow(bim) == 0) return(NULL)
+    nearest <- bim[which.min(abs(bim$V4 - center_bp))]
+    a1 <- toupper(nearest$V5)
+    a2 <- toupper(nearest$V6)
+    return(paste0(chr, ":", format(nearest$V4, scientific = FALSE, trim = TRUE), "_", pmin(a1, a2), "_", pmax(a1, a2)))
+  }
   if (ld_reference == ld_reference_options$pan_ukb) {
     variants <- load_ld_pack_variants(chr, ancestry)
     bp <- variants[[if (build == reference_builds$GRCh38) "BP38" else "BP37"]]
@@ -212,8 +229,10 @@ build_single_locus_plot <- function(gwas, chr, xrange, ens_db, ancestry,
   } else if ("SNP" %in% colnames(gwas_sub)) {
     plot_df$rsid <- gwas_sub$SNP
   }
-  # identifier used to look up LD: SNP keys for the LD pack, RSIDs (as labelled) for 1000 Genomes
-  plot_df$ld_id <- if (ld_reference == ld_reference_options$pan_ukb) toupper(gwas_sub$SNP) else plot_df$rsid
+  # identifier used to look up LD: SNP keys for the LD pack and the user's genotypes, RSIDs (as labelled) for
+  # 1000 Genomes
+  uses_keys <- is_ld_genotypes(ld_reference) || ld_reference == ld_reference_options$pan_ukb
+  plot_df$ld_id <- if (uses_keys) toupper(gwas_sub$SNP) else plot_df$rsid
   if ("BETA" %in% colnames(gwas_sub)) plot_df$beta <- as.numeric(gwas_sub$BETA)
 
   plot_df <- plot_df[!is.na(plot_df$p) & plot_df$p > 0, ]
@@ -225,7 +244,7 @@ build_single_locus_plot <- function(gwas, chr, xrange, ens_db, ancestry,
   } else {
     message("LD r2 computation returned NULL; plotting without LD colouring")
   }
-  if (ld_reference == ld_reference_options$pan_ukb) {
+  if (uses_keys) {
     # locuszoomr matches the index variant on the label column (RSID where available), not the SNP key
     index_snp <- if (!is.null(index_snp) && index_snp %in% plot_df$ld_id) {
       plot_df$rsid[match(index_snp, plot_df$ld_id)]

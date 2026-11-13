@@ -95,12 +95,14 @@ flip_effects <- function(gwas, which) {
 #' Reference alleles and frequencies for \code{harmonise_against_reference()}, from the LD reference.
 #'
 #' Pan-UKB: the pack's variant table (SNP37/SNP38 keys and EAF).  1000 Genomes: the panel's .bim positions and
-#' .frq allele frequencies, as keys in canonical allele order.
+#' .frq allele frequencies, as keys in canonical allele order.  The user's own genotypes (a PLINK prefix as
+#' \code{ld_reference}): their .bim and frequencies computed with PLINK (\code{genotype_allele_frequencies()}).
 #' @return data.frame with SNP and REF_EAF, or NULL when the reference isn't installed
 #' @keywords internal
 allele_reference <- function(chromosomes, ancestry, ld_reference = ld_reference_options$thousand_genomes,
                              build = reference_builds$GRCh38) {
   tryCatch({
+    if (is_ld_genotypes(ld_reference)) return(genotype_allele_frequencies(ld_reference, chromosomes))
     if (validate_ld_reference(ld_reference) == ld_reference_options$pan_ukb) {
       key_column <- ld_pack_key_column(build)
       available <- ld_pack_chromosomes(ancestry)
@@ -127,4 +129,42 @@ allele_reference <- function(chromosomes, ancestry, ld_reference = ld_reference_
     message("Allele check against the reference skipped: ", conditionMessage(e))
     NULL
   })
+}
+
+.genotype_frequency_cache <- new.env(parent = emptyenv())
+
+#' Allele frequencies of the user's own genotypes, as GeneHackman SNP keys and the frequency of the key's first allele.
+#'
+#' Frequencies are computed once per PLINK prefix with \code{plink1.9 --freq} and kept for the R session.  Used for
+#' the strand check (\code{allele_reference()}) and to fill EAF (\code{populate_eaf_from_reference_panel()}).
+#' @param bfile PLINK prefix (.bed/.bim/.fam) in the build of the GWAS
+#' @param chromosomes chromosomes to keep (NULL for all)
+#' @return data.frame with SNP (key in canonical allele order) and REF_EAF (frequency of its first allele)
+#' @keywords internal
+genotype_allele_frequencies <- function(bfile, chromosomes = NULL) {
+  if (is.null(.genotype_frequency_cache[[bfile]])) {
+    out_prefix <- tempfile(pattern = "genotype_freq_")
+    on.exit(unlink(paste0(out_prefix, c(".frq", ".log", ".nosex"))), add = TRUE)
+    cmd <- paste("plink1.9", "--bfile", bfile, "--freq", "--out", out_prefix)
+    exit_code <- run_system(cmd, wait = TRUE, ignore.stdout = TRUE, ignore.stderr = TRUE)
+    if (exit_code != 0 || !file.exists(paste0(out_prefix, ".frq"))) {
+      stop("PLINK could not compute allele frequencies from ", bfile, " (", cmd, ")")
+    }
+    bim <- read_bim(bfile)
+    frq <- data.table::fread(paste0(out_prefix, ".frq"), header = TRUE, select = c("A1", "A2", "MAF"),
+                             colClasses = list(character = c("A1", "A2")))
+    chr <- sub("^chr", "", bim$V1, ignore.case = TRUE)
+    a1 <- toupper(frq$A1)
+    a2 <- toupper(frq$A2)
+    first <- pmin(a1, a2)
+    .genotype_frequency_cache[[bfile]] <- data.frame(
+      CHR = chr,
+      SNP = paste0(chr, ":", format(bim$V4, scientific = FALSE, trim = TRUE), "_", first, "_", pmax(a1, a2)),
+      REF_EAF = ifelse(a1 == first, frq$MAF, 1 - frq$MAF)
+    )
+  }
+  reference <- .genotype_frequency_cache[[bfile]]
+  if (!is.null(chromosomes)) reference <- reference[reference$CHR %in% as.character(chromosomes), , drop = FALSE]
+  reference <- reference[!duplicated(reference$SNP), , drop = FALSE]
+  return(reference[, c("SNP", "REF_EAF")])
 }

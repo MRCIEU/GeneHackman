@@ -1,14 +1,20 @@
 source("load.R")
 library(argparser, quietly = TRUE)
 
-parser <- arg_parser("Clump a standardised GWAS with the precomputed Pan-UKB LD pack (PLINK 1.9 --clump rules)")
+parser <- arg_parser("Clump a standardised GWAS with the LD reference of the clumping step")
 
 parser <- add_argument(parser, "--gwas",
                        help = "Standardised GWAS filename",
                        type = "character"
 )
 parser <- add_argument(parser, "--ancestry",
-                       help = "Ancestry code (EUR, AFR, AMR, CSA, EAS, MID; SAS maps to CSA)",
+                       help = paste("Ancestry code (1000genomes: EUR, EAS, AFR, AMR, SAS;",
+                                    "pan_ukb: EUR, AFR, AMR, CSA or SAS, EAS, MID)"),
+                       type = "character"
+)
+parser <- add_argument(parser, "--ld_reference",
+                       help = paste("pan_ukb (Pan-UKB LD pack), 1000genomes (1000 Genomes panel)",
+                                    "or the PLINK prefix of your own genotypes"),
                        type = "character"
 )
 parser <- add_argument(parser, "--build",
@@ -21,14 +27,22 @@ parser <- add_argument(parser, "--clump_arguments",
                        type = "character",
                        default = ""
 )
+parser <- add_argument(parser, "--threads",
+                       help = "PLINK threads",
+                       type = "numeric",
+                       default = 1
+)
 parser <- add_argument(parser, "--output",
                        help = "Output .clumped file (PLINK layout)",
                        type = "character"
 )
 
 args <- parse_args(parser)
-invisible(clump_gwas_with_ld_pack(gwas = args$gwas,
-                                  ancestry = args$ancestry,
-                                  build = args$build,
-                                  clump_arguments = args$clump_arguments,
-                                  output_file = args$output))
+if (is.na(args$ld_reference) || !nzchar(args$ld_reference)) stop("--ld_reference is required")
+invisible(clump_gwas(gwas = args$gwas,
+                     ancestry = args$ancestry,
+                     ld_reference = args$ld_reference,
+                     build = args$build,
+                     clump_arguments = trimws(args$clump_arguments),
+                     output_file = args$output,
+                     threads = args$threads))

@@ -96,4 +96,4 @@ cat("```\n",
 
 ### Software versions
 
-`r report_provenance()`
+`r report_provenance("disease_progression")`

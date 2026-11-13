@@ -75,4 +75,4 @@ knitr::kable(heterogeneity_results)
 
 ### Software versions
 
-`r report_provenance()`
+`r report_provenance("compare_gwases")`

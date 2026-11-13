@@ -146,10 +146,12 @@ get_docker_image_tag <- function() {
 #'
 #' Lists the container image tag, R and the versions of the main analysis packages, and the reference data
 #' directory with its version file (\code{PIPELINE_DATA_DIR/VERSION}) when there is one, so a report records
-#' what produced it.
+#' what produced it, and where each step got LD (\code{RESULTS_DIR/ld_sources_<pipeline>.txt}, written by the
+#' pipeline).
+#' @param pipeline pipeline name (coloc, compare_gwases, disease_progression, finemap or qtl_mr)
 #' @return markdown bullet list
 #' @keywords internal
-report_provenance <- function() {
+report_provenance <- function(pipeline = NULL) {
   package_version <- function(p) tryCatch(as.character(utils::packageVersion(p)), error = function(e) "not installed")
   packages <- c("susieR", "coloc", "TwoSampleMR", "SlopeHunter", "data.table")
   version_file <- file.path(pipeline_data_dir, "VERSION")
@@ -165,6 +167,15 @@ report_provenance <- function() {
     paste0("* Reference data: ", if (nzchar(pipeline_data_dir)) basename(pipeline_data_dir) else "not set",
            " (version ", reference_version, ")")
   )
+  # where each step got LD: written by the pipeline (resolve_ld_sources in snakemake/util/common.smk)
+  ld_file <- if (!is.null(pipeline) && nzchar(user_results_dir)) {
+    file.path(user_results_dir, paste0("ld_sources_", pipeline, ".txt"))
+  } else ""
+  if (nzchar(ld_file) && file.exists(ld_file)) {
+    ld_lines <- readLines(ld_file, warn = FALSE)
+    ld_lines <- ld_lines[nzchar(ld_lines)]
+    if (length(ld_lines) > 0) lines <- c(lines, "* LD sources (`ld_reference`):", paste0("    * ", ld_lines))
+  }
   paste(lines, collapse = "\n")
 }
 

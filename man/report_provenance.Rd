@@ -4,7 +4,10 @@
 \alias{report_provenance}
 \title{Software and reference-data versions for the end of each HTML report.}
 \usage{
-report_provenance()
+report_provenance(pipeline = NULL)
+}
+\arguments{
+\item{pipeline}{pipeline name (coloc, compare_gwases, disease_progression, finemap or qtl_mr)}
 }
 \value{
 markdown bullet list
@@ -12,6 +15,7 @@ markdown bullet list
 \description{
 Lists the container image tag, R and the versions of the main analysis packages, and the reference data
 directory with its version file (\code{PIPELINE_DATA_DIR/VERSION}) when there is one, so a report records
-what produced it.
+what produced it, and where each step got LD (\code{RESULTS_DIR/ld_sources_<pipeline>.txt}, written by the
+pipeline).
 }
 \keyword{internal}

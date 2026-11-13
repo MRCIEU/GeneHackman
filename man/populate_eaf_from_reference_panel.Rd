@@ -17,7 +17,7 @@ populate_eaf_from_reference_panel(
 \item{ancestry}{One of EUR, EAS, AFR, AMR, SAS matching the reference panel prefix
 (pan_ukb: EUR, AFR, AMR, CSA or SAS, EAS, MID).}
 
-\item{ld_reference}{"1000genomes" (default) or "pan_ukb"}
+\item{ld_reference}{"1000genomes" (default), "pan_ukb", or the PLINK prefix of the user's own genotypes}
 
 \item{build}{reference build of the GWAS positions: the SNP key column for pan_ukb, the 1000 Genomes
 panel for 1000genomes}

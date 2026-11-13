@@ -2,13 +2,12 @@ include: "util/common.smk"
 singularity: get_docker_container()
 
 pipeline_name = "coloc"
-pipeline = parse_pipeline_input(pipeline_includes_clumping=True)
+pipeline = parse_pipeline_input(pipeline_includes_clumping=True, ld_steps=["finemap", "locus_zoom"])
 
 onstart:
     print("##### Colocalization Pipeline #####")
 
 ancestries = list([g.ancestry for g in pipeline.gwases])
-validate_ancestries(ancestries, pipeline.ld_reference)
 check_reference_data(pipeline, pipeline_includes_clumping=True)
 
 unique_ancestries = list(set(ancestries))
@@ -135,7 +134,7 @@ rule run_locus_zoom:
         trait_names = trait_names_str,
         ancestry = first_ancestry,
         output_dir = locus_zoom_dir,
-        ld_reference = pipeline.ld_reference,
+        ld_references = " ".join(ld_source(g, "locus_zoom") for g in pipeline.gwases),
         build = pipeline.output.build
     output:
         done = locus_zoom_done
@@ -146,7 +145,7 @@ rule run_locus_zoom:
             --gwas_files {params.gwas_files} \
             --trait_names {params.trait_names} \
             --ancestry {params.ancestry} \
-            --ld_reference {params.ld_reference} \
+            --ld_references '{params.ld_references}' \
             --build {params.build} \
             --output_dir {params.output_dir} \
             --completion_file {output.done}

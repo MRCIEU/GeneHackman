@@ -14,6 +14,7 @@ locus_zoom_coloc(
   window_kb = 500,
   completion_file = NULL,
   ld_reference = ld_reference_options$thousand_genomes,
+  ld_references = NULL,
   build = reference_builds$GRCh38
 )
 }
@@ -36,7 +37,10 @@ names must match trait labels used in coloc_results (trait1/trait2 columns)}
 \item{completion_file}{path to a sentinel file written on successful completion.
 If NULL, no sentinel is written.}
 
-\item{ld_reference}{LD source, one of \code{ld_reference_options}}
+\item{ld_reference}{LD source for every trait, one of \code{ld_reference_options} or a PLINK prefix}
+
+\item{ld_references}{optional LD source per trait (named by trait, as \code{gwas_files}); overrides
+\code{ld_reference}}
 
 \item{build}{reference build of the GWAS positions (used to match SNP keys in the LD pack)}
 }
@@ -46,6 +50,7 @@ loci that could not be plotted.
 }
 \description{
 For each coloc result with PP.H4.abf above the threshold, produces a stacked
-locus zoom plot showing both traits at the shared locus, with LD from the
-configured LD reference (1000 Genomes via PLINK, or the precomputed Pan-UKB LD pack).
+locus zoom plot showing both traits at the shared locus.  Each trait's track takes r² and its index variant
+from that trait's LD reference (1000 Genomes via PLINK, the precomputed Pan-UKB LD pack, or the user's own
+genotypes).
 }

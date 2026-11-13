@@ -15,6 +15,9 @@ from types import SimpleNamespace
 include: "constants.smk"
 include: "log_results.smk"
 
+sys.path.insert(0, str(workflow.current_basedir))
+import ld_sources
+
 
 def dict_to_namespace(obj):
     """Recursively convert dict/list from YAML to SimpleNamespace (same shapes as former JSON parsing)."""
@@ -39,7 +42,10 @@ def get_docker_container():
     return sif_path
 
 
-def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=False, output_builds=None, output_builds_reason=""):
+def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=False, output_builds=None, output_builds_reason="",
+                         ld_steps=()):
+    """Read the input YAML.  ld_steps: LD steps the pipeline runs besides harmonise and clumping (finemap,
+    locus_zoom); see resolve_ld_sources()."""
     global input_file
     env_in = os.environ.get("GENEHACKMAN_INPUT") or os.environ.get("GENEHACKMAN_INPUT_FILE")
     try:
@@ -78,10 +84,9 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
     if output_builds and pipeline.output.build not in output_builds:
         stop_with_message(f"This pipeline needs output.build: {' or '.join(output_builds)}, not "
                           f"{pipeline.output.build}.\n{output_builds_reason}")
-    # ld_reference has no default: the LD source is the user's choice (checked once the GWAS are read, below)
-    pipeline.ld_reference = str(getattr(pipeline, "ld_reference", "") or "").strip()
-    if pipeline.ld_reference and pipeline.ld_reference not in ld_reference_options:
-        stop_with_message(f"ld_reference must be one of {', '.join(ld_reference_options)}, not {pipeline.ld_reference}.")
+    # ld_reference has no default: the LD source is the user's choice (resolved per step and GWAS once the GWAS are
+    # read, below)
+    pipeline.ld_reference = ld_sources.clean(getattr(pipeline, "ld_reference", ""))
     if pipeline_includes_clumping:
         clump_arguments = getattr(pipeline, "plink_clump_arguments", None)
         if not clump_arguments:
@@ -153,13 +158,9 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
             raise ValueError(f"Error: build {g.build} of {g.file} is not one of the valid options: {build_options}")
         resolve_sample_size(g)
         g.label = str(getattr(g, "label", "") or "").strip()
-        g.ld_bfile = str(getattr(g, "ld_bfile", "") or "").strip()
-        if g.ld_bfile:
-            g.ld_bfile = os.path.abspath(g.ld_bfile)
-            missing_bfile = [g.ld_bfile + ext for ext in (".bed", ".bim", ".fam") if not os.path.isfile(g.ld_bfile + ext)]
-            if missing_bfile:
-                stop_with_message(f"ld_bfile of {g.file}: {', '.join(missing_bfile)} not found. ld_bfile is the "
-                                  "PLINK prefix of in-sample (or other user-supplied) genotypes, in the output build.")
+        if ld_sources.clean(getattr(g, "ld_bfile", "")):
+            stop_with_message(ld_sources.ld_bfile_message(g.file))
+        g.ld_reference = ld_sources.clean(getattr(g, "ld_reference", ""))
         if not hasattr(g, "populate_rsid"): g.populate_rsid = False
         if not hasattr(g, "populate_eaf"): g.populate_eaf = False
         g.file = os.path.abspath(g.file)
@@ -182,23 +183,8 @@ def parse_pipeline_input(pipeline_includes_clumping=False, allow_flip_false=Fals
         g.output_columns = resolve_gwas_columns(g.file, pipeline.output.columns, check_input_columns=False)
         g.standardised_gwas = standardised_gwas_name(g.file)
         setattr(pipeline,g.prefix,g)
-    eaf_ancestries = [g.ancestry for g in pipeline.gwases if g.populate_eaf]
-    strand_checked = pipeline.harmonise.strand_check and any(g.ancestry for g in pipeline.gwases)
-    if not pipeline.ld_reference:
-        if pipeline_includes_clumping or eaf_ancestries or strand_checked:
-            stop_with_message(
-                "ld_reference is required: choose the LD reference panel for this pipeline.\n"
-                "  ld_reference: pan_ukb       precomputed LD from the Pan-UK Biobank (~420,000 EUR; smaller for other "
-                "ancestries)\n"
-                "  ld_reference: 1000genomes   1000 Genomes high-coverage panels (~500 people per super-population)\n"
-                "In-sample genotypes can be given per GWAS with ld_bfile. When a GWAS is much larger than the LD "
-                "reference, the pipeline warns that reference LD may miscalibrate fine-mapping.")
-        pipeline.ld_reference = "1000genomes"  # not used by this pipeline (no clumping, EAF or strand check)
-    if eaf_ancestries:
-        validate_ancestries(eaf_ancestries, pipeline.ld_reference)
-    if pipeline.ld_reference == "pan_ukb" and (pipeline_includes_clumping or eaf_ancestries):
-        ld_ancestries = [g.ancestry for g in pipeline.gwases if pipeline_includes_clumping or g.populate_eaf]
-        validate_ancestries(ld_ancestries, pipeline.ld_reference)
+    steps = (["clumping"] if pipeline_includes_clumping else []) + list(ld_steps)
+    resolve_ld_sources(pipeline, steps)
     if not allow_flip_false:
         for g in pipeline.gwases:
             if getattr(g, "flip_alleles", True) is False:
@@ -386,7 +372,63 @@ def stop_with_message(message):
     os._exit(1)
 
 
-def validate_ancestries(ancestries, ld_reference):
+def ld_step_settings(pipeline, step):
+    """<step>.ld_reference from the YAML ('' when not set)."""
+    return ld_sources.clean(getattr(getattr(pipeline, step, None), "ld_reference", ""))
+
+
+def resolve_ld_sources(pipeline, steps):
+    """Where each GWAS gets LD in each step the pipeline runs: g.ld[step] is pan_ukb, 1000genomes or the absolute
+    PLINK prefix of the user's genotypes (see snakemake/util/ld_sources.py).  The harmonise step (strand check and EAF
+    filling) runs for a GWAS that fills EAF, or has an ancestry while the strand check is on.
+
+    Stops when a step that runs has no source, when a PLINK prefix is incomplete, or when an ancestry isn't in a
+    panel; pipeline.ld_summary is the summary printed here and shown in the reports."""
+    strand_check = pipeline.harmonise.strand_check
+    used = {}
+    for g in pipeline.gwases:
+        g.ld = {}
+        where = f" (GWAS {g.label})"
+        for step in ld_sources.LD_STEPS:
+            try:
+                source = ld_sources.resolve(step, pipeline.ld_reference, ld_step_settings(pipeline, step),
+                                            g.ld_reference, g.ancestry, where)
+            except ld_sources.LDSourceError as e:
+                stop_with_message(str(e))
+            runs = (g.populate_eaf or (strand_check and g.ancestry)) if step == "harmonise" else step in steps
+            if not runs:
+                continue
+            if not source:
+                stop_with_message(ld_sources.not_set_message(step, where))
+            try:
+                ld_sources.check_genotypes(source, step, where)
+            except ld_sources.LDSourceError as e:
+                stop_with_message(str(e))
+            if not ld_sources.is_genotypes(source):
+                validate_ancestries([g.ancestry], source, step)
+            g.ld[step] = source
+            used.setdefault(step, {})[g.label] = source
+    pipeline.ld_used = used
+    pipeline.ld_summary = ld_sources.describe(used)
+    if pipeline.ld_summary:
+        print("LD sources (ld_reference):\n  " + "\n  ".join(pipeline.ld_summary))
+    write_ld_summary(pipeline)
+
+
+def write_ld_summary(pipeline):
+    """RESULTS_DIR/ld_sources_<pipeline>.txt: the LD sources, one per line, listed in the HTML report
+    (report_provenance() in R/util.R)."""
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    with open(RESULTS_DIR + f"ld_sources_{globals().get('pipeline_name', 'pipeline')}.txt", "w") as f:
+        f.write("".join(line + "\n" for line in pipeline.ld_summary))
+
+
+def ld_source(g, step):
+    """The LD source of a GWAS in a step, as passed to the scripts."""
+    return g.ld[step]
+
+
+def validate_ancestries(ancestries, ld_reference, step=None):
     if ld_reference == "pan_ukb":
         allowed_ancestries = pan_ukb_ancestries + list(pan_ukb_ancestry_aliases)
     else:
@@ -396,7 +438,8 @@ def validate_ancestries(ancestries, ld_reference):
         hint = ""
         if ld_reference != "pan_ukb" and set(unknown) <= set(pan_ukb_ancestries):
             hint = f"\n{', '.join(unknown)} is only available in Pan-UKB: set ld_reference: pan_ukb to use it."
-        stop_with_message(f"Ancestry {', '.join(unknown)} can't be used with ld_reference: {ld_reference}.\n"
+        what = f" for {ld_sources.LD_STEPS[step]}" if step else ""
+        stop_with_message(f"Ancestry {', '.join(unknown)} can't be used with ld_reference: {ld_reference}{what}.\n"
                           f"Each GWAS's ancestry must be one of: {', '.join(allowed_ancestries)}.{hint}")
 
 
@@ -418,16 +461,17 @@ def check_reference_data(pipeline, pipeline_includes_clumping, ld_scores=None, l
     if build in THOUSAND_GENOMES_BUILDS:
         grch37 = build == "GRCh37"
         panel_dir = thousand_genomes_dir(build)
-        ld_ancestries = {g.ancestry for g in pipeline.gwases if g.ancestry and (pipeline_includes_clumping or g.populate_eaf)}
-        if pipeline.ld_reference == "1000genomes":
-            for a in sorted(a for a in ld_ancestries if not os.path.isfile(panel_dir + a + ".bed")):
+        # the reference panels some step uses (the user's own genotypes were checked in resolve_ld_sources)
+        panels = {(source, g.ancestry) for g in pipeline.gwases for source in g.ld.values()
+                  if source in ld_reference_options and g.ancestry}
+        for a in sorted(a for source, a in panels if source == "1000genomes"):
+            if not os.path.isfile(panel_dir + a + ".bed"):
                 missing.append(f"the 1000 Genomes {build} LD panel for {a}")
                 needs_grch37 |= grch37
-        else:
-            for a in sorted(ld_ancestries):
-                population = pan_ukb_ancestry_aliases.get(a, a)
-                if not os.path.isfile(os.path.join(LD_PACK_DIR, population, "info.tsv")):
-                    missing.append(f"the Pan-UKB LD pack for {a}" + (f" ({population} in Pan-UKB)" if population != a else ""))
+        for a in sorted(a for source, a in panels if source == "pan_ukb"):
+            population = pan_ukb_ancestry_aliases.get(a, a)
+            if not os.path.isfile(os.path.join(LD_PACK_DIR, population, "info.tsv")):
+                missing.append(f"the Pan-UKB LD pack for {a}" + (f" ({population} in Pan-UKB)" if population != a else ""))
         rsid_options = {g.populate_rsid for g in pipeline.gwases}
         if populate_rsid_options.partial in rsid_options and not os.path.isfile(panel_dir + "marker_to_rsid.tsv.gz"):
             missing.append(f"the 1000 Genomes {build} RSID marker map (to fill in RSIDs)")

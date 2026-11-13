@@ -7,6 +7,7 @@
 ld_reference_options
 }
 \description{
-LD reference options: precomputed Pan-UKB LD pack, or 1000 Genomes genotypes via PLINK.
+Wherever a function takes \code{ld_reference}, the PLINK prefix of the user's own genotypes can be given instead
+(see \code{is_ld_genotypes()}).
 }
 \keyword{internal}

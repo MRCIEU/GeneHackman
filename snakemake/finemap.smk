@@ -2,13 +2,12 @@ include: "util/common.smk"
 singularity: get_docker_container()
 
 pipeline_name = "finemap"
-pipeline = parse_pipeline_input(pipeline_includes_clumping=True)
+pipeline = parse_pipeline_input(pipeline_includes_clumping=True, ld_steps=["finemap"])
 
 onstart:
     print("##### SuSiE Fine-Mapping Pipeline #####")
 
 ancestries = list([g.ancestry for g in pipeline.gwases])
-validate_ancestries(ancestries, pipeline.ld_reference)
 check_reference_data(pipeline, pipeline_includes_clumping=True)
 unique_ancestries = list(set(ancestries))
 if len(unique_ancestries) > 1 and len(unique_ancestries) < len(ancestries):

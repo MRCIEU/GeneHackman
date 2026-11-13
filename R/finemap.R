@@ -47,7 +47,8 @@
 #'   comes from these instead of \code{ld_reference}
 #' @param remove_ld_outliers if TRUE, variants flagged by the LD-mismatch check (\code{ld_mismatch_qc()}) are
 #'   removed and SuSiE is run again; by default they are only reported
-#' @param ld_reference LD source, one of \code{ld_reference_options} ("1000genomes" or "pan_ukb")
+#' @param ld_reference LD source, one of \code{ld_reference_options} ("1000genomes" or "pan_ukb"), or the PLINK
+#'   prefix of the user's own genotypes (as \code{ld_bfile})
 #' @param build reference build of the GWAS positions (used to match SNP keys in the Pan-UKB LD pack)
 #' @return invisibly, the combined per-SNP finemap data.table (LD-matched SNPs only)
 #' @export
@@ -68,7 +69,7 @@ finemap_gwas <- function(gwas,
                          max_n_ratio = 10,
                          ld_bfile = NULL,
                          remove_ld_outliers = FALSE) {
-  validate_ld_reference(ld_reference)
+  if (is_ld_genotypes(ld_reference)) ld_bfile <- ld_reference else validate_ld_reference(ld_reference)
   user_ld <- has_user_ld(ld_bfile)
   id_column <- ld_reference_id_column(ld_reference, ld_bfile)
   use_pack <- !user_ld && ld_reference == ld_reference_options$pan_ukb

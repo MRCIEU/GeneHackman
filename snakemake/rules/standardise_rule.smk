@@ -13,6 +13,7 @@ rule standardise_gwases:
         flip_alleles_flag = lambda wildcards: "TRUE" if getattr(pipeline, wildcards.prefix).flip_alleles else "FALSE",
         complement_minus_strand_flag = "TRUE" if pipeline.liftover.complement_minus_strand else "FALSE",
         check_build_flag = "TRUE" if pipeline.liftover.check_build else "FALSE",
+        ld_reference = lambda wildcards: getattr(pipeline, wildcards.prefix).ld.get("harmonise", "none"),
         study_type = lambda wildcards: getattr(pipeline, wildcards.prefix).study_type,
         n_case = lambda wildcards: getattr(pipeline, wildcards.prefix).N_case or "NA",
         n_control = lambda wildcards: getattr(pipeline, wildcards.prefix).N_control or "NA",
@@ -43,7 +44,7 @@ rule standardise_gwases:
             --populate_rsid {params.populate_rsid} \
             --populate_eaf {params.populate_eaf_flag} \
             --ancestry '{params.ancestry}' \
-            --ld_reference {pipeline.ld_reference} \
+            --ld_reference '{params.ld_reference}' \
             --flip_alleles {params.flip_alleles_flag} \
             --complement_minus_strand {params.complement_minus_strand_flag} \
             --max_liftover_drop_fraction {pipeline.liftover.max_drop_fraction} \

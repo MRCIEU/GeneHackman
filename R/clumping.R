@@ -166,3 +166,110 @@ use_gwas_positions_in_clumped <- function(clumped_file, gwas) {
   }
   return(invisible(changed))
 }
+
+#' Clump a standardised GWAS with the LD reference of the clumping step.
+#'
+#' \code{pan_ukb}: the precomputed LD pack (\code{clump_gwas_with_ld_pack()}).  \code{1000genomes}: PLINK 1.9
+#' \code{--clump} on the 1000 Genomes panel of the ancestry, matched on RSID.  Otherwise \code{ld_reference} is the
+#' PLINK prefix of the user's own genotypes, matched on position and alleles (\code{clump_gwas_with_plink()}).
+#' @param gwas standardised GWAS file
+#' @param ancestry ancestry code
+#' @param ld_reference \code{pan_ukb}, \code{1000genomes} or a PLINK prefix
+#' @param build reference build of the GWAS
+#' @param clump_arguments PLINK clumping arguments
+#' @param output_file PLINK-format \code{.clumped} file to write
+#' @param threads PLINK threads
+#' @return invisibly, the clump table
+#' @export
+clump_gwas <- function(gwas, ancestry, ld_reference, build = reference_builds$GRCh38, clump_arguments = "",
+                       output_file, threads = 1) {
+  if (is_ld_genotypes(ld_reference)) {
+    return(invisible(clump_gwas_with_plink(gwas, ld_reference, clump_arguments, output_file,
+                                           match_on = "position", threads = threads)))
+  }
+  if (validate_ld_reference(ld_reference) == ld_reference_options$pan_ukb) {
+    return(invisible(clump_gwas_with_ld_pack(gwas, ancestry, build, clump_arguments, output_file)))
+  }
+  panel <- file.path(thousand_genomes_dir_for(build, check = TRUE), resolve_ld_ancestry(ancestry, ld_reference))
+  invisible(clump_gwas_with_plink(gwas, panel, clump_arguments, output_file, match_on = "RSID", threads = threads))
+}
+
+#' Clump a GWAS with PLINK 1.9 \code{--clump} against PLINK genotypes.
+#'
+#' With \code{match_on = "RSID"} (the 1000 Genomes panel, whose IDs are RSIDs) PLINK reads the GWAS's RSID column.
+#' With \code{match_on = "position"} (the user's own genotypes, whose IDs can be anything unique) each GWAS variant
+#' is first matched to the .bim on chromosome, position and both alleles, and PLINK clumps on the .bim IDs; the
+#' clumps are then labelled with the GWAS's RSID (or SNP key when there is none), as by the LD-pack clumper.  In both
+#' cases the clumped positions are the GWAS's own.
+#' @param gwas standardised GWAS file
+#' @param bfile PLINK prefix
+#' @param clump_arguments PLINK clumping arguments
+#' @param output_file PLINK-format \code{.clumped} file to write
+#' @param match_on \code{"RSID"} or \code{"position"}
+#' @param threads PLINK threads
+#' @return the clump table
+#' @keywords internal
+clump_gwas_with_plink <- function(gwas, bfile, clump_arguments, output_file, match_on = c("RSID", "position"),
+                                  threads = 1) {
+  match_on <- match.arg(match_on)
+  out_prefix <- sub("\\.clumped$", "", output_file)
+  clump_input <- gwas
+  snp_field <- "RSID"
+  labels <- NULL
+  if (match_on == "position") {
+    header <- names(data.table::fread(gwas, nrows = 0))
+    table <- data.table::fread(gwas, select = intersect(c("SNP", "BP", "P", "RSID"), header),
+                               colClasses = list(character = intersect(c("SNP", "RSID"), header)))
+    bim <- read_bim(bfile)
+    keys <- toupper(as.character(table$SNP))
+    matched <- match_snp_keys_to_bim(keys, bim)
+    found <- !is.na(matched$row)
+    message(sum(found), " of ", length(keys), " GWAS variants matched to ", basename(bfile),
+            " on position and alleles")
+    ids <- bim$V2[matched$row[found]]
+    usable <- usable_bim_ids(ids, bim, bfile)
+    found[found] <- usable
+    ids <- ids[usable]
+    clump_input <- tempfile(fileext = ".tsv")
+    on.exit(unlink(clump_input), add = TRUE)
+    data.table::fwrite(data.table::data.table(LD_ID = ids, P = table$P[found]), clump_input, sep = "\t")
+    snp_field <- "LD_ID"
+    rsid <- if ("RSID" %in% names(table)) as.character(table$RSID[found]) else rep(NA_character_, sum(found))
+    labels <- data.table::data.table(LD_ID = ids, LABEL = ifelse(is.na(rsid) | !nzchar(rsid), keys[found], rsid),
+                                     BP = table$BP[found])
+  }
+  cmd <- paste("plink1.9 --bfile", shQuote(bfile), "--threads", threads, "--clump", shQuote(clump_input),
+               "--clump-snp-field", snp_field, clump_arguments, "--out", shQuote(out_prefix))
+  exit_code <- run_system(cmd, wait = TRUE)
+  log_file <- paste0(out_prefix, ".log")
+  log <- if (file.exists(log_file)) readLines(log_file, warn = FALSE) else character(0)
+  if (exit_code != 0) stop("PLINK clumping failed (", cmd, "); see ", log_file)
+  if (!file.exists(output_file)) {
+    # PLINK writes no .clumped file when no variant passes --clump-p1
+    if (any(grepl("No significant --clump results", log))) {
+      message("No variants pass the clumping P-value threshold")
+      writeLines(paste(clumped_file_columns, collapse = " "), output_file)
+      return(data.table::data.table())
+    }
+    stop("PLINK clumping produced no output; see ", log_file)
+  }
+  if (match_on == "RSID") {
+    use_gwas_positions_in_clumped(output_file, gwas)
+    return(invisible(data.table::fread(output_file)))
+  }
+  clumped <- data.table::fread(output_file, header = TRUE, fill = TRUE, blank.lines.skip = TRUE)
+  clumped <- clumped[!is.na(clumped$SNP) & nzchar(as.character(clumped$SNP))]
+  index <- match(clumped$SNP, labels$LD_ID)
+  clumped$BP <- labels$BP[index]
+  clumped$SNP <- labels$LABEL[index]
+  if ("SP2" %in% names(clumped)) {
+    clumped$SP2 <- vapply(as.character(clumped$SP2), function(members) {
+      if (members %in% c("NONE", "")) return(members)
+      ids <- sub("\\(1\\)$", "", strsplit(members, ",")[[1]])
+      paste0(labels$LABEL[match(ids, labels$LD_ID)], "(1)", collapse = ",")
+    }, character(1), USE.NAMES = FALSE)
+  }
+  clumped <- clumped[, intersect(clumped_file_columns, colnames(clumped)), with = FALSE]
+  write_clumped_file(clumped, output_file)
+  return(invisible(clumped))
+}

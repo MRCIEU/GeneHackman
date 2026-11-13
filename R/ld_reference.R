@@ -1,4 +1,7 @@
 #' LD reference options: precomputed Pan-UKB LD pack, or 1000 Genomes genotypes via PLINK.
+#'
+#' Wherever a function takes \code{ld_reference}, the PLINK prefix of the user's own genotypes can be given instead
+#' (see \code{is_ld_genotypes()}).
 #' @keywords internal
 ld_reference_options <- list(pan_ukb = "pan_ukb", thousand_genomes = "1000genomes")
 
@@ -20,7 +23,34 @@ default_ld_pack_dir <- function() {
 .ld_pack_chunk_cache$values <- list()
 .ld_pack_chunk_cache$order <- character(0)
 
-#' Check an LD reference option, returning it unchanged.
+#' TRUE when an LD reference is the PLINK prefix of the user's own genotypes rather than one of
+#' \code{ld_reference_options}.
+#' @param ld_reference LD reference setting
+#' @keywords internal
+is_ld_genotypes <- function(ld_reference) {
+  length(ld_reference) == 1 && !is.na(ld_reference) && nzchar(ld_reference) &&
+    !ld_reference %in% unlist(ld_reference_options)
+}
+
+#' Stop unless a PLINK prefix of the user's own genotypes has its .bed, .bim and .fam files.
+#' @keywords internal
+check_ld_genotypes <- function(bfile) {
+  missing <- paste0(bfile, c(".bed", ".bim", ".fam"))
+  missing <- missing[!file.exists(missing)]
+  if (length(missing) > 0) {
+    stop("ld_reference must be one of ", paste(unlist(ld_reference_options), collapse = ", "),
+         ", or the PLINK prefix of your own genotypes; ", paste(missing, collapse = ", "), " not found")
+  }
+  invisible(bfile)
+}
+
+#' How an LD reference is recorded in results: the option, or \code{user:<file name>} for the user's genotypes.
+#' @keywords internal
+ld_reference_label <- function(ld_reference) {
+  if (is_ld_genotypes(ld_reference)) paste0("user:", basename(ld_reference)) else ld_reference
+}
+
+#' Check an LD reference option (not the user's genotypes), returning it unchanged.
 #' @keywords internal
 validate_ld_reference <- function(ld_reference) {
   if (is.null(ld_reference) || !ld_reference %in% unlist(ld_reference_options)) {
@@ -281,6 +311,7 @@ make_ld_positive_semidefinite <- function(R, tolerance = -1e-6) {
 #' @keywords internal
 get_ld_matrix <- function(ids, chr, ancestry, build = reference_builds$GRCh38,
                           ld_reference = ld_reference_options$thousand_genomes, bfile = NULL) {
+  if (is_ld_genotypes(ld_reference)) bfile <- ld_reference
   if (has_user_ld(bfile)) {
     return(compute_ld_matrix_from_bfile(ids, chr, bfile))
   }
@@ -300,7 +331,7 @@ has_user_ld <- function(bfile) {
 #' Identifier column used to match a GWAS to the LD reference.
 #' @keywords internal
 ld_reference_id_column <- function(ld_reference, bfile = NULL) {
-  if (has_user_ld(bfile)) return("SNP")
+  if (has_user_ld(bfile) || is_ld_genotypes(ld_reference)) return("SNP")
   if (validate_ld_reference(ld_reference) == ld_reference_options$pan_ukb) "SNP" else "RSID"
 }
 
@@ -313,12 +344,58 @@ ld_reference_n_samples <- function(ld_reference, ancestry, build = reference_bui
     if (!file.exists(fam)) return(NA_real_)
     as.numeric(length(readLines(fam, warn = FALSE)))
   }
+  if (is_ld_genotypes(ld_reference)) bfile <- ld_reference
   if (has_user_ld(bfile)) return(count_fam(bfile))
   if (validate_ld_reference(ld_reference) == ld_reference_options$pan_ukb) {
     return(tryCatch(ld_pack_n_samples(ancestry), error = function(e) NA_real_))
   }
   tryCatch(count_fam(file.path(thousand_genomes_dir_for(build), resolve_ld_ancestry(ancestry, ld_reference))),
            error = function(e) NA_real_)
+}
+
+#' Read a PLINK .bim file (columns V1 to V6, chromosome, ID and alleles as text).
+#' @keywords internal
+read_bim <- function(bfile) {
+  check_ld_genotypes(bfile)
+  data.table::fread(paste0(bfile, ".bim"), header = FALSE, colClasses = list(character = c(1, 2, 5, 6)))
+}
+
+#' Match GeneHackman SNP keys to the rows of a .bim, on chromosome, position and both alleles (in either order).
+#'
+#' @param keys SNP keys (\verb{CHR:BP_EA_OA}), upper case
+#' @param bim .bim rows (from \code{read_bim()})
+#' @return list with \code{row} (the .bim row of each key; NA when there is no match, or more than one) and
+#'   \code{sign} (1 when the .bim's A1 is the key's effect allele, -1 when it is the other allele)
+#' @keywords internal
+match_snp_keys_to_bim <- function(keys, bim) {
+  chr <- sub("^chr", "", bim$V1, ignore.case = TRUE)
+  bp <- format(bim$V4, scientific = FALSE, trim = TRUE)
+  a1 <- toupper(bim$V5)
+  a2 <- toupper(bim$V6)
+  key_a1_first <- paste0(chr, ":", bp, "_", a1, "_", a2)
+  key_a2_first <- paste0(chr, ":", bp, "_", a2, "_", a1)
+  hits_a1 <- match(keys, key_a1_first)
+  hits_a2 <- match(keys, key_a2_first)
+  ambiguous <- !is.na(hits_a1) & !is.na(hits_a2) |
+    keys %in% key_a1_first[duplicated(key_a1_first)] | keys %in% key_a2_first[duplicated(key_a2_first)]
+  row <- ifelse(is.na(hits_a1), hits_a2, hits_a1)
+  row[ambiguous] <- NA_integer_
+  return(list(row = row, sign = ifelse(is.na(hits_a1), -1, 1)))
+}
+
+#' Which matched variants PLINK can select one by one: not those whose .bim ID is duplicated or '.'.
+#'
+#' Those variants are left out, with a message saying how to give every variant its own ID.
+#' @return logical, one per ID
+#' @keywords internal
+usable_bim_ids <- function(ids, bim, bfile) {
+  usable <- !ids %in% c(".", bim$V2[duplicated(bim$V2)])
+  if (!all(usable)) {
+    message(sum(!usable), " matched variants left out because their ID in ", bfile, ".bim is not unique (or '.'); ",
+            "to keep them, set unique IDs with e.g. plink2 --bfile ", bfile,
+            " --set-all-var-ids @:#:\\$r:\\$a --make-bed --out <new prefix>")
+  }
+  usable
 }
 
 #' LD matrix from user-supplied PLINK genotypes (e.g. in-sample), matched on position and alleles.
@@ -333,35 +410,27 @@ ld_reference_n_samples <- function(ld_reference, ancestry, build = reference_bui
 #' @return list with \code{matrix} and \code{snps} (the SNP keys, in matrix order), or NULL on failure
 #' @keywords internal
 compute_ld_matrix_from_bfile <- function(snp_keys, chr, bfile) {
-  V1 = V2 = V4 = V5 = V6 = ROW = NULL # silence R CMD check notes for data.table columns
-  bim <- data.table::fread(paste0(bfile, ".bim"), header = FALSE, colClasses = list(character = c(1, 2, 5, 6)))
+  V1 = ROW = NULL # silence R CMD check notes for data.table columns
+  bim <- read_bim(bfile)
   bim[, ROW := .I]
   bim <- bim[sub("^chr", "", V1, ignore.case = TRUE) == as.character(chr)]
   if (nrow(bim) == 0) return(NULL)
-  bp <- format(bim$V4, scientific = FALSE, trim = TRUE)
-  a1 <- toupper(bim$V5)
-  a2 <- toupper(bim$V6)
-  key_a1_first <- paste0(chr, ":", bp, "_", a1, "_", a2)
-  key_a2_first <- paste0(chr, ":", bp, "_", a2, "_", a1)
 
   keys <- unique(toupper(as.character(snp_keys)))
-  hits_a1 <- match(keys, key_a1_first)
-  hits_a2 <- match(keys, key_a2_first)
-  ambiguous <- !is.na(hits_a1) & !is.na(hits_a2) |
-    keys %in% key_a1_first[duplicated(key_a1_first)] | keys %in% key_a2_first[duplicated(key_a2_first)]
-  row <- ifelse(is.na(hits_a1), hits_a2, hits_a1)
-  keep <- !is.na(row) & !ambiguous
+  matched <- match_snp_keys_to_bim(keys, bim)
+  keep <- !is.na(matched$row)
   if (sum(keep) < 2) return(NULL)
   keys <- keys[keep]
-  row <- row[keep]
-  sign <- ifelse(is.na(hits_a1[keep]), -1, 1)
+  row <- matched$row[keep]
+  sign <- matched$sign[keep]
 
   ids <- bim$V2[row]
-  duplicated_ids <- bim$V2[duplicated(bim$V2)]
-  if (any(ids %in% c(".", duplicated_ids))) {
-    stop("Variant IDs in ", bfile, ".bim must be unique (and not '.') to extract LD; set them with e.g. ",
-         "plink2 --bfile ", bfile, " --set-all-var-ids @:#:\\$r:\\$a --make-bed --out <new prefix>")
-  }
+  usable <- usable_bim_ids(ids, bim, bfile)
+  if (sum(usable) < 2) return(NULL)
+  keys <- keys[usable]
+  row <- row[usable]
+  sign <- sign[usable]
+  ids <- ids[usable]
 
   order_in_bim <- order(bim$ROW[row])
   keys <- keys[order_in_bim]
@@ -471,8 +540,8 @@ ld_reference_size_warning <- function(gwas_n, n_ref, max_n_ratio = 10, label = N
   if (ratio <= max_n_ratio) return(NA_character_)
   sprintf(paste0("%sGWAS sample size (%s) is %s times that of the LD reference (%s individuals). Reference LD this ",
                  "much smaller than the GWAS can miscalibrate fine-mapping and colocalization, especially with more ",
-                 "than one signal per region (L > 1): check the LD-mismatch flags, and consider in-sample LD (ld_bfile), ",
-                 "a larger LD reference or finemap.max_causal: 1."),
+                 "than one signal per region (L > 1): check the LD-mismatch flags, and consider in-sample LD ",
+                 "(ld_reference on the GWAS), a larger LD reference or finemap.max_causal: 1."),
           if (is.null(label) || !nzchar(label)) "" else paste0(label, ": "),
           format(round(gwas_n), big.mark = ",", scientific = FALSE), format(round(ratio), big.mark = ",", scientific = FALSE),
           format(round(n_ref), big.mark = ",", scientific = FALSE))

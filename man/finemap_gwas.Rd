@@ -51,7 +51,8 @@ EAS or MID for the Pan-UKB LD pack}
 
 \item{max_region_kb}{maximum width of a merged fine-mapping region, or the tile width, in kb (default 3000)}
 
-\item{ld_reference}{LD source, one of \code{ld_reference_options} ("1000genomes" or "pan_ukb")}
+\item{ld_reference}{LD source, one of \code{ld_reference_options} ("1000genomes" or "pan_ukb"), or the PLINK
+prefix of the user's own genotypes (as \code{ld_bfile})}
 
 \item{build}{reference build of the GWAS positions (used to match SNP keys in the Pan-UKB LD pack)}
 

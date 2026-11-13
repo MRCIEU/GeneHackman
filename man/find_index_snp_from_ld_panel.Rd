@@ -14,6 +14,7 @@ find_index_snp_from_ld_panel(
 )
 }
 \description{
-Returns an RSID for 1000 Genomes, or a GeneHackman SNP key (in \code{build}) for the LD pack.
+Returns an RSID for 1000 Genomes, or a GeneHackman SNP key (in \code{build}) for the LD pack and for the user's
+own genotypes.
 }
 \keyword{internal}

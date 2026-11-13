@@ -37,7 +37,7 @@ gene_name_to_ensembl_id <- function(gwas) {
 #' @param gwas Standardised GWAS tibble with RSID, EA, OA columns (SNP for pan_ukb).
 #' @param ancestry One of EUR, EAS, AFR, AMR, SAS matching the reference panel prefix
 #'   (pan_ukb: EUR, AFR, AMR, CSA or SAS, EAS, MID).
-#' @param ld_reference "1000genomes" (default) or "pan_ukb"
+#' @param ld_reference "1000genomes" (default), "pan_ukb", or the PLINK prefix of the user's own genotypes
 #' @param build reference build of the GWAS positions: the SNP key column for pan_ukb, the 1000 Genomes
 #'   panel for 1000genomes
 #' @export
@@ -48,6 +48,9 @@ populate_eaf_from_reference_panel <- function(gwas, ancestry, ld_reference = ld_
       message("EAF column already fully populated; skipping reference panel lookup.")
       return(gwas)
     }
+  }
+  if (is_ld_genotypes(ld_reference)) {
+    return(populate_eaf_from_genotypes(gwas, ld_reference))
   }
   if (validate_ld_reference(ld_reference) == ld_reference_options$pan_ukb) {
     return(populate_eaf_from_ld_pack(gwas, ancestry, build))
@@ -120,6 +123,24 @@ populate_eaf_from_reference_panel <- function(gwas, ancestry, ld_reference = ld_
     "EAF population (", ancestry, " reference): filled ", n_fill,
     " of ", n_total_need, " missing values; ", n_total_need - n_fill, " still missing."
   )
+  gwas
+}
+
+#' Fill missing EAF from the user's own genotypes (a PLINK prefix), matching on GeneHackman SNP keys.
+#'
+#' The GWAS's SNP keys are in canonical allele order with EA first while it is standardised, so the frequency of
+#' the key's first allele is the EAF.
+#' @keywords internal
+populate_eaf_from_genotypes <- function(gwas, bfile) {
+  if (!"EAF" %in% names(gwas)) gwas$EAF <- NA_real_
+  need <- which(is.na(gwas$EAF))
+  if (length(need) == 0L) return(gwas)
+  reference <- genotype_allele_frequencies(bfile, unique(gwas$CHR[need]))
+  eaf <- reference$REF_EAF[match(toupper(as.character(gwas$SNP[need])), toupper(reference$SNP))]
+  gwas$EAF[need] <- eaf
+  n_fill <- sum(!is.na(eaf))
+  message("EAF population (", basename(bfile), " genotypes): filled ", n_fill, " of ", length(need),
+          " missing values; ", length(need) - n_fill, " still missing.")
   gwas
 }
 

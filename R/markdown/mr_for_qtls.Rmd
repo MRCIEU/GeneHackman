@@ -69,4 +69,4 @@ if (nrow(cs) > 0 && "LD_FLAG" %in% names(cs) && any(cs$LD_FLAG != "OK")) {
 
 ### Software versions
 
-`r report_provenance()`
+`r report_provenance("qtl_mr")`

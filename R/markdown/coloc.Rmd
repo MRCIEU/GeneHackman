@@ -148,4 +148,4 @@ if (!is.null(coloc_tbl) && "ld_check" %in% names(coloc_tbl)) {
 
 ### Software versions
 
-`r report_provenance()`
+`r report_provenance("coloc")`

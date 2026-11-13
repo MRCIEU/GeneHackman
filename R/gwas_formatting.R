@@ -19,7 +19,8 @@
 #'   BETA/EAF/Z in the output.  When FALSE the original allele order and effect direction
 #'   are restored before saving; all internal steps still operate on the canonical
 #'   (alphabetically flipped) representation.
-#' @param ld_reference reference for \code{populate_eaf}: "1000genomes" or "pan_ukb"
+#' @param ld_reference reference for the strand check and \code{populate_eaf}: "1000genomes", "pan_ukb", or the PLINK
+#'   prefix of the user's own genotypes
 #' @param complement_minus_strand liftover: keep non-palindromic variants that map to the minus strand,
 #'   with complemented alleles (by default they are dropped)
 #' @param max_liftover_drop_fraction liftover: stop if more than this fraction of variants is dropped
@@ -91,7 +92,7 @@ standardise_gwas <- function(gwas,
     if (!is.null(reference) && nrow(reference) > 0) {
       checked <- harmonise_against_reference(gwas, reference, drop_ambiguous_palindromic = drop_ambiguous_palindromic)
       gwas <- checked$gwas
-      message("Allele check against the ", ld_reference, " reference:\n",
+      message("Allele check against the ", ld_reference_label(ld_reference), " reference:\n",
               paste(utils::capture.output(print(checked$report, row.names = FALSE)), collapse = "\n"))
       if (!is.null(report_prefix)) {
         data.table::fwrite(checked$report, paste0(report_prefix, ".allele_qc.tsv"), sep = "\t")

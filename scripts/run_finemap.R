@@ -17,10 +17,9 @@ parser <- add_argument(parser, "--ancestry",
                        type = "character"
 )
 parser <- add_argument(parser, "--ld_reference",
-                       help = paste("LD reference: 1000genomes (PLINK on the 1000 Genomes panel)",
-                                    "or pan_ukb (precomputed LD pack)"),
-                       type = "character",
-                       default = "1000genomes"
+                       help = paste("LD reference: 1000genomes (PLINK on the 1000 Genomes panel),",
+                                    "pan_ukb (precomputed LD pack) or the PLINK prefix of your own genotypes"),
+                       type = "character"
 )
 parser <- add_argument(parser, "--build",
                        help = "Reference build of the standardised GWAS (GRCh37 or GRCh38)",
@@ -54,11 +53,6 @@ parser <- add_argument(parser, "--region_strategy",
                        help = "Fine-mapping regions: merge, none or tile",
                        type = "character",
                        default = "merge"
-)
-parser <- add_argument(parser, "--ld_bfile",
-                       help = "PLINK prefix of in-sample or other user-supplied genotypes (output build) for LD",
-                       type = "character",
-                       default = ""
 )
 parser <- add_argument(parser, "--remove_ld_outliers",
                        help = "Remove variants flagged by the LD-mismatch check (kriging_rss) and refit",
@@ -105,6 +99,5 @@ invisible(finemap_gwas(gwas = args$gwas_filename,
              build = args$build,
              region_strategy = args$region_strategy,
              max_n_ratio = args$max_n_ratio,
-             ld_bfile = if (is.na(args$ld_bfile) || args$ld_bfile == "none") "" else args$ld_bfile,
              remove_ld_outliers = args$remove_ld_outliers
 ))

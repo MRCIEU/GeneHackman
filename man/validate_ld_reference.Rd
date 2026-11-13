@@ -2,11 +2,11 @@
 % Please edit documentation in R/ld_reference.R
 \name{validate_ld_reference}
 \alias{validate_ld_reference}
-\title{Check an LD reference option, returning it unchanged.}
+\title{Check an LD reference option (not the user's genotypes), returning it unchanged.}
 \usage{
 validate_ld_reference(ld_reference)
 }
 \description{
-Check an LD reference option, returning it unchanged.
+Check an LD reference option (not the user's genotypes), returning it unchanged.
 }
 \keyword{internal}

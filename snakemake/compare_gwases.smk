@@ -10,7 +10,6 @@ onstart:
     print("##### GWAS Comparison Pipeline #####")
 
 ancestries = list([g.ancestry for g in pipeline.gwases])
-validate_ancestries(ancestries, pipeline.ld_reference)
 # LDSC LD scores: ldsc.ld_scores is pan_ukb (default) or 1000genomes_b37; matched on rsID, so any output build
 if not hasattr(pipeline, "ldsc"): pipeline.ldsc = SimpleNamespace()
 pipeline.ldsc.ld_scores = str(getattr(pipeline.ldsc, "ld_scores", default_ld_scores)).strip()
@@ -19,6 +18,11 @@ if pipeline.ldsc.ld_scores not in LDSC_DIRS:
 if not all(a in ld_scores_ancestries[pipeline.ldsc.ld_scores] for a in ancestries):
     stop_with_message(f"With ldsc.ld_scores: {pipeline.ldsc.ld_scores}, each GWAS's ancestry must be one of: "
                       f"{', '.join(ld_scores_ancestries[pipeline.ldsc.ld_scores])}.")
+# LDSC is the exception to ld_reference: it uses LD scores, shown with the LD sources in the log and the report
+ldsc_line = ld_sources.describe({}, ldsc_scores=pipeline.ldsc.ld_scores)
+pipeline.ld_summary += ldsc_line
+print("  " + ldsc_line[0])
+write_ld_summary(pipeline)
 check_reference_data(pipeline, pipeline_includes_clumping=True, ld_scores=pipeline.ldsc.ld_scores,
                      ld_score_ancestries=ancestries)
 

@@ -61,7 +61,8 @@ BETA/EAF/Z in the output.  When FALSE the original allele order and effect direc
 are restored before saving; all internal steps still operate on the canonical
 (alphabetically flipped) representation.}
 
-\item{ld_reference}{reference for \code{populate_eaf}: "1000genomes" or "pan_ukb"}
+\item{ld_reference}{reference for the strand check and \code{populate_eaf}: "1000genomes", "pan_ukb", or the PLINK
+prefix of the user's own genotypes}
 
 \item{complement_minus_strand}{liftover: keep non-palindromic variants that map to the minus strand,
 with complemented alleles (by default they are dropped)}

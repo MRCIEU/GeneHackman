@@ -46,7 +46,6 @@ else:
 
 slurm_log_directory = pipeline_log_directory
 
-default_clump_headers = "CHR F SNP BP P TOTAL NSIG S05 S01 S001 S0001 SP2"
 # Applied when plink_clump_arguments does not set them. PLINK's own defaults (--clump-r2 0.5, --clump-kb 250)
 # leave several correlated "lead" SNPs per locus, which downstream steps would treat as independent signals.
 default_clump_arguments = {"--clump-r2": "0.01", "--clump-kb": "1000"}
