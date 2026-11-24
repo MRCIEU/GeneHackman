@@ -4,8 +4,15 @@ from pathlib import Path
 import os
 
 
+def usage_logging_enabled():
+    """Usage logging is opt-in: GENEHACKMAN_USAGE_LOGGING=true in .env (and the developers' credentials file)."""
+    return os.getenv("GENEHACKMAN_USAGE_LOGGING", "").strip().lower() in ("1", "true", "yes")
+
+
 def update_google_sheet(pipeline_name, succeeded=True, error_file=None, is_test=False):
-    if is_test: return
+    """Opt-in usage log for the developers (see README, 'Usage logging'): user name, host, pipeline, time and
+    outcome, plus the input YAML and the error log when a run fails.  Off unless usage_logging_enabled()."""
+    if is_test or not usage_logging_enabled(): return
 
     creds_file = GENOMIC_DATA_DIR + "/googlesheets/google_sheets_creds.json"
     try:

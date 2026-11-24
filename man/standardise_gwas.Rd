@@ -10,13 +10,22 @@ standardise_gwas(
   N = 0,
   populate_rsid_option = populate_rsid_options$none,
   input_reference_build = reference_builds$GRCh37,
-  output_reference_build = reference_builds$GRCh37,
+  output_reference_build = reference_builds$GRCh38,
   input_columns = "default",
   output_columns = "default",
   remove_extra_columns = F,
   populate_eaf = FALSE,
   ancestry = NULL,
-  flip_alleles = TRUE
+  flip_alleles = TRUE,
+  ld_reference = ld_reference_options$thousand_genomes,
+  complement_minus_strand = FALSE,
+  max_liftover_drop_fraction = 0.05,
+  check_build = TRUE,
+  study_type = study_types$continuous,
+  n_case = NA,
+  n_control = NA,
+  strand_check = TRUE,
+  drop_ambiguous_palindromic = FALSE
 )
 }
 \arguments{
@@ -24,13 +33,14 @@ standardise_gwas(
 
 \item{output_file}{file to save standardised gwas}
 
-\item{N}{sample size of GWAS (if GWAS has defined N column, defaults to that value)}
+\item{N}{sample size of GWAS: fills the N column where it is missing; a per-variant N column in the file
+takes precedence}
 
 \item{populate_rsid_option}{if you want RSID populated or not}
 
 \item{input_reference_build}{reference build of CHR and BP of data.  Defaults to GRCh37}
 
-\item{output_reference_build}{reference build of CHR and BP of data.  Defaults to GRCh37}
+\item{output_reference_build}{reference build of CHR and BP of the output.  Defaults to GRCh38}
 
 \item{input_columns}{column header map used for renaming GWAS:
 can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values}
@@ -40,9 +50,9 @@ can be list() of key/value pairs, string of row in predefined_column_maps, or co
 
 \item{remove_extra_columns}{logical flag on if to remove extra columns}
 
-\item{populate_eaf}{If TRUE, fill missing \code{EAF} from the 1000 Genomes \code{.frq}
-file via RSID matching.  Requires \code{ancestry}.  A partial RSID population is
-performed automatically when RSIDs are not already present.}
+\item{populate_eaf}{If TRUE, fill missing \code{EAF} from the LD reference: the 1000 Genomes
+\code{.frq} file via RSID matching (a partial RSID population is performed automatically when
+RSIDs are not already present), or the Pan-UKB LD pack via SNP keys.  Requires \code{ancestry}.}
 
 \item{ancestry}{Ancestry code (EUR, EAS, AFR, AMR, SAS) matching the reference panel prefix; required when \code{populate_eaf} is TRUE.}
 
@@ -50,9 +60,32 @@ performed automatically when RSIDs are not already present.}
 BETA/EAF/Z in the output.  When FALSE the original allele order and effect direction
 are restored before saving; all internal steps still operate on the canonical
 (alphabetically flipped) representation.}
+
+\item{ld_reference}{reference for the strand check and \code{populate_eaf}: "1000genomes", "pan_ukb", or the PLINK
+prefix of the user's own genotypes}
+
+\item{complement_minus_strand}{liftover: keep non-palindromic variants that map to the minus strand,
+with complemented alleles (by default they are dropped)}
+
+\item{max_liftover_drop_fraction}{liftover: stop if more than this fraction of variants is dropped}
+
+\item{check_build}{if TRUE, check the positions against the Pan-UKB LD pack's GRCh37 and GRCh38 keys
+and stop when they match the other build much better than \code{input_reference_build}}
+
+\item{study_type}{"continuous" (default) or "binary" (case-control); for binary traits an effective
+sample size column N_EFF is added, see \code{populate_effective_n()}}
+
+\item{n_case, n_control}{number of cases and controls of a binary trait (whole study), used for N_EFF
+when the file has no per-variant N_CASES and N_CONTROLS}
+
+\item{strand_check}{if TRUE and \code{ancestry} is given, check alleles and strand against the LD reference and
+fix strand flips (\code{harmonise_against_reference()}); counts are written to \verb{<output>.allele_qc.tsv}}
+
+\item{drop_ambiguous_palindromic}{remove A/T and C/G SNVs whose strand can't be told from allele frequency}
 }
 \value{
-modified gwas: saves new gwas in output_file if present
+modified gwas: saves new gwas in output_file if present; a liftover QC report is written
+beside it (\verb{<output>.liftover_qc.tsv}, \verb{<output>.liftover_dropped.tsv.gz}) when the build changes
 }
 \description{
 standardise_gwas: takes an input gwas, changes headers, standardises allelic input, adds RSID, makes life easier

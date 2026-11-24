@@ -33,7 +33,9 @@ run_susie_for_locus(
 \item{min_abs_corr}{minimum absolute correlation for CS purity}
 }
 \value{
-data.table with SNP, CHR, BP, RSID, Z, CS, and \code{LBF_1}, \code{LBF_2}, ... per signal
+data.table with SNP, CHR, BP, RSID, Z, PIP, CS, and \code{LBF_1}, \code{LBF_2}, ... per signal.
+Attributes \code{cs_summary} (one row per credible set, see \code{susie_credible_set_summary()})
+and \code{converged} (SuSiE convergence flag) are attached.
 }
 \description{
 Run SuSiE on a single locus

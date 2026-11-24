@@ -1,0 +1,40 @@
+Call: 
+./ldsc.py \
+--rg /data/ldsc/hf_all.sumstats.gz,/data/ldsc/hf_pef.sumstats.gz \
+--out /results/ldsc/results_EUR_rg_1 
+
+Computing rg for phenotype 2/2
+Heritability of phenotype 1
+---------------------------
+Total Observed scale h2: 0.0123 (0.0009)
+Lambda GC: 1.1022
+Mean Chi^2: 1.1468
+Intercept: 1.0101 (0.0081)
+Ratio: 0.0688 (0.0552)
+
+Heritability of phenotype 2/2
+-----------------------------
+Total Observed scale h2: 0.0018 (0.0011)
+Lambda GC: 1.0034
+Mean Chi^2: 1.0085
+Intercept: 0.997 (0.0062)
+Ratio < 0 (usually indicates GC correction).
+
+Genetic Covariance
+------------------
+Total Observed scale gencov: 0.0047 (0.0008)
+Mean z1*z2: 0.2603
+Intercept: 0.1903 (0.0052)
+
+Genetic Correlation
+-------------------
+Genetic Correlation: 1.0117 (0.3132)
+Z-score: 3.2302
+P: 0.0012
+
+Summary of Genetic Correlation Results
+                       p1                         p2      rg      se       z       p  h2_obs  h2_obs_se  h2_int  h2_int_se  gcov_int  gcov_int_se
+/data/ldsc/hf_all.sumstats.gz  /data/ldsc/hf_pef.sumstats.gz  1.0117  0.3132  3.2302  0.0012  0.0018     0.0011   0.997     0.0062    0.1903       0.0052
+
+Analysis finished at Thu Nov  5 10:02:00 2026
+Total time elapsed: 2.0m

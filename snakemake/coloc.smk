@@ -2,13 +2,13 @@ include: "util/common.smk"
 singularity: get_docker_container()
 
 pipeline_name = "coloc"
-pipeline = parse_pipeline_input(pipeline_includes_clumping=True)
+pipeline = parse_pipeline_input(pipeline_includes_clumping=True, ld_steps=["finemap", "locus_zoom"])
 
 onstart:
     print("##### Colocalization Pipeline #####")
 
 ancestries = list([g.ancestry for g in pipeline.gwases])
-validate_ancestries(ancestries)
+check_reference_data(pipeline, pipeline_includes_clumping=True)
 
 unique_ancestries = list(set(ancestries))
 if len(unique_ancestries) > 1:
@@ -19,11 +19,12 @@ if len(unique_ancestries) > 1:
         "or use the finemap pipeline for multi-ancestry fine-mapping with MultiSuSiE."
     )
 
-finemap_opts = getattr(pipeline, "finemap", SimpleNamespace())
-finemap_window_kb = getattr(finemap_opts, "window_kb", 1000)
-finemap_max_causal = getattr(finemap_opts, "max_causal", 10)
-finemap_coverage = getattr(finemap_opts, "coverage", 0.95)
-finemap_min_abs_corr = getattr(finemap_opts, "min_abs_corr", 0.5)
+finemap_opts = pipeline.finemap  # defaults set in parse_pipeline_input
+finemap_window_kb = finemap_opts.window_kb
+finemap_max_causal = finemap_opts.max_causal
+finemap_coverage = finemap_opts.coverage
+finemap_min_abs_corr = finemap_opts.min_abs_corr
+finemap_max_region_kb = finemap_opts.max_region_kb
 
 coloc_opts = getattr(pipeline, "coloc", SimpleNamespace())
 coloc_overlap_kb = getattr(coloc_opts, "overlap_kb", 1000)
@@ -36,7 +37,11 @@ std_file_pattern = standardised_gwas_name("{prefix}")
 for g in pipeline.gwases:
     g.finemap_dir = RESULTS_DIR + "finemap/" + g.prefix
 
-trait_names = [g.prefix for g in pipeline.gwases]
+gwas_prefixes = [g.prefix for g in pipeline.gwases]
+# names of the traits in coloc results and plots: label: in the input YAML, else the file name
+trait_names = [re.sub(r"\s+", "_", g.label) for g in pipeline.gwases]
+if len(set(trait_names)) < len(trait_names):
+    stop_with_message(f"Each GWAS needs a different label (labels: {', '.join(trait_names)}).")
 finemap_dirs_str = " ".join([g.finemap_dir for g in pipeline.gwases])
 trait_names_str = " ".join(trait_names)
 
@@ -53,8 +58,8 @@ ancestry_bar = "|".join([g.ancestry for g in pipeline.gwases])
 
 rule all:
     input:
-        expand(std_file_pattern, prefix=trait_names),
-        expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=trait_names),
+        expand(std_file_pattern, prefix=gwas_prefixes),
+        expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=gwas_prefixes),
         coloc_results,
         results_file,
         locus_zoom_done
@@ -68,7 +73,7 @@ rule run_coloc:
         mem = "16G",
         time = "02:00:00"
     input:
-        finemap_complete = expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=trait_names)
+        finemap_complete = expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=gwas_prefixes)
     params:
         finemap_dirs = finemap_dirs_str,
         trait_names = trait_names_str,
@@ -93,6 +98,7 @@ rule run_coloc:
 rmd_report_params = {
     "coloc_results": coloc_results,
     "traits_ordered": trait_bar,
+    "finemap_dirs": "|".join(g.finemap_dir for g in pipeline.gwases),
     "ancestries_ordered": ancestry_bar,
     "overlap_kb": str(coloc_overlap_kb),
     "p1": str(coloc_p1),
@@ -127,7 +133,9 @@ rule run_locus_zoom:
         gwas_files = gwas_files_str,
         trait_names = trait_names_str,
         ancestry = first_ancestry,
-        output_dir = locus_zoom_dir
+        output_dir = locus_zoom_dir,
+        ld_references = " ".join(ld_source(g, "locus_zoom") for g in pipeline.gwases),
+        build = pipeline.output.build
     output:
         done = locus_zoom_done
     shell:
@@ -137,6 +145,8 @@ rule run_locus_zoom:
             --gwas_files {params.gwas_files} \
             --trait_names {params.trait_names} \
             --ancestry {params.ancestry} \
+            --ld_references '{params.ld_references}' \
+            --build {params.build} \
             --output_dir {params.output_dir} \
             --completion_file {output.done}
         """

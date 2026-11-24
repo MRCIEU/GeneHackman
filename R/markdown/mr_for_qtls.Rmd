@@ -42,9 +42,31 @@ coloc_results <- coloc_results |>
 knitr::kable(coloc_results)
 ```
 
+### Fine-mapping diagnostics of the GWAS
+
+The QTL colocalization uses the GWAS's fine-mapped credible sets. Fine-mapping uses reference-panel LD unless in-sample genotypes were given, and each region is checked for inconsistency between the z-scores and the LD (`LD_MISMATCH_S`, flagged above `r ld_mismatch_s_threshold`) and for outlying variants (`N_LD_OUTLIERS`; a flipped allele is the typical cause). Credible sets with an `LD_FLAG` other than `OK` should be treated with caution; the checks matter most when more than one signal per region was fitted (L > 1) and when the GWAS is much larger than the LD reference, which is warned about below.
+
+```{r echo = FALSE, results = "asis"}
+fm <- finemap_diagnostics(dirname(params$finemap_complete))
+if ("LD_SIZE_WARNING" %in% names(fm$regions)) cat(ld_size_warning_markdown(fm$regions$LD_SIZE_WARNING))
+print(knitr::kable(fm$summary, caption = "Fine-mapping of the GWAS"))
+cs <- fm$credible_sets
+if (nrow(cs) > 0 && "LD_FLAG" %in% names(cs) && any(cs$LD_FLAG != "OK")) {
+  print(knitr::kable(cs[LD_FLAG != "OK", intersect(c("LOCUS", "CS", "LEAD_RSID", "LEAD_PIP", "LD_MISMATCH_S",
+                                                     "N_LD_OUTLIERS_IN_CS", "LD_FLAG"), names(cs)), with = FALSE],
+                     digits = 3, caption = "Flagged credible sets"))
+} else {
+  cat("\nNo credible set was flagged.\n")
+}
+```
+
 ### Additional info
 
 **Please do us a favour and cite this pipeline: https://doi.org/10.5281/zenodo.10624713**
 
 * This pipeline was run using the github repository: https://github.com/MRCIEU/GeneHackman
 * and the docker image: docker://mrcieu/genehackman:`r get_docker_image_tag()`
+
+### Software versions
+
+`r report_provenance("qtl_mr")`

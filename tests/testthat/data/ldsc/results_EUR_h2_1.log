@@ -1,0 +1,25 @@
+*********************************************************************
+* LD Score Regression (LDSC)
+* Version 1.0.1
+*********************************************************************
+Call: 
+./ldsc.py \
+--h2 /data/ldsc/hf_all.sumstats.gz \
+--ref-ld /pipeline/LDSCORE/pan_ukb/EUR/ld \
+--w-ld /pipeline/LDSCORE/pan_ukb/EUR/ld \
+--samp-prev 0.5 \
+--pop-prev 0.02 \
+--out /results/ldsc/results_EUR_h2_1 
+
+Beginning analysis at Thu Nov  5 10:00:00 2026
+Reading summary statistics from /data/ldsc/hf_all.sumstats.gz ...
+Read summary statistics for 1180000 SNPs.
+Estimating heritability.
+Total Observed scale h2: 0.0123 (0.0009)
+Total Liability scale h2: 0.0541 (0.004)
+Lambda GC: 1.1022
+Mean Chi^2: 1.1468
+Intercept: 1.0101 (0.0081)
+Ratio: 0.0688 (0.0552)
+Analysis finished at Thu Nov  5 10:01:00 2026
+Total time elapsed: 1.0m

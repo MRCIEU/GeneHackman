@@ -30,6 +30,7 @@ gwases:
     columns: {}
     N: 80000
     ancestry: EUR
+ld_reference: pan_ukb
 plink_clump_arguments: "--clump-p1 5e-8 --clump-r2 0.01 --clump-kb 1000"
 finemap:
   window_kb: 1000
@@ -50,17 +51,25 @@ populate_rsid: false
 | ----- | -------- | ----- |
 | `file` | **Yes** | Input summary-statistics file. |
 | `ancestry` | **Yes** | Must be **identical** across all GWAS. |
+| `ld_reference` | No | This GWAS's LD source for every step, overriding the step and top-level settings: `pan_ukb`, `1000genomes`, or the PLINK prefix (`.bed/.bim/.fam`, output build) of its own genotypes, e.g. those it was computed from. |
 | `N` | Recommended | Sample size for fine-mapping. |
 | `columns` | No | Column map or preset. |
-| `build` | No | Input build. Default `GRCh37`. |
+| `build` | No | Input build. Default `GRCh37`; lifted to `output.build`. |
 | `populate_rsid` | No | Per-GWAS override; default inherits root `false`. |
 | `populate_eaf` | No | Fill missing `EAF` from 1000 Genomes (requires `ancestry`). |
+
+### `output`
+
+| Field | Required | Notes |
+| ----- | -------- | ----- |
+| `output.build` | No | Build of all outputs (GWAS, clumps, fine-mapping, plots, MR and coloc). Default `GRCh38` (`GRCh37` needs `download_reference_data.sh --grch37`). |
 
 ### `plink_clump_arguments`
 
 | Field | Required | Notes |
 | ----- | -------- | ----- |
-| `plink_clump_arguments` | **Yes** | Passed to `plink1.9 --clump`. |
+| `plink_clump_arguments` | **Yes** | Passed to `plink1.9 --clump`. If `--clump-r2` or `--clump-kb` are not given, GeneHackman adds `--clump-r2 0.01 --clump-kb 1000` (PLINK's own defaults, 0.5 and 250 kb, leave several correlated lead SNPs per locus). |
+| `ld_reference` | **Yes** | Where LD comes from, with no default: `pan_ukb` (Pan-UK Biobank LD, about 420,000 Europeans and 6,000–8,000 or fewer for other ancestries), `1000genomes` (about 500 people per super-population) or the PLINK prefix of your own genotypes. Used by every LD step here (strand check and EAF filling, clumping, fine-mapping and the regional plots); `harmonise: {ld_reference: ...}`, `clumping:`, `finemap:`, `locus_zoom:` or a GWAS's own `ld_reference` sets a different source for one step or one GWAS. See [PIPELINES.md](../PIPELINES.md#common-conventions). |
 
 ### `finemap`
 
@@ -70,12 +79,13 @@ populate_rsid: false
 | `finemap.max_causal` | No | Max causal signals per locus. Default `10`. |
 | `finemap.coverage` | No | Credible set coverage. Default `0.95`. |
 | `finemap.min_abs_corr` | No | Minimum \|r\| for credible-set purity. Default `0.5`. |
+| `finemap.max_region_kb` | No | Maximum width (kb) of a region made by merging overlapping lead windows. Default `3000`. See [`finemap.md`](finemap.md). |
 
 ### `coloc`
 
 | Field | Required | Notes |
 | ----- | -------- | ----- |
-| `coloc.overlap_kb` | No | Two signals “overlap” if lead positions are within this distance (kb). Default `1000`. |
+| `coloc.overlap_kb` | No | Two fine-mapped loci are tested if their lead positions are within this distance (kb), or if their fine-mapping regions overlap. Default `1000`. |
 | `coloc.p1` | No | Prior: SNP associated with trait 1. Default `1e-4`. |
 | `coloc.p2` | No | Prior: SNP associated with trait 2. Default `1e-4`. |
 | `coloc.p12` | No | Prior: SNP associated with both traits. Default `5e-6`. |
@@ -112,7 +122,8 @@ populate_rsid: false
 | Path | Description |
 | ---- | ----------- |
 | `finemap/<prefix>/finemap_complete_<prefix>.txt` | Fine-mapping completion marker per GWAS. |
-| `finemap/<prefix>/<CHR>_<BP>_finemap.tsv.gz` | Per-locus SuSiE output with LBF columns. |
+| `finemap/<prefix>/<CHR>_<BP>_finemap.tsv.gz` | Per-region SuSiE output with PIP and LBF columns. |
+| `finemap/<prefix>/finemap_regions.tsv`, `finemap_credible_sets.tsv` | Region and credible-set summaries (see [`finemap.md`](finemap.md)). |
 | `coloc/coloc_results.tsv` | Pairwise coloc results (sorted by PP.H4 in the HTML report). |
 | `coloc/result_coloc.html` | Summary HTML report. |
 | `coloc/locus_zoom/` | Locus zoom plot outputs. |
@@ -121,4 +132,8 @@ populate_rsid: false
 ## Notes
 
 - Coloc requires LBF columns in finemap outputs; multi-ancestry MultiSuSiE outputs are not compatible with this pipeline.
+- Only variants with log Bayes factors in both loci (i.e. present in the LD panel for both fine-mapping runs) are used.
 - See [coloc documentation](https://chr1swallace.github.io/coloc/) for interpretation of posterior probabilities.
+- **Sample overlap.** coloc assumes the two traits are measured in independent samples (Giambartolomei et al. 2014). Traits from the same or overlapping cohorts (e.g. nested case definitions with shared controls) violate this; same-biobank colocalisations are common, but read the posterior probabilities with caution, and note that a spurious signal from shared samples (or from the shared LD reference) can appear in both traits. The LDSC cross-trait intercept from `compare_gwases.smk` (`GCOV_INTERCEPT`, near 0 without overlap) shows how much overlap there is.
+- `label:` per GWAS names the traits in the results and plots.
+- **LD flags.** `coloc_results.tsv` has `ld_flag1`/`ld_flag2`, the fine-mapping `LD_FLAG` of each trait's region, and `ld_check` (TRUE when either isn't `OK`). A colocalization from a region with LD mismatch may be spurious; the report counts them and lists the flagged credible sets.

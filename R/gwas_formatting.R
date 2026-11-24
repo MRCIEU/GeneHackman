@@ -1,24 +1,40 @@
 #' standardise_gwas: takes an input gwas, changes headers, standardises allelic input, adds RSID, makes life easier
 #' @param gwas filename of gwas to standardise or dataframe of gwas
 #' @param output_file file to save standardised gwas
-#' @param N sample size of GWAS (if GWAS has defined N column, defaults to that value)
+#' @param N sample size of GWAS: fills the N column where it is missing; a per-variant N column in the file
+#'   takes precedence
 #' @param populate_rsid_option if you want RSID populated or not
 #' @param input_reference_build reference build of CHR and BP of data.  Defaults to GRCh37
-#' @param output_reference_build reference build of CHR and BP of data.  Defaults to GRCh37
+#' @param output_reference_build reference build of CHR and BP of the output.  Defaults to GRCh38
 #' @param input_columns column header map used for renaming GWAS:
 #'   can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values
 #' @param output_columns column header map used for renaming GWAS:
 #'   can be list() of key/value pairs, string of row in predefined_column_maps, or comma separated list of keys=values
 #' @param remove_extra_columns logical flag on if to remove extra columns
-#' @param populate_eaf If TRUE, fill missing \code{EAF} from the 1000 Genomes \code{.frq}
-#'   file via RSID matching.  Requires \code{ancestry}.  A partial RSID population is
-#'   performed automatically when RSIDs are not already present.
+#' @param populate_eaf If TRUE, fill missing \code{EAF} from the LD reference: the 1000 Genomes
+#'   \code{.frq} file via RSID matching (a partial RSID population is performed automatically when
+#'   RSIDs are not already present), or the Pan-UKB LD pack via SNP keys.  Requires \code{ancestry}.
 #' @param ancestry Ancestry code (EUR, EAS, AFR, AMR, SAS) matching the reference panel prefix; required when \code{populate_eaf} is TRUE.
 #' @param flip_alleles If TRUE (default), keep EA/OA in alphabetical order with flipped
 #'   BETA/EAF/Z in the output.  When FALSE the original allele order and effect direction
 #'   are restored before saving; all internal steps still operate on the canonical
 #'   (alphabetically flipped) representation.
-#' @return modified gwas: saves new gwas in output_file if present
+#' @param ld_reference reference for the strand check and \code{populate_eaf}: "1000genomes", "pan_ukb", or the PLINK
+#'   prefix of the user's own genotypes
+#' @param complement_minus_strand liftover: keep non-palindromic variants that map to the minus strand,
+#'   with complemented alleles (by default they are dropped)
+#' @param max_liftover_drop_fraction liftover: stop if more than this fraction of variants is dropped
+#' @param study_type "continuous" (default) or "binary" (case-control); for binary traits an effective
+#'   sample size column N_EFF is added, see \code{populate_effective_n()}
+#' @param n_case,n_control number of cases and controls of a binary trait (whole study), used for N_EFF
+#'   when the file has no per-variant N_CASES and N_CONTROLS
+#' @param strand_check if TRUE and \code{ancestry} is given, check alleles and strand against the LD reference and
+#'   fix strand flips (\code{harmonise_against_reference()}); counts are written to \verb{<output>.allele_qc.tsv}
+#' @param drop_ambiguous_palindromic remove A/T and C/G SNVs whose strand can't be told from allele frequency
+#' @param check_build if TRUE, check the positions against the Pan-UKB LD pack's GRCh37 and GRCh38 keys
+#'   and stop when they match the other build much better than \code{input_reference_build}
+#' @return modified gwas: saves new gwas in output_file if present; a liftover QC report is written
+#'   beside it (\verb{<output>.liftover_qc.tsv}, \verb{<output>.liftover_dropped.tsv.gz}) when the build changes
 
 
 #' @export
@@ -27,13 +43,22 @@ standardise_gwas <- function(gwas,
                              N=0,
                              populate_rsid_option=populate_rsid_options$none,
                              input_reference_build=reference_builds$GRCh37,
-                             output_reference_build=reference_builds$GRCh37,
+                             output_reference_build=reference_builds$GRCh38,
                              input_columns="default",
                              output_columns="default",
                              remove_extra_columns=F,
                              populate_eaf=FALSE,
                              ancestry=NULL,
-                             flip_alleles=TRUE) {
+                             flip_alleles=TRUE,
+                             ld_reference=ld_reference_options$thousand_genomes,
+                             complement_minus_strand=FALSE,
+                             max_liftover_drop_fraction=0.05,
+                             check_build=TRUE,
+                             study_type=study_types$continuous,
+                             n_case=NA,
+                             n_control=NA,
+                             strand_check=TRUE,
+                             drop_ambiguous_palindromic=FALSE) {
   input_gwas_columns <- resolve_column_map(input_columns)
   output_gwas_columns <- resolve_column_map(output_columns)
 
@@ -43,24 +68,51 @@ standardise_gwas <- function(gwas,
 
   gwas <- get_file_or_dataframe(gwas) |>
     change_column_names(input_gwas_columns, remove_extra_columns) |>
+    derive_n_controls() |>
     standardise_columns(N) |>
     filter_incomplete_rows() |>
-    convert_reference_build_via_liftover(input_reference_build, output_reference_build)
+    populate_effective_n(study_type, n_case, n_control)
+
+  if (isTRUE(check_build)) {
+    check_declared_build(gwas, input_reference_build)
+  }
+  report_prefix <- NULL
+  if (!missing(output_file) && shiny::isTruthy(output_file)) {
+    report_prefix <- sub("\\.(tsv|txt|csv)(\\.gz)?$", "", output_file)
+  }
+  gwas <- convert_reference_build_via_liftover(gwas, input_reference_build, output_reference_build,
+                                               complement_minus_strand = complement_minus_strand,
+                                               max_drop_fraction = max_liftover_drop_fraction,
+                                               report_prefix = report_prefix)
 
   gwas <- standardise_alleles(gwas)
 
+  if (isTRUE(strand_check) && !is.null(ancestry) && length(ancestry) == 1 && !is.na(ancestry) && nzchar(ancestry)) {
+    reference <- allele_reference(unique(gwas$CHR), ancestry, ld_reference, output_reference_build)
+    if (!is.null(reference) && nrow(reference) > 0) {
+      checked <- harmonise_against_reference(gwas, reference, drop_ambiguous_palindromic = drop_ambiguous_palindromic)
+      gwas <- checked$gwas
+      message("Allele check against the ", ld_reference_label(ld_reference), " reference:\n",
+              paste(utils::capture.output(print(checked$report, row.names = FALSE)), collapse = "\n"))
+      if (!is.null(report_prefix)) {
+        data.table::fwrite(checked$report, paste0(report_prefix, ".allele_qc.tsv"), sep = "\t")
+      }
+    }
+  }
+
   rsid_option <- populate_rsid_option
-  if (isTRUE(populate_eaf) && identical(rsid_option, populate_rsid_options$none) && !"RSID" %in% colnames(gwas)) {
+  if (isTRUE(populate_eaf) && ld_reference == ld_reference_options$thousand_genomes &&
+      identical(rsid_option, populate_rsid_options$none) && !"RSID" %in% colnames(gwas)) {
     rsid_option <- populate_rsid_options$partial
   }
 
   gwas <- gwas |>
     health_check() |>
-    populate_rsid(rsid_option) |>
+    populate_rsid(rsid_option, build = output_reference_build) |>
     populate_gene_names()
 
   if (isTRUE(populate_eaf)) {
-    gwas <- populate_eaf_from_reference_panel(gwas, ancestry)
+    gwas <- populate_eaf_from_reference_panel(gwas, ancestry, ld_reference, output_reference_build)
   }
 
   if (!flip_alleles) {
@@ -127,15 +179,10 @@ normalise_gwas_chr <- function(x) {
 standardise_columns <- function(gwas, N) {
   gwas_columns <- colnames(gwas)
 
-  if (N > 0) {
-    gwas$N <- N
-  }
+  gwas <- fill_sample_size(gwas, N)
 
-  if (!all(c("CHR", "BP") %in% gwas_columns)) {
-    if(all(grepl("\\d:\\d", gwas$SNP))) {
-      gwas <- tidyr::separate(data = gwas, col = "SNP", into = c("CHR", "BP"), sep = "[:_]", remove = F)
-      gwas$BP <- as.numeric(gwas$BP)
-    }
+  if (!all(c("CHR", "BP") %in% gwas_columns) && "SNP" %in% gwas_columns) {
+    gwas <- populate_chr_bp_from_variant_id(gwas)
   }
 
   if (all(c("OR", "OR_LB", "OR_UB") %in% gwas_columns) && !all(c("BETA", "SE") %in% colnames(gwas))) {
@@ -150,16 +197,17 @@ standardise_columns <- function(gwas, N) {
     gwas <- convert_z_score_to_beta(gwas)
   }
 
-  if ("BP" %in% gwas_columns) gwas$BP <- as.numeric(gwas$BP)
-  if ("P" %in% gwas_columns) {
+  if ("BP" %in% colnames(gwas)) gwas$BP <- as.numeric(gwas$BP)
+  if ("P" %in% colnames(gwas)) {
     gwas$P <- as.numeric(gwas$P)
-    gwas$P[gwas$P == 0] <- .Machine$double.xmin
+    n_zero <- sum(gwas$P == 0, na.rm = TRUE)
+    if (n_zero > 0) {
+      warning(n_zero, " P values of 0 set to ", .Machine$double.xmin,
+              " (the smallest positive double); fine-mapping and coloc use BETA and SE, not P")
+      gwas$P[!is.na(gwas$P) & gwas$P == 0] <- .Machine$double.xmin
+    }
   }
-  if ("BETA" %in% gwas_columns) {
-    gwas$BETA <- as.numeric(gwas$BETA)
-  }
-
-  if ("BETA" %in% gwas_columns) {
+  if ("BETA" %in% colnames(gwas)) {
     gwas$BETA <- as.numeric(gwas$BETA)
   }
 
@@ -167,6 +215,166 @@ standardise_columns <- function(gwas, N) {
     gwas$CHR <- normalise_gwas_chr(gwas$CHR)
   }
 
+  return(gwas)
+}
+
+#' Fill the N column from the sample size given in the input YAML.
+#'
+#' A per-variant N in the file takes precedence: the YAML value only fills rows where N is missing (or the
+#' whole column when the file has none).  In meta-analyses N differs between variants, and a single value
+#' would misstate it for variants not measured in every cohort.
+#' @keywords internal
+fill_sample_size <- function(gwas, N) {
+  N <- suppressWarnings(as.numeric(N))
+  if (length(N) != 1 || is.na(N) || N <= 0) return(gwas)
+  if (!"N" %in% colnames(gwas)) {
+    gwas$N <- N
+    return(gwas)
+  }
+  per_variant <- suppressWarnings(as.numeric(gwas$N))
+  missing_n <- is.na(per_variant) | per_variant <= 0
+  if (any(!missing_n)) {
+    message("Using the GWAS file's per-variant N; the N given in the input (", N, ") fills ",
+            sum(missing_n), " variant(s) without one")
+  }
+  per_variant[missing_n] <- N
+  gwas$N <- per_variant
+  return(gwas)
+}
+
+#' Effective sample size of a case-control study: \eqn{4 / (1/N_{cases} + 1/N_{controls})} (Willer et al. 2010).
+#' @param n_case number of cases
+#' @param n_control number of controls
+#' @return effective sample size; NA where either count is missing or not positive
+#' @export
+effective_sample_size <- function(n_case, n_control) {
+  n_case <- suppressWarnings(as.numeric(n_case))
+  n_control <- suppressWarnings(as.numeric(n_control))
+  n_eff <- 4 / (1 / n_case + 1 / n_control)
+  n_eff[is.na(n_case) | is.na(n_control) | n_case <= 0 | n_control <= 0] <- NA_real_
+  n_eff
+}
+
+#' Normalise a study type: "continuous" (also "quantitative", "quant") or "binary" (also "case_control",
+#' "categorical", "cc").
+#' @keywords internal
+normalise_study_type <- function(study_type) {
+  if (identical(study_type, "quant")) return(study_types$continuous)
+  type <- tolower(trimws(as.character(study_type %||% study_types$continuous)))
+  if (length(type) == 0 || is.na(type) || !nzchar(type)) return(study_types$continuous)
+  if (type %in% c("continuous", "quantitative", "quant")) return(study_types$continuous)
+  if (type %in% c("binary", "case_control", "case-control", "categorical", "cc")) return(study_types$binary)
+  stop("study_type must be continuous or binary (case-control), not ", study_type)
+}
+
+#' Add an effective sample size column (N_EFF) for a binary trait.
+#'
+#' In order of preference:
+#' \enumerate{
+#'   \item an N_EFF column already in the file is kept (for a meta-analysis, the sum of the cohorts'
+#'     effective sample sizes; Grotzinger et al. 2023);
+#'   \item per-variant N_CASES and N_CONTROLS columns: N_EFF = 4 / (1/N_CASES + 1/N_CONTROLS).  A file with
+#'     N_CASES and a total N but no N_CONTROLS gets N_CONTROLS = N - N_CASES (\code{derive_n_controls()}).
+#'     Variants without per-variant counts get the study's N_EFF, if the study counts are given;
+#'   \item a per-variant N column and the study's case and control counts: N_EFF = N x 4 phi (1 - phi), with
+#'     phi = n_case / (n_case + n_control), which assumes the same case fraction at every variant;
+#'   \item the study's case and control counts alone: one N_EFF for every variant.
+#' }
+#' Continuous traits are returned unchanged.  A binary trait with none of these keeps only N, with a warning.
+#' @param gwas GWAS data frame
+#' @param study_type "continuous" or "binary"
+#' @param n_case,n_control numbers of cases and controls in the whole study
+#' @return gwas, with N_EFF for binary traits
+#' @export
+populate_effective_n <- function(gwas, study_type = study_types$continuous, n_case = NA, n_control = NA) {
+  if (normalise_study_type(study_type) != study_types$binary) return(gwas)
+  columns <- colnames(gwas)
+  if ("N_EFF" %in% columns) {
+    gwas$N_EFF <- suppressWarnings(as.numeric(gwas$N_EFF))
+    return(gwas)
+  }
+  gwas <- derive_n_controls(gwas)
+  columns <- colnames(gwas)
+  study_n_eff <- effective_sample_size(n_case, n_control)
+  if (all(c("N_CASES", "N_CONTROLS") %in% columns)) {
+    per_variant <- effective_sample_size(gwas$N_CASES, gwas$N_CONTROLS)
+    if (!all(is.na(per_variant))) {
+      if (!is.na(study_n_eff)) per_variant[is.na(per_variant)] <- study_n_eff
+      gwas$N_EFF <- per_variant
+      return(gwas)
+    }
+  }
+  if (is.na(study_n_eff)) {
+    warning("Binary trait without case and control counts (N_case and N_control in the input, or N_CASES and ",
+            "N_CONTROLS columns): N_EFF can't be computed, so the total N is used, which overstates the ",
+            "information in an unbalanced case-control study")
+    return(gwas)
+  }
+  if ("N" %in% columns && any(!is.na(suppressWarnings(as.numeric(gwas$N))))) {
+    case_fraction <- as.numeric(n_case) / (as.numeric(n_case) + as.numeric(n_control))
+    gwas$N_EFF <- suppressWarnings(as.numeric(gwas$N)) * 4 * case_fraction * (1 - case_fraction)
+    gwas$N_EFF[is.na(gwas$N_EFF)] <- study_n_eff
+  } else {
+    gwas$N_EFF <- study_n_eff
+  }
+  return(gwas)
+}
+
+#' Per-variant number of controls from the total: N_CONTROLS = N - N_CASES.
+#'
+#' For files that give the cases and the total per variant but not the controls (e.g. HERMES: N_case, N_total).
+#' Only used when the file has N_CASES and N but no N_CONTROLS; values that are missing or not positive
+#' are left missing.  Call it before the input's study N fills the N column, so that the totals come from the file.
+#' @param gwas GWAS data frame
+#' @return gwas, with N_CONTROLS when it can be derived
+#' @keywords internal
+derive_n_controls <- function(gwas) {
+  columns <- colnames(gwas)
+  if (!all(c("N_CASES", "N") %in% columns) || "N_CONTROLS" %in% columns) return(gwas)
+  n_cases <- suppressWarnings(as.numeric(gwas$N_CASES))
+  n_controls <- suppressWarnings(as.numeric(gwas$N)) - n_cases
+  n_controls[is.na(n_cases) | n_cases <= 0 | n_controls <= 0] <- NA
+  gwas$N_CONTROLS <- n_controls
+  return(gwas)
+}
+
+#' Sample size to use for a set of variants: the median of N_EFF (binary traits) or N, ignoring missing values.
+#' @param gwas GWAS rows (e.g. one fine-mapping region)
+#' @param default_n used when the rows have no sample size
+#' @keywords internal
+analysis_sample_size <- function(gwas, default_n = NA_real_) {
+  for (column in c("N_EFF", "N")) {
+    if (column %in% colnames(gwas)) {
+      n <- suppressWarnings(as.numeric(gwas[[column]]))
+      n <- n[!is.na(n) & n > 0]
+      if (length(n) > 0) return(stats::median(n))
+    }
+  }
+  return(suppressWarnings(as.numeric(default_n)))
+}
+
+#' Fill missing CHR / BP columns from \code{chr:pos[:a1:a2]} style variant identifiers in the SNP column.
+#' Accepts an optional \code{chr} prefix, \code{:}, \code{_} or \code{-} separators,
+#' numeric chromosomes and X, Y, XY, M or MT.
+#' Rows whose identifier does not match (e.g. rsIDs) are left with missing CHR / BP and are removed later by
+#' \code{filter_incomplete_rows()}. Alleles embedded in the identifier are not used: EA and OA must come from
+#' their own columns, because the identifier does not say which allele is the effect allele.
+#' @keywords internal
+populate_chr_bp_from_variant_id <- function(gwas) {
+  variant_id_pattern <- stringr::regex("^(?:chr)?([0-9]{1,2}|X|Y|XY|MT|M)[:_-]([0-9]+)(?:[:_-].*)?$",
+                                       ignore_case = TRUE)
+  parsed <- stringr::str_match(stringr::str_trim(as.character(gwas$SNP)), variant_id_pattern)
+  matched <- !is.na(parsed[, 1])
+
+  if (!any(matched)) {
+    return(gwas)
+  }
+  if (!all(matched)) {
+    warning(paste("Could not parse CHR and BP from", sum(!matched), "SNP identifiers; these rows will be removed"))
+  }
+
+  if (!"CHR" %in% colnames(gwas)) gwas$CHR <- toupper(parsed[, 2])
+  if (!"BP" %in% colnames(gwas)) gwas$BP <- as.numeric(parsed[, 3])
   return(gwas)
 }
 
@@ -201,7 +409,8 @@ change_column_names <- function(gwas, columns = list(), remove_extra_columns = F
 
   if (remove_extra_columns) {
     columns_to_remove <- setdiff(colnames(gwas), names(columns))
-    gwas <- gwas[,-which(colnames(gwas) %in% columns_to_remove)]
+    # -which() of nothing would select no columns at all, so only drop when there is something to drop
+    if (length(columns_to_remove) > 0) gwas <- gwas[, -which(colnames(gwas) %in% columns_to_remove), drop = FALSE]
   }
 
   return(gwas)
@@ -215,7 +424,8 @@ standardise_alleles <- function(gwas) {
   gwas$EA <- toupper(gwas$EA)
   gwas$OA <- toupper(gwas$OA)
 
-  to_flip <- (gwas$EA > gwas$OA) & (!gwas$EA %in% c("D", "I"))
+  # canonical order: alphabetical (insertion/deletion coded I/D too, so I/D and D/I give the same key)
+  to_flip <- gwas$EA > gwas$OA
   gwas$.ALLELES_FLIPPED <- to_flip
 
   if (any(to_flip)) {
@@ -292,29 +502,37 @@ convert_beta_to_or <- function(gwas) {
   return(gwas)
 }
 
-convert_z_score_to_beta <- function(gwas, sample_size) {
-  gwas$SE_new <- 1 / sqrt(2 * gwas$EAF * (1 - gwas$EAF) * sample_size)
-  gwas$BETA_new <- gwas$Z * gwas$SE_new
+#' Effect size and standard error from a Z-score, allele frequency and sample size.
+#'
+#' For files that give only Z (no BETA and SE), the effect is put on the standardised scale (per standard
+#' deviation of the trait): \eqn{SE = 1 / \sqrt{2p(1-p)(N + Z^2)}} and \eqn{BETA = Z \times SE}
+#' (Zhu et al. 2016).  P is computed from Z when missing.  Needs EAF and N (a column, or \code{sample_size}).
+#' @param gwas data frame with Z, EAF and N
+#' @param sample_size sample size used where N is missing
+#' @return gwas with BETA, SE and P; rows that can't be converted are removed with a warning
+#' @keywords internal
+convert_z_score_to_beta <- function(gwas, sample_size = NA) {
+  if (!"EAF" %in% colnames(gwas)) {
+    stop("The GWAS gives Z but no BETA and SE: converting Z needs an EAF column (and N)")
+  }
+  n <- if ("N" %in% colnames(gwas)) suppressWarnings(as.numeric(gwas$N)) else rep(NA_real_, nrow(gwas))
+  n[is.na(n)] <- suppressWarnings(as.numeric(sample_size))
+  if (all(is.na(n))) {
+    stop("The GWAS gives Z but no BETA and SE: converting Z needs a sample size (an N column or N in the input)")
+  }
+  z <- as.numeric(gwas$Z)
+  eaf <- as.numeric(gwas$EAF)
+  gwas$SE <- 1 / sqrt(2 * eaf * (1 - eaf) * (n + z^2))
+  gwas$BETA <- z * gwas$SE
+  if (!"P" %in% colnames(gwas)) gwas$P <- 2 * stats::pnorm(-abs(z))
+  gwas$P[is.na(gwas$P)] <- 2 * stats::pnorm(-abs(z[is.na(gwas$P)]))
 
-  correction_gwas <- dplyr::filter(gwas, !is.na(BETA) & !is.null(BETA))
-  correction_gwas$BETA_new[which(!is.finite(correction_gwas$BETA_new))] <- NA
-  correction <- lm(correction_gwas$BETA_new ~ correction_gwas$BETA, na.action=na.omit)$coef[2]
-
-  gwas$BETA_new <- gwas$BETA_new / correction
-  gwas$SE_new <- gwas$SE_new / correction
-  gwas$P_new <- abs(2 * pnorm(abs(gwas$Z), lower.tail = F))
-
-  gwas <- dplyr::mutate(gwas, BETA = dplyr::if_else(is.na(BETA), BETA_new, BETA),
-                              SE = dplyr::if_else(is.na(SE), SE_new, SE),
-                              P = dplyr::if_else(is.na(P), P_new, P) ) |>
-    dplyr::select(-BETA_new, -SE_new, -P_new) |>
-    dplyr::filter(!is.na(BETA) & !is.na(SE) & BETA != Inf & SE != Inf)
-
-  return(gwas)
+  ok <- is.finite(gwas$BETA) & is.finite(gwas$SE) & gwas$SE > 0
+  if (any(!ok)) {
+    warning(sum(!ok), " variant(s) removed: Z can't be converted to BETA and SE (missing Z, EAF or N, or EAF of 0 or 1)")
+  }
+  return(gwas[ok, , drop = FALSE])
 }
-
-
-
 
 convert_z_to_p <- function(gwas) {
   gwas$P <- 2 * pnorm(-abs(gwas$Z))

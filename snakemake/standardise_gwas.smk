@@ -3,6 +3,7 @@ singularity: get_docker_container()
 
 pipeline_name = "standardise_gwas"
 pipeline = parse_pipeline_input(allow_flip_false=True)
+check_reference_data(pipeline, pipeline_includes_clumping=False)
 
 onstart:
     print("##### GWAS Standardisation Pipeline #####")

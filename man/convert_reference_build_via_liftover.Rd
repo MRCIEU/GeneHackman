@@ -7,8 +7,11 @@
 convert_reference_build_via_liftover(
   gwas,
   input_reference_build = reference_builds$GRCh37,
-  output_reference_build = reference_builds$GRCh37,
-  output_file
+  output_reference_build = reference_builds$GRCh38,
+  output_file,
+  complement_minus_strand = FALSE,
+  max_drop_fraction = 0.05,
+  report_prefix = NULL
 )
 }
 \arguments{
@@ -18,11 +21,33 @@ convert_reference_build_via_liftover(
 
 \item{output_reference_build}{string reference build that GWAS is to change to, found in reference_builds list}
 
-\item{output_file}{optional output file name to save to}
+\item{output_file}{optional output file name to save to (the QC report is written beside it)}
+
+\item{complement_minus_strand}{keep non-palindromic minus-strand variants, with complemented alleles}
+
+\item{max_drop_fraction}{stop if more than this fraction of variants is dropped; a large loss
+usually means the declared input build is wrong}
+
+\item{report_prefix}{optional path prefix for the QC report files}
 }
 \value{
 gwas input is altered and returned
 }
 \description{
-convert_reference_build_via_liftover: Change reference build of BP marker from allow list of liftOver conversions
+Positions are lifted with UCSC liftOver, and variants whose new position can't be trusted are
+dropped, each with a reason:
+\itemize{
+\item \code{unmapped}: liftOver found no position;
+\item \code{non_primary_contig}: mapped to an alt, random or unplaced contig;
+\item \code{chrom_change}: mapped to another chromosome (paralogous or relocated sequence);
+\item \code{strand_flip}: mapped to the minus strand (sequence inverted between builds), so the
+alleles would need complementing.  With \code{complement_minus_strand = TRUE}, non-palindromic
+variants are kept with complemented alleles and only palindromic ones are dropped;
+\item \code{round_trip}: lifting the new position back does not return the original one (a
+conversion-unstable position, Ormond et al. 2021);
+\item \code{duplicate_target}: two different input positions land on the same variant.
+}
+A QC table (counts per reason) is attached as \code{attr(result, "liftover_qc")}, and when
+\code{report_prefix} is given it is written to \verb{<report_prefix>.liftover_qc.tsv} with the dropped
+rows in \verb{<report_prefix>.liftover_dropped.tsv.gz}.
 }

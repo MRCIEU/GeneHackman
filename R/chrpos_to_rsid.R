@@ -86,24 +86,28 @@ chrpos_to_rsid <- function(dt,
     message(paste("RSID mapping...\nChromosomes to process: ", paste0(names(dts), collapse=", ")))
   }
 
-  # set up parallel processing and process each chromosome independently
-  future::plan(future::multisession, workers=parallel_cores)
-  progressr::with_progress({
+  # process each chromosome independently: in this R session with one core (no worker sessions, which need
+  # GeneHackman installed), otherwise in parallel
+  # out[[1]] is the RSID data
+  # out[[2]] is the alternative RSID data (other RSIDs for the same CHR:BP:A1:A2)
+  if (parallel_cores <= 1) {
+    out <- lapply(dts, process_chromosome,
+                  chr_col=chr_col, pos_col=pos_col, nea_col=nea_col, ea_col=ea_col, build=build, dbsnp_dir=dbsnp_dir, flip=flip, alt_rsids=alt_rsids, p=function(...) NULL)
+  } else {
+    future::plan(future::multisession, workers=parallel_cores)
+    progressr::with_progress({
 
-    # set up progress bar
-    p <- progressr::progressor(steps = 7*length(dts)) # going to update 7 times in the function
+      # set up progress bar
+      p <- progressr::progressor(steps = 7*length(dts)) # going to update 7 times in the function
 
-    # run each chromosome in parallel
-    # out[[1]] is the RSID data
-    # out[[2]] is the alternative RSID data (other RSIDs for the same CHR:BP:A1:A2)
-    out <- furrr::future_map(.x = dts,
-                             .f = process_chromosome,
-                             chr_col=chr_col, pos_col=pos_col, nea_col=nea_col, ea_col=ea_col, build=build, dbsnp_dir=dbsnp_dir, flip=flip, alt_rsids=alt_rsids, p=p,
-                             .options=furrr::furrr_options(seed=TRUE))
+      out <- furrr::future_map(.x = dts,
+                               .f = process_chromosome,
+                               chr_col=chr_col, pos_col=pos_col, nea_col=nea_col, ea_col=ea_col, build=build, dbsnp_dir=dbsnp_dir, flip=flip, alt_rsids=alt_rsids, p=p,
+                               .options=furrr::furrr_options(seed=TRUE))
 
-  })
-
-  future::plan(future::sequential)
+    })
+    future::plan(future::sequential)
+  }
   rm(dts)
   gc(verbose = FALSE)
 

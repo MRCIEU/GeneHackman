@@ -10,7 +10,8 @@ install.packages("devtools")
 
 if (!requireNamespace("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
-BiocManager::install(c("ensembldb", "EnsDb.Hsapiens.v75"), update = FALSE, ask = FALSE)
+# gene annotation for LocusZoom plots: Ensembl 86 for GRCh38 output, Ensembl 75 for GRCh37
+BiocManager::install(c("ensembldb", "EnsDb.Hsapiens.v86", "EnsDb.Hsapiens.v75"), update = FALSE, ask = FALSE)
 
 install.packages(c("locuszoomr", "patchwork"))
 

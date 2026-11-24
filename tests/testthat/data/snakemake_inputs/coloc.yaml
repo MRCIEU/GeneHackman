@@ -1,3 +1,6 @@
+# All three kinds of LD source and their precedence (GWAS > step > top level):
+#   first GWAS:  1000 Genomes for the strand check, clumping and fine-mapping; Pan-UKB LD for its regional plot
+#   second GWAS: "its own genotypes" (here the 1000 Genomes EUR panel given as a PLINK prefix) for every step
 gwases:
   - file: tests/testthat/data/test_data_small.tsv.gz
     columns: {}
@@ -6,6 +9,10 @@ gwases:
     columns: {}
     build: GRCh38
     ancestry: EUR
+    ld_reference: $PIPELINE_DATA_DIR/genomic_data/1000genomes/b38_dbsnp156/{ancestry}
 plink_clump_arguments: "--clump-p1 0.00000005"
 populate_rsid: false
 is_test: true
+ld_reference: 1000genomes
+locus_zoom:
+  ld_reference: pan_ukb

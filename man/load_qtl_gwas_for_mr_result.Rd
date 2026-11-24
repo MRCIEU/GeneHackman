@@ -4,7 +4,11 @@
 \alias{load_qtl_gwas_for_mr_result}
 \title{Load the QTL GWAS file for an MR result row}
 \usage{
-load_qtl_gwas_for_mr_result(mr_result, qtl_dataset)
+load_qtl_gwas_for_mr_result(
+  mr_result,
+  qtl_dataset,
+  build = reference_builds$GRCh38
+)
 }
 \description{
 Load the QTL GWAS file for an MR result row

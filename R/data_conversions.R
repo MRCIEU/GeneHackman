@@ -31,27 +31,40 @@ gene_name_to_ensembl_id <- function(gwas) {
 #' and alleles in canonical (alphabetically sorted) order from \code{standardise_alleles}.
 #' Only reads the lightweight \code{.frq} file; the \code{.bim} is not needed.
 #'
-#' @param gwas Standardised GWAS tibble with RSID, EA, OA columns.
-#' @param ancestry One of EUR, EAS, AFR, AMR, SAS matching the reference panel prefix.
+#' With \code{ld_reference = "pan_ukb"}, EAF comes from the Pan-UKB LD pack instead, matched on the
+#' GeneHackman SNP key (\code{CHR:BP_EA_OA}, canonical allele order) in \code{build}; no RSIDs needed.
+#'
+#' @param gwas Standardised GWAS tibble with RSID, EA, OA columns (SNP for pan_ukb).
+#' @param ancestry One of EUR, EAS, AFR, AMR, SAS matching the reference panel prefix
+#'   (pan_ukb: EUR, AFR, AMR, CSA or SAS, EAS, MID).
+#' @param ld_reference "1000genomes" (default), "pan_ukb", or the PLINK prefix of the user's own genotypes
+#' @param build reference build of the GWAS positions: the SNP key column for pan_ukb, the 1000 Genomes
+#'   panel for 1000genomes
 #' @export
-populate_eaf_from_reference_panel <- function(gwas, ancestry) {
+populate_eaf_from_reference_panel <- function(gwas, ancestry, ld_reference = ld_reference_options$thousand_genomes,
+                                              build = reference_builds$GRCh38) {
   if ("EAF" %in% colnames(gwas) && !all(is.na(gwas$EAF))) {
     if (sum(is.na(gwas$EAF)) == 0) {
       message("EAF column already fully populated; skipping reference panel lookup.")
       return(gwas)
     }
   }
+  if (is_ld_genotypes(ld_reference)) {
+    return(populate_eaf_from_genotypes(gwas, ld_reference))
+  }
+  if (validate_ld_reference(ld_reference) == ld_reference_options$pan_ukb) {
+    return(populate_eaf_from_ld_pack(gwas, ancestry, build))
+  }
 
   allowed <- c("EUR", "EAS", "AFR", "AMR", "SAS")
   if (!ancestry %in% allowed) {
     stop("ancestry must be one of: ", paste(allowed, collapse = ", "))
   }
-  frq_path <- paste0(file.path(thousand_genomes_dir, ancestry), ".frq")
+  panel <- file.path(thousand_genomes_dir_for(build, check = TRUE), ancestry)
+  frq_path <- paste0(panel, ".frq")
   if (!file.exists(frq_path)) {
     stop("LD reference .frq not found: ", frq_path,
-         "\nGenerate with: plink --bfile ",
-         file.path(thousand_genomes_dir, ancestry), " --freq --out ",
-         file.path(thousand_genomes_dir, ancestry))
+         "\nGenerate with: plink --bfile ", panel, " --freq --out ", panel)
   }
 
   if (!"RSID" %in% colnames(gwas) || all(is.na(gwas$RSID))) {
@@ -113,22 +126,65 @@ populate_eaf_from_reference_panel <- function(gwas, ancestry) {
   gwas
 }
 
+#' Fill missing EAF from the user's own genotypes (a PLINK prefix), matching on GeneHackman SNP keys.
+#'
+#' The GWAS's SNP keys are in canonical allele order with EA first while it is standardised, so the frequency of
+#' the key's first allele is the EAF.
+#' @keywords internal
+populate_eaf_from_genotypes <- function(gwas, bfile) {
+  if (!"EAF" %in% names(gwas)) gwas$EAF <- NA_real_
+  need <- which(is.na(gwas$EAF))
+  if (length(need) == 0L) return(gwas)
+  reference <- genotype_allele_frequencies(bfile, unique(gwas$CHR[need]))
+  eaf <- reference$REF_EAF[match(toupper(as.character(gwas$SNP[need])), toupper(reference$SNP))]
+  gwas$EAF[need] <- eaf
+  n_fill <- sum(!is.na(eaf))
+  message("EAF population (", basename(bfile), " genotypes): filled ", n_fill, " of ", length(need),
+          " missing values; ", length(need) - n_fill, " still missing.")
+  gwas
+}
+
+#' Fill missing EAF from the Pan-UKB LD pack, matching on GeneHackman SNP keys.
+#' @keywords internal
+populate_eaf_from_ld_pack <- function(gwas, ancestry, build = reference_builds$GRCh38,
+                                      pack_dir = default_ld_pack_dir()) {
+  if (!"EAF" %in% names(gwas)) gwas$EAF <- NA_real_
+  need <- which(is.na(gwas$EAF))
+  if (length(need) == 0L) return(gwas)
+  key_column <- ld_pack_key_column(build)
+  snp <- toupper(as.character(gwas$SNP))
+  chr <- as.character(gwas$CHR)
+  n_fill <- 0L
+  for (chrom in intersect(unique(chr[need]), ld_pack_chromosomes(ancestry, pack_dir))) {
+    rows <- need[chr[need] == chrom]
+    variants <- load_ld_pack_variants(chrom, ancestry, pack_dir)
+    eaf <- variants$EAF[match(snp[rows], variants[[key_column]])]
+    gwas$EAF[rows] <- eaf
+    n_fill <- n_fill + sum(!is.na(eaf))
+  }
+  message("EAF population (", ancestry, ", Pan-UKB LD pack): filled ", n_fill, " of ", length(need),
+          " missing values; ", length(need) - n_fill, " still missing.")
+  gwas
+}
+
 #' populate_rsid: populate the RSID column from the SNP column
 #' @param gwas dataframe with the following columns: SNP
 #' @param option option to populate the RSID column
+#' @param build reference build of the CHR/BP positions in \code{gwas} (one of \code{reference_builds});
+#'   RSIDs are looked up in the reference resource for this build. Defaults to GRCh38.
 #' @return gwas with new column RSID
 
 
 #' @export
-populate_rsid <- function(gwas, option = populate_rsid_options$none) {
+populate_rsid <- function(gwas, option = populate_rsid_options$none, build = reference_builds$GRCh38) {
   gc()
   start_time <- Sys.time()
   if (option == populate_rsid_options$none || "RSID" %in% colnames(gwas)) {
     return(gwas)
   } else if (option == populate_rsid_options$partial) {
-    gwas <- populate_partial_rsids(gwas)
+    gwas <- populate_partial_rsids(gwas, build)
   } else if (option == populate_rsid_options$full){
-    gwas <- populate_full_rsids(gwas)
+    gwas <- populate_full_rsids(gwas, build)
   }
   else {
     stop(paste("Invalid RSID population option", option))
@@ -139,23 +195,71 @@ populate_rsid <- function(gwas, option = populate_rsid_options$none) {
   return(gwas)
 }
 
-populate_partial_rsids <- function(gwas) {
+#' Partial RSID population from the 1000 Genomes marker map of the build.
+#' The GRCh37 map is keyed on \code{CHR:BP_A1_A2} identifiers in GRCh37 (\code{HG37}), the GRCh38 map
+#' (1000G 30x) on GRCh38 identifiers (\code{HG38}).  For GRCh38 positions without an \code{HG38} map, the
+#' GRCh37 key is rebuilt from the \code{BP37} column that \code{convert_reference_build_via_liftover()}
+#' keeps when lifting from GRCh37, and looked up in the GRCh37 map.
+#' @keywords internal
+populate_partial_rsids <- function(gwas,
+                                   build = reference_builds$GRCh38,
+                                   marker_to_rsid_file = NULL) {
   message("populating RSIDs based on 1000genomes...")
-  marker_to_rsid_file <- file.path(thousand_genomes_dir, "marker_to_rsid.tsv.gz")
-  chrpos_to_rsid <- vroom::vroom(marker_to_rsid_file, col_select = c("HG37", "RSID"), show_col_types=F)
-  gwas$RSID <- chrpos_to_rsid$RSID[match(gwas$SNP, chrpos_to_rsid$HG37)]
+  if (is.null(marker_to_rsid_file)) {
+    marker_to_rsid_file <- file.path(thousand_genomes_dir_for(build), "marker_to_rsid.tsv.gz")
+    grch37_map <- file.path(thousand_genomes_dir_for(reference_builds$GRCh37), "marker_to_rsid.tsv.gz")
+    if (!file.exists(marker_to_rsid_file) && build == reference_builds$GRCh38 && "BP37" %in% colnames(gwas) &&
+        file.exists(grch37_map)) {
+      marker_to_rsid_file <- grch37_map
+    }
+  }
+  if (!file.exists(marker_to_rsid_file)) {
+    stop("1000 Genomes marker map not found: ", marker_to_rsid_file,
+         ". Download it with ./download_reference_data.sh",
+         if (build == reference_builds$GRCh37) " --grch37" else "", ", or set populate_rsid: true for the full dbSNP lookup.")
+  }
+  marker_columns <- colnames(vroom::vroom(marker_to_rsid_file, n_max = 0, show_col_types = F))
+
+  if (build == reference_builds$GRCh37) {
+    marker_column <- "HG37"
+    gwas_keys <- gwas$SNP
+  } else if (build == reference_builds$GRCh38 && "HG38" %in% marker_columns) {
+    marker_column <- "HG38"
+    gwas_keys <- gwas$SNP
+  } else if (build == reference_builds$GRCh38 && "BP37" %in% colnames(gwas) && "HG37" %in% marker_columns) {
+    marker_column <- "HG37"
+    gwas_keys <- toupper(paste0(gwas$CHR, ":", format(as.numeric(gwas$BP37), scientific = F, trim = T),
+                                "_", gwas$EA, "_", gwas$OA))
+  } else {
+    stop(paste0("Partial RSID population is only available for GRCh37 positions (or GRCh38 positions lifted over ",
+                "from GRCh37). For ", build, " output please set populate_rsid: true to use the full dbSNP lookup."))
+  }
+
+  chrpos_to_rsid <- vroom::vroom(marker_to_rsid_file,
+                                 col_select = dplyr::all_of(c(marker_column, "RSID")),
+                                 show_col_types = F)
+  gwas$RSID <- chrpos_to_rsid$RSID[match(gwas_keys, chrpos_to_rsid[[marker_column]])]
 
   return(gwas)
 }
 
 
-populate_full_rsids <- function(gwas) {
-  build <- rsid_builds$GRCh37
-  dbsnp_dir <- file.path(genomic_data_dir, "dbsnp")
-  if (!build %in% rsid_builds) stop(paste("Error: invalid rsid build option:", build))
+populate_full_rsids <- function(gwas,
+                                build = reference_builds$GRCh38,
+                                dbsnp_dir = file.path(genomic_data_dir, "dbsnp")) {
+  rsid_build <- rsid_builds[[build]]
+  if (is.null(rsid_build)) {
+    stop(paste0("Error: full RSID population is not available for reference build ", build,
+                ". Supported builds: ", paste(names(rsid_builds), collapse = ", ")))
+  }
+  if (!dir.exists(file.path(dbsnp_dir, rsid_build))) {
+    stop(paste0("Error: dbSNP reference for ", build, " not found at ", file.path(dbsnp_dir, rsid_build),
+                ". Download it with ./download_reference_data.sh (without --no-dbsnp",
+                if (build == reference_builds$GRCh37) ", with --grch37" else "", ")."))
+  }
 
   parallel_chr_population <- calculate_parallelism()
-  message(paste0("Using ", parallel_chr_population, " cores for full RSID population"))
+  message(paste0("Using ", parallel_chr_population, " cores for full RSID population (", rsid_build, ")"))
 
   gwas <- data.table::as.data.table(gwas)
   gwas <- chrpos_to_rsid(
@@ -166,7 +270,7 @@ populate_full_rsids <- function(gwas) {
     "OA",
     flip = "allow",
     dbsnp_dir = dbsnp_dir,
-    build = build,
+    build = rsid_build,
     alt_rsids = FALSE,
     parallel_cores=parallel_chr_population
   )

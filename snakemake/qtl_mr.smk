@@ -2,25 +2,39 @@ include: "util/common.smk"
 container: get_docker_container()
 
 pipeline_name = "qtl_mr"
-pipeline = parse_pipeline_input(pipeline_includes_clumping=True)
+# The QTL data are GRCh38 only; GWASes in GRCh37 are lifted to GRCh38 during standardisation
+pipeline = parse_pipeline_input(pipeline_includes_clumping=True, output_builds=["GRCh38"],
+                                output_builds_reason="The QTL data are GRCh38 only; GWASes in GRCh37 are lifted "
+                                                     "to GRCh38 during standardisation.",
+                                ld_steps=["finemap"])
 gwas = pipeline.gwases[0]
 
 onstart:
     print("##### QTL MR Pipeline #####")
 
-ancestries = list([g.ancestry for g in pipeline.gwases])
-validate_ancestries(ancestries)
-
-finemap_opts = getattr(pipeline, "finemap", SimpleNamespace())
-finemap_window_kb = getattr(finemap_opts, "window_kb", 1000)
-finemap_max_causal = getattr(finemap_opts, "max_causal", 10)
-finemap_coverage = getattr(finemap_opts, "coverage", 0.95)
-finemap_min_abs_corr = getattr(finemap_opts, "min_abs_corr", 0.5)
+finemap_opts = pipeline.finemap  # defaults set in parse_pipeline_input
+finemap_window_kb = finemap_opts.window_kb
+finemap_max_causal = finemap_opts.max_causal
+finemap_coverage = finemap_opts.coverage
+finemap_min_abs_corr = finemap_opts.min_abs_corr
+finemap_max_region_kb = finemap_opts.max_region_kb
 
 qtl_opts = getattr(pipeline, "qtl", SimpleNamespace())
-study_type = gwas.study_type
+# The coloc step converts the QTL summary statistics (not the GWAS) to log Bayes factors,
+# so the study type and fallback sample size are properties of the QTL dataset.
+qtl_study_type = getattr(qtl_opts, "study_type", "continuous")
+if qtl_study_type not in ("continuous", "categorical"):
+    raise ValueError(f"qtl.study_type must be 'continuous' or 'categorical', not '{qtl_study_type}'")
+qtl_n = getattr(qtl_opts, "N", 0)
 
-qtl_name = pipeline.qtl.dataset + "_" + pipeline.qtl.subcategory
+qtl_dataset = getattr(qtl_opts, "dataset", "")
+if qtl_dataset not in qtl_dataset_options:
+    stop_with_message(f"qtl.dataset must be one of {', '.join(qtl_dataset_options)}, not '{qtl_dataset}'.")
+# Only cis QTLs are supported; subcategory is optional and kept for older input files
+if (getattr(qtl_opts, "subcategory", None) or qtl_subcategory) != qtl_subcategory:
+    raise ValueError(f"qtl.subcategory: only '{qtl_subcategory}' QTLs are supported, not '{qtl_opts.subcategory}'")
+qtl_name = qtl_dataset + "_" + qtl_subcategory
+check_reference_data(pipeline, pipeline_includes_clumping=True, qtl_dataset=qtl_dataset)
 if not hasattr(pipeline.qtl, "exposures"): pipeline.qtl.exposures = []
 exposures_string = " ".join(pipeline.qtl.exposures)
 
@@ -55,16 +69,14 @@ rule run_mr_against_qtl_datasets:
     input:
         gwas = gwas.standardised_gwas
     params:
-        ancestry = gwas.ancestry,
         exposures = f"--exposures {exposures_string}" if exposures_string else ""
     output: mr_results
     shell:
         """
         Rscript run_mr_against_qtl_data.R \
             --gwas_filename {input.gwas} \
-            --ancestry {params.ancestry} \
-            --dataset {pipeline.qtl.dataset} \
-            --subcategory {pipeline.qtl.subcategory} {params.exposures} \
+            --dataset {qtl_dataset} {params.exposures} \
+            --build {pipeline.output.build} \
             --output_file {output}
         """
 
@@ -78,7 +90,7 @@ rule create_volcano_plot_of_mr_results:
         """
         Rscript volcano.R \
             --results_filename {input} \
-            --title "Volcano Plot of MR results against {pipeline.qtl.dataset}" \
+            --title "Volcano Plot of MR results against {qtl_dataset} cis QTLs" \
             --output_file {output}
         """
 
@@ -91,8 +103,11 @@ rule run_coloc_analysis_of_significant_mr_results:
         finemap_complete = expand(FINEMAP_COMPLETE_TXT_PATTERN, prefix=[gwas_prefix])
     params:
         finemap_dir = gwas.finemap_dir,
-        N = gwas.N,
-        study_type = study_type,
+        N = qtl_n,
+        study_type = qtl_study_type,
+        p1 = pipeline.coloc.p1,
+        p2 = pipeline.coloc.p2,
+        p12 = pipeline.coloc.p12,
         exposures = f"--exposures {exposures_string}" if exposures_string else ""
     output: coloc_results
     shell:
@@ -102,7 +117,11 @@ rule run_coloc_analysis_of_significant_mr_results:
             --finemap_dir {params.finemap_dir} \
             --N {params.N} \
             --study_type {params.study_type} \
-            --dataset {pipeline.qtl.dataset} {params.exposures} \
+            --p1 {params.p1} \
+            --p2 {params.p2} \
+            --p12 {params.p12} \
+            --dataset {qtl_dataset} {params.exposures} \
+            --build {pipeline.output.build} \
             --output_file {output}
         """
 

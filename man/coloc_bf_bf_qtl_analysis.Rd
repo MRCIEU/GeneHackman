@@ -12,7 +12,10 @@ coloc_bf_bf_qtl_analysis(
   bp,
   study_type = "continuous",
   default_n = NA,
-  range_bp = 1e+06
+  range_bp = 1e+06,
+  p1 = 1e-04,
+  p2 = 1e-04,
+  p12 = 5e-06
 )
 }
 \arguments{
@@ -26,11 +29,17 @@ coloc_bf_bf_qtl_analysis(
 
 \item{bp}{base position of the MR hit}
 
-\item{study_type}{study type for LBF conversion}
+\item{study_type}{study type of the QTL trait for LBF conversion}
 
-\item{default_n}{default sample size}
+\item{default_n}{sample size of the QTL dataset, used only when \code{qtl_gwas} has no N column}
 
 \item{range_bp}{overlap window in bp (default 1e6 = ±1Mb)}
+
+\item{p1}{prior probability a SNP is associated with the GWAS trait}
+
+\item{p2}{prior probability a SNP is associated with the QTL trait}
+
+\item{p12}{prior probability a SNP is associated with both traits}
 }
 \value{
 tibble with coloc results or NULL

@@ -1,23 +1,14 @@
 source("load.R")
 library(argparser, quietly = TRUE)
 
-parser <- arg_parser("Comparison of expected vs observed replication rates")
+parser <- arg_parser("Mendelian randomization of an outcome GWAS against the cis QTLs of a QTL dataset")
 
 parser <- add_argument(parser, "--gwas_filename",
-                       help = "Comma separated list of GWAS filenames",
-                       type = "character"
-)
-parser <- add_argument(parser, "--ancestry",
-                       help = "Comma separated list of ancestries related to GWAS",
+                       help = "Standardised outcome GWAS",
                        type = "character"
 )
 parser <- add_argument(parser, "--dataset",
                        help = paste(c("QTL dataset, options:", qtl_datasets), collapse = " "),
-                       type = "character",
-                       default = NULL
-)
-parser <- add_argument(parser, "--subcategory",
-                       help = "Subcategory of type of QTL analysis to run (depends on dataset)",
                        type = "character",
                        default = NULL
 )
@@ -26,6 +17,11 @@ parser <- add_argument(parser, "--exposures",
                        type = "character",
                        default = "",
                        nargs = Inf
+)
+parser <- add_argument(parser, "--build",
+                       help = "Reference build of the GWAS; QTL files of the same build are used (GRCh38 or GRCh37)",
+                       type = "character",
+                       default = "GRCh38"
 )
 parser <- add_argument(parser, "--output_file",
                        help = "Output file name of results from MR",
@@ -36,8 +32,4 @@ args <- parse_args(parser)
 create_dir_for_files(args$output_file)
 exposures <- split_string_into_vector(args$exposures)
 
-if (args$dataset == qtl_datasets$metabrain) {
-  perform_mr_on_metabrain_datasets(args$gwas_filename, args$ancestry, args$subcategory, exposures, args$output_file)
-} else if (args$dataset == qtl_datasets$eqtlgen) {
-  perform_mr_on_eqtlgen_datasets(args$gwas_filename, args$subcategory, exposures, args$output_file)
-}
+perform_mr_on_qtl_dataset(args$gwas_filename, args$dataset, exposures, args$output_file, build = args$build)

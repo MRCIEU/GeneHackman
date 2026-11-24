@@ -20,15 +20,13 @@ compare_replication_across_all_gwas_permutations <- function(gwas_filenames = c(
   expected_vs_observed_results <- list()
   expected_vs_observed_variants <- list()
 
-  for (i in seq_along(gwas_filenames)) {
-    for (j in i:length(gwas_filenames)) {
-      j <- j + 1
-      if (j <= length(gwas_filenames)) {
-        result <- compare_two_gwases_from_clumped_hits(gwas_filenames[i], gwas_filenames[j], clumped_filenames[i])
-        expected_vs_observed_results[[i+j]] <- result$res
-        expected_vs_observed_variants[[i+j]] <- result$variants
-      }
-    }
+  # every unordered pair once, with the earlier-listed GWAS (and its clumped hits) as the discovery dataset
+  for (pair in utils::combn(seq_along(gwas_filenames), 2, simplify = FALSE)) {
+    i <- pair[1]
+    j <- pair[2]
+    result <- compare_two_gwases_from_clumped_hits(gwas_filenames[i], gwas_filenames[j], clumped_filenames[i])
+    expected_vs_observed_results <- c(expected_vs_observed_results, list(result$res))
+    expected_vs_observed_variants <- c(expected_vs_observed_variants, list(result$variants))
   }
   merged_results <- do.call("rbind", expected_vs_observed_results)
   merged_variants <- do.call("rbind", expected_vs_observed_variants)
@@ -88,7 +86,8 @@ expected_vs_observed_replication <- function(b_disc, se_disc, b_rep, se_rep, alp
   p_sig <- pnorm(-abs(b_disc) / se_rep + qnorm(alpha / 2)) +
     (1 - pnorm(-abs(b_disc) / se_rep - qnorm(alpha / 2)))
 
-  p_rep <- pnorm(abs(b_rep) / se_rep, lower.tail = FALSE)
+  # two-sided, to match the two-sided threshold used for the expected count (p_sig)
+  p_rep <- 2 * pnorm(abs(b_rep) / se_rep, lower.tail = FALSE)
 
   res <- tibble::tibble(
     N = length(b_disc),
@@ -136,7 +135,8 @@ compare_heterogeneity_across_ancestries <- function(gwas_filenames = c(),
                                                     ancestry_list = c(),
                                                     heterogeneity_score_file,
                                                     heterogeneity_plot_file,
-                                                    heterogeneity_plots_per_snp_file) {
+                                                    heterogeneity_plots_per_snp_file,
+                                                    labels = NULL) {
 
   if (length(gwas_filenames) < 2) {
     empty_dataframe <- data.frame(SNP=c())
@@ -150,10 +150,10 @@ compare_heterogeneity_across_ancestries <- function(gwas_filenames = c(),
   clumped_snps <- data.table::rbindlist(lapply(clumped_filenames, data.table::fread))$SNP
   clumped_snps <- unique(clumped_snps)
 
-  dataset_labels <- make.unique(
-    vapply(gwas_filenames, dataset_label_from_gwas_path, character(1)),
-    sep = "_"
-  )
+  if (is.null(labels) || length(labels) != length(gwas_filenames)) {
+    labels <- vapply(gwas_filenames, dataset_label_from_gwas_path, character(1))
+  }
+  dataset_labels <- make.unique(unname(labels), sep = "_")
 
   gwases <- lapply(gwas_filenames, function(gwas_filename) {
     get_file_or_dataframe(gwas_filename, columns = comparison_columns) |>
@@ -243,4 +243,95 @@ fixed_effects_meta_analysis <- function(betas, standard_errors) {
   Qpval <- stats::pchisq(Q, Qdf, lower.tail=FALSE)
 
   return(list(beta=beta, se=se, Qpval=Qpval, Qj=Qj, Qjpval=Qjpval))
+}
+
+
+#' Parse an LDSC --h2 log.
+#'
+#' @param log_file LDSC log file
+#' @return one-row data.frame: H2_OBS, H2_OBS_SE, H2_LIAB, H2_LIAB_SE (NA unless prevalences were given),
+#'   LAMBDA_GC, MEAN_CHISQ, INTERCEPT, INTERCEPT_SE, RATIO, RATIO_SE and RATIO_NOTE (e.g. LDSC's
+#'   "Ratio < 0 (usually indicates GC correction)")
+#' @export
+parse_ldsc_h2_log <- function(log_file) {
+  log_lines <- readLines(log_file, warn = FALSE)
+  value_and_se <- function(label) {
+    line <- grep(paste0("^", label, ":"), log_lines, value = TRUE)
+    if (length(line) == 0) return(c(NA_real_, NA_real_))
+    after_label <- sub("^[^:]*:", "", line[1])
+    numbers <- regmatches(after_label, gregexpr("-?[0-9.]+(e-?[0-9]+)?|nan|NA", after_label, ignore.case = TRUE))[[1]]
+    as.numeric(suppressWarnings(c(numbers[1], if (length(numbers) > 1) numbers[2] else NA)))
+  }
+  observed <- value_and_se("Total Observed scale h2")
+  liability <- value_and_se("Total Liability scale h2")
+  intercept <- value_and_se("Intercept")
+  ratio <- value_and_se("Ratio")
+  ratio_line <- grep("^Ratio", log_lines, value = TRUE)
+  data.frame(
+    H2_OBS = observed[1], H2_OBS_SE = observed[2],
+    H2_LIAB = liability[1], H2_LIAB_SE = liability[2],
+    LAMBDA_GC = value_and_se("Lambda GC")[1], MEAN_CHISQ = value_and_se("Mean Chi\\^2")[1],
+    INTERCEPT = intercept[1], INTERCEPT_SE = intercept[2],
+    RATIO = ratio[1], RATIO_SE = ratio[2],
+    RATIO_NOTE = if (length(ratio_line) > 0 && !grepl("^Ratio:", ratio_line[1])) trimws(ratio_line[1]) else NA_character_
+  )
+}
+
+#' Parse the "Summary of Genetic Correlation Results" table of an LDSC --rg log.
+#' @param log_file LDSC log file
+#' @return data.frame with one row per pair (p1, p2, rg, se, z, p and the h2 / intercept columns LDSC prints)
+#' @export
+parse_ldsc_rg_log <- function(log_file) {
+  log_lines <- readLines(log_file, warn = FALSE)
+  start <- grep("^Summary of Genetic Correlation Results", log_lines)
+  if (length(start) == 0) return(data.frame())
+  table_lines <- log_lines[(start[1] + 1):length(log_lines)]
+  end <- which(!nzchar(trimws(table_lines)))
+  if (length(end) > 0) table_lines <- table_lines[seq_len(end[1] - 1)]
+  if (length(table_lines) < 2) return(data.frame())
+  utils::read.table(text = table_lines, header = TRUE, stringsAsFactors = FALSE, na.strings = c("NA", "nan"))
+}
+
+#' Tables of LDSC heritability and genetic correlation results, with reliability flags.
+#'
+#' Heritability: the z-score of the estimate (H2_Z; observed scale, or liability scale when LDSC reports only that) and a flag when it is below 4, the threshold
+#' below which genetic correlations are unreliable (Zheng et al. 2017, LD Hub).  Genetic correlation: a flag
+#' when |rg| > 1 or when either trait's H2_Z is below 4; RG_RELIABLE is FALSE in either case, and such
+#' estimates should not be interpreted.  For binary traits with prevalences, H2_LIAB is the liability-scale
+#' heritability (with effective N and a sample prevalence of 0.5; Grotzinger et al. 2023).
+#'
+#' @param h2_logs LDSC --h2 logs, one per GWAS in the order of \code{sumstats}
+#' @param rg_logs LDSC --rg logs
+#' @param sumstats munged sumstats file of each GWAS (to name the traits in the --rg tables)
+#' @param labels trait labels, in the order of \code{sumstats}
+#' @param ancestry ancestry of the LD scores
+#' @param population_prevalences population prevalence used for each trait (NA or "nan" for none)
+#' @return list with \code{h2} and \code{rg} data.frames
+#' @export
+ldsc_results_tables <- function(h2_logs, rg_logs, sumstats, labels = basename(sumstats), ancestry = NA_character_,
+                                population_prevalences = rep(NA, length(sumstats))) {
+  population_prevalences <- suppressWarnings(as.numeric(population_prevalences))
+  h2 <- do.call(rbind, lapply(h2_logs, parse_ldsc_h2_log))
+  h2 <- cbind(data.frame(ANCESTRY = ancestry, TRAIT = labels, POP_PREV = population_prevalences), h2)
+  # LDSC prints only the liability-scale estimate when prevalences are given; the z-score is the same on both
+  # scales (the conversion multiplies the estimate and its SE by the same constant)
+  h2$H2_Z <- ifelse(is.na(h2$H2_OBS), h2$H2_LIAB / h2$H2_LIAB_SE, h2$H2_OBS / h2$H2_OBS_SE)
+  h2$FLAG_LOW_H2_Z <- is.na(h2$H2_Z) | h2$H2_Z < 4
+  h2$FLAG_RATIO <- !is.na(h2$RATIO_NOTE)
+
+  rg <- do.call(rbind, lapply(rg_logs, parse_ldsc_rg_log))
+  if (is.null(rg) || nrow(rg) == 0) {
+    return(list(h2 = h2, rg = data.frame()))
+  }
+  trait_of <- function(path) labels[match(basename(path), basename(sumstats))]
+  h2_z <- stats::setNames(h2$H2_Z, labels)
+  rg <- data.frame(ANCESTRY = ancestry, TRAIT_1 = trait_of(rg$p1), TRAIT_2 = trait_of(rg$p2),
+                   RG = rg$rg, RG_SE = rg$se, RG_Z = rg$z, RG_P = rg$p,
+                   GCOV_INTERCEPT = rg$gcov_int %||% NA_real_, GCOV_INTERCEPT_SE = rg$gcov_int_se %||% NA_real_)
+  rg$H2_Z_1 <- unname(h2_z[rg$TRAIT_1])
+  rg$H2_Z_2 <- unname(h2_z[rg$TRAIT_2])
+  rg$FLAG_RG_OUT_OF_BOUNDS <- !is.na(rg$RG) & abs(rg$RG) > 1
+  rg$FLAG_LOW_H2_Z <- is.na(rg$H2_Z_1) | is.na(rg$H2_Z_2) | rg$H2_Z_1 < 4 | rg$H2_Z_2 < 4
+  rg$RG_RELIABLE <- !is.na(rg$RG) & !rg$FLAG_RG_OUT_OF_BOUNDS & !rg$FLAG_LOW_H2_Z
+  list(h2 = h2, rg = rg)
 }
